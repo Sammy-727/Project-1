@@ -1,0 +1,63 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>{{ title or app_name }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body>
+
+{% if current_user.get("user_id") %}
+<div class="layout">
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-icon">H</div>
+            <div>
+                <h2>{{ app_name }}</h2>
+                <p>{{ app_name }}</p>
+            </div>
+        </div>
+
+        <div class="user-card">
+            <strong>{{ current_user.username }}</strong>
+            <span>{{ current_user.role }}</span>
+        </div>
+
+        <nav>
+            <a href="{{ url_for('dashboard') }}">📊 Dashboard</a>
+            <a href="{{ url_for('manage') }}">🗂 Manage</a>
+            <a href="{{ url_for('operations') }}">⚙️ Operations</a>
+            {% if current_user.role in ["Admin", "Manager"] %}
+            <a href="{{ url_for('admin') }}">🔐 Admin</a>
+            {% endif %}
+            <a class="logout" href="{{ url_for('logout') }}">🚪 Logout</a>
+        </nav>
+    </aside>
+
+    <main class="content">
+        <header class="topbar">
+    <div>
+        <h1>{{ title or app_name }}</h1>
+    </div>
+</header>
+{% endif %}
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, msg in messages %}
+        <div class="alert {{ category }}">{{ msg }}</div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+
+{% if current_user.get("user_id") %}
+    </main>
+</div>
+{% endif %}
+
+</body>
+</html>

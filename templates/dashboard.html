@@ -1,0 +1,59 @@
+
+{% extends "base.html" %}
+{% set title = "Dashboard" %}
+{% block content %}
+
+<section class="hero">
+    <div>
+        <h2>Welcome, {{ current_user.username }} 👋</h2>
+        <p>Here is today's {{ app_name }} overview.</p>
+    </div>
+    <div class="hero-total">
+        <span>Total Revenue</span>
+        <strong>₹{{ "%.2f"|format(stats.revenue) }}</strong>
+    </div>
+</section>
+
+<div class="cards">
+    <div class="card blue"><span>Total Rooms</span><h2>{{ stats.total_rooms }}</h2></div>
+    <div class="card green"><span>Available</span><h2>{{ stats.available }}</h2></div>
+    <div class="card red"><span>Occupied</span><h2>{{ stats.occupied }}</h2></div>
+    <div class="card purple"><span>Bookings</span><h2>{{ stats.active_bookings }}</h2></div>
+    <div class="card gold"><span>Employees</span><h2>{{ stats.employees }}</h2></div>
+</div>
+
+<div class="grid-2">
+    <div class="panel">
+        <div class="panel-head">
+            <h3>Low Stock</h3>
+            <span>Inventory alert</span>
+        </div>
+
+        {% if low_stock %}
+        <table>
+            <tr><th>Item</th><th>Qty</th><th>Reorder</th></tr>
+            {% for i in low_stock %}
+            <tr><td>{{ i.item_name }}</td><td><b class="danger">{{ i.quantity }}</b></td><td>{{ i.reorder_level }}</td></tr>
+            {% endfor %}
+        </table>
+        {% else %}
+        <p class="empty">No low stock items.</p>
+        {% endif %}
+    </div>
+
+    <div class="panel">
+        <div class="panel-head">
+            <h3>Recent Bookings</h3>
+            <span>Latest activity</span>
+        </div>
+
+        <table>
+            <tr><th>ID</th><th>Customer</th><th>Room</th><th>Status</th></tr>
+            {% for b in recent_bookings %}
+            <tr><td>#{{ b.id }}</td><td>{{ b.name }}</td><td>{{ b.room_no }} {{ b.category }}</td><td><span class="badge">{{ b.status }}</span></td></tr>
+            {% endfor %}
+        </table>
+    </div>
+</div>
+
+{% endblock %}

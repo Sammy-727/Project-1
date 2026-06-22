@@ -1,0 +1,23 @@
+
+{% extends "base.html" %}
+{% block content %}
+<div class="login-page">
+    <div class="login-box">
+        <div class="login-logo">H</div>
+        <h1>{{ app_name }}</h1>
+        <p>Login to continue</p>
+
+        <form method="post">
+            <input name="username" placeholder="Username" required>
+            <input name="password" type="password" placeholder="Password" required>
+            <button>Login</button>
+        </form>
+
+        <small>
+            admin / admin123<br>
+            manager / manager123<br>
+            reception / rec123
+        </small>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,52 @@
+
+{% extends "base.html" %}
+{% set title = "Admin" %}
+{% block content %}
+
+<div class="quick-tabs">
+    <a href="#employees">Employees</a>
+    <a href="#users">Users</a>
+</div>
+
+<section id="employees" class="panel section">
+    <div class="panel-head"><h3>Employees</h3><span>Staff records</span></div>
+
+    <form class="form-grid" method="post" action="{{ url_for('add_employee') }}">
+        <input name="name" placeholder="Name" required>
+        <input name="phone" placeholder="Phone">
+        <input name="email" placeholder="Email">
+        <input name="designation" placeholder="Designation">
+        <input name="salary" placeholder="Salary">
+        <input name="shift" placeholder="Shift">
+        <select name="status"><option>Active</option><option>Inactive</option></select>
+        <button>Add</button>
+    </form>
+
+    <table>
+        <tr><th>Name</th><th>Phone</th><th>Email</th><th>Designation</th><th>Salary</th><th>Shift</th><th>Status</th></tr>
+        {% for e in employees %}
+        <tr><td>{{ e.name }}</td><td>{{ e.phone }}</td><td>{{ e.email }}</td><td>{{ e.designation }}</td><td>₹{{ e.salary }}</td><td>{{ e.shift }}</td><td><span class="badge">{{ e.status }}</span></td></tr>
+        {% endfor %}
+    </table>
+</section>
+
+<section id="users" class="panel section">
+    <div class="panel-head"><h3>Users</h3><span>Role based access</span></div>
+
+    <form class="form-grid" method="post" action="{{ url_for('add_user') }}">
+        <input name="username" placeholder="Username" required>
+        <input name="password" placeholder="Password" required>
+        <select name="role"><option>Admin</option><option>Manager</option><option>Receptionist</option></select>
+        <select name="status"><option>Active</option><option>Inactive</option></select>
+        <button>Add User</button>
+    </form>
+
+    <table>
+        <tr><th>Username</th><th>Role</th><th>Status</th></tr>
+        {% for u in users %}
+        <tr><td>{{ u.username }}</td><td>{{ u.role }}</td><td><span class="badge">{{ u.status }}</span></td></tr>
+        {% endfor %}
+    </table>
+</section>
+
+{% endblock %}

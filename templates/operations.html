@@ -1,0 +1,93 @@
+
+{% extends "base.html" %}
+{% set title = "Operations" %}
+{% block content %}
+
+<div class="quick-tabs">
+    <a href="#service">Room Service</a>
+    <a href="#billing">Billing</a>
+    <a href="#reports">Reports</a>
+</div>
+
+<section id="service" class="panel section">
+    <div class="panel-head"><h3>Room Service</h3></div>
+
+    {% if bookings %}
+    <form class="form-grid" method="post" action="{{ url_for('add_service') }}">
+        <select name="booking_id" required>
+            <option value="">Select Booking</option>
+            {% for b in bookings %}
+            <option value="{{ b.id }}">Booking {{ b.id }} - {{ b.name }} - Room {{ b.room_no }}</option>
+            {% endfor %}
+        </select>
+
+        <select name="item_id" required>
+            <option value="">Select Item</option>
+            {% for i in items %}
+            <option value="{{ i.id }}">{{ i.item_name }} - Stock {{ i.quantity }} - ₹{{ i.price }}</option>
+            {% endfor %}
+        </select>
+
+        <input type="number" name="quantity" min="1" placeholder="Qty" required>
+        <button>Add Service</button>
+    </form>
+    {% else %}
+    <p class="empty">No active booking found. Create a booking first.</p>
+    {% endif %}
+
+    <table>
+        <tr><th>Booking</th><th>Item</th><th>Qty</th><th>Amount</th><th>Date</th></tr>
+        {% for u in usage %}
+        <tr><td>#{{ u.booking_id }}</td><td>{{ u.item_name }}</td><td>{{ u.quantity }}</td><td>₹{{ u.amount }}</td><td>{{ u.usage_date }}</td></tr>
+        {% endfor %}
+    </table>
+</section>
+
+<section id="billing" class="panel section">
+    <div class="panel-head"><h3>Billing</h3></div>
+
+    {% if billing_bookings %}
+    <table>
+        <tr><th>Booking</th><th>Customer</th><th>Room</th><th>Price</th><th>Dates</th><th>Checkout</th></tr>
+        {% for b in billing_bookings %}
+        <tr>
+            <td>#{{ b.id }}</td>
+            <td>{{ b.name }}</td>
+            <td>{{ b.room_no }} {{ b.category }}</td>
+            <td>₹{{ b.price }}</td>
+            <td>{{ b.checkin }} → {{ b.checkout }}</td>
+            <td>
+                <form class="inline-form" method="post" action="{{ url_for('checkout', booking_id=b.id) }}">
+                    <input name="discount" type="number" min="0" value="0">
+                    <button class="small-btn">Checkout</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <p class="empty">No active bookings available for checkout.</p>
+    {% endif %}
+</section>
+
+<section id="reports" class="panel section">
+    <div class="panel-head">
+        <h3>Reports</h3>
+        <span>Total Revenue: ₹{{ "%.2f"|format(revenue) }}</span>
+    </div>
+
+    <a class="export-btn" href="{{ url_for('export_reports') }}">Export CSV</a>
+
+    <table>
+        <tr><th>Bill</th><th>Customer</th><th>Room</th><th>Room ₹</th><th>Service ₹</th><th>Tax</th><th>Discount</th><th>Total</th><th>Date</th></tr>
+        {% for b in bills %}
+        <tr>
+            <td>#{{ b.id }}</td><td>{{ b.name }}</td><td>{{ b.room_no }}</td>
+            <td>₹{{ b.room_charges }}</td><td>₹{{ b.service_charges }}</td><td>₹{{ b.tax }}</td>
+            <td>₹{{ b.discount }}</td><td><b>₹{{ b.total }}</b></td><td>{{ b.bill_date }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</section>
+
+{% endblock %}
