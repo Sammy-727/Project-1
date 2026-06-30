@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% set title = "Employees" %}
+{% block content %}
+
+<div class="page-actions">
+    <form class="filter-bar" method="get">
+        <input type="search" name="q" placeholder="Search employees..." value="{{ search_q }}">
+        <button type="submit" class="btn btn-secondary btn-sm">Search</button>
+    </form>
+    <button class="btn btn-primary modal-trigger" data-target="#addEmployeeModal">+ Add Employee</button>
+</div>
+
+<div class="panel">
+    {% if employees %}
+    <table class="data-table">
+        <thead><tr><th>Name</th><th>Role</th><th>Department</th><th>Phone</th><th>Email</th><th>Salary</th><th>Joined</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>
+        {% for e in employees %}
+        <tr>
+            <td><strong>{{ e.name }}</strong></td>
+            <td>{{ e.role or e.designation }}</td>
+            <td>{{ e.department or '—' }}</td>
+            <td>{{ e.phone or '—' }}</td>
+            <td>{{ e.email or '—' }}</td>
+            <td>₹{{ "{:,.0f}".format(e.salary or 0) }}</td>
+            <td>{{ e.joining_date or '—' }}</td>
+            <td><span class="badge badge-{{ e.status }}">{{ e.status }}</span></td>
+            <td>
+                <button class="btn btn-secondary btn-sm modal-trigger" data-target="#editEmp{{ e.id }}">Edit</button>
+                <form class="inline-form" method="post" action="{{ url_for('delete_employee', emp_id=e.id) }}" data-confirm="Delete {{ e.name }}?">
+                    <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state"><div class="empty-icon">👔</div><p>No employees found.</p></div>
+    {% endif %}
+</div>
+
+<div class="modal" id="addEmployeeModal">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <button class="modal-close">✕</button>
+        <h3>Add Employee</h3>
+        <form method="post" action="{{ url_for('add_employee') }}">
+            <div class="form-grid">
+                <input name="name" placeholder="Full Name" required>
+                <input name="phone" placeholder="Phone">
+                <input name="email" type="email" placeholder="Email">
+                <select name="role" required>
+                    {% for r in roles if r not in ['Super Admin'] %}<option>{{ r }}</option>{% endfor %}
+                </select>
+                <select name="department">
+                    <option value="">Department</option>
+                    {% for d in departments %}<option>{{ d }}</option>{% endfor %}
+                </select>
+                <input name="salary" type="number" placeholder="Salary" min="0">
+                <input name="shift" placeholder="Shift">
+                <input name="joining_date" type="date" placeholder="Joining Date">
+                <select name="status"><option>Active</option><option>Inactive</option></select>
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top:16px">Add Employee</button>
+        </form>
+    </div>
+</div>
+
+{% for e in employees %}
+<div class="modal" id="editEmp{{ e.id }}">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <button class="modal-close">✕</button>
+        <h3>Edit Employee</h3>
+        <form method="post" action="{{ url_for('update_employee', emp_id=e.id) }}">
+            <div class="form-grid">
+                <input name="name" value="{{ e.name }}" required>
+                <input name="phone" value="{{ e.phone or '' }}">
+                <input name="email" value="{{ e.email or '' }}">
+                <select name="role">
+                    {% for r in roles if r != 'Super Admin' %}
+                    <option {% if (e.role or e.designation) == r %}selected{% endif %}>{{ r }}</option>
+                    {% endfor %}
+                </select>
+                <select name="department">
+                    <option value="">Department</option>
+                    {% for d in departments %}
+                    <option {% if e.department == d %}selected{% endif %}>{{ d }}</option>
+                    {% endfor %}
+                </select>
+                <input name="salary" type="number" value="{{ e.salary or 0 }}">
+                <input name="shift" value="{{ e.shift or '' }}">
+                <input name="joining_date" type="date" value="{{ e.joining_date or '' }}">
+                <select name="status">
+                    <option {% if e.status == 'Active' %}selected{% endif %}>Active</option>
+                    <option {% if e.status == 'Inactive' %}selected{% endif %}>Inactive</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top:16px">Save</button>
+        </form>
+    </div>
+</div>
+{% endfor %}
+
+{% endblock %}

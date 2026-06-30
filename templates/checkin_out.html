@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% set title = "Check In / Out" %}
+{% block content %}
+
+<div class="grid-2">
+    <div class="panel">
+        <div class="panel-head">
+            <h3>📥 Today's Arrivals</h3>
+            <span>{{ today }}</span>
+        </div>
+        {% if arrivals %}
+        <table class="data-table">
+            <thead><tr><th>Booking</th><th>Guest</th><th>Room</th><th>Check-in</th><th>Action</th></tr></thead>
+            <tbody>
+            {% for b in arrivals %}
+            <tr>
+                <td>#{{ b.id }}</td>
+                <td>{{ b.customer_name }}<br><small>{{ b.phone }}</small></td>
+                <td>{{ b.room_no }} {{ b.room_type }}</td>
+                <td>{{ b.checkin }}</td>
+                <td>
+                    <form method="post" action="{{ url_for('checkin', booking_id=b.id) }}">
+                        <button type="submit" class="btn btn-success btn-sm">Check In</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state"><div class="empty-icon">📥</div><p>No arrivals pending check-in.</p></div>
+        {% endif %}
+    </div>
+
+    <div class="panel">
+        <div class="panel-head">
+            <h3>🏨 Active Stays</h3>
+            <span>{{ active_stays|length }} guests</span>
+        </div>
+        {% if active_stays %}
+        <table class="data-table">
+            <thead><tr><th>Booking</th><th>Guest</th><th>Room</th><th>Balance</th><th>Check-out</th><th>Action</th></tr></thead>
+            <tbody>
+            {% for b in active_stays %}
+            <tr>
+                <td>#{{ b.id }}</td>
+                <td>{{ b.customer_name }}</td>
+                <td>{{ b.room_no }}</td>
+                <td>
+                    {% if b.balance > 0 %}
+                    <span class="danger">₹{{ "{:,.0f}".format(b.balance) }}</span>
+                    {% else %}
+                    <span class="badge badge-Paid">Paid</span>
+                    {% endif %}
+                </td>
+                <td>{{ b.checkout }}</td>
+                <td>
+                    <button class="btn btn-primary btn-sm modal-trigger" data-target="#checkout{{ b.id }}">Check Out</button>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state"><div class="empty-icon">🏨</div><p>No active stays.</p></div>
+        {% endif %}
+    </div>
+</div>
+
+{% for b in active_stays %}
+<div class="modal" id="checkout{{ b.id }}">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <button class="modal-close">✕</button>
+        <h3>Check Out — {{ b.customer_name }}</h3>
+        <p style="margin-bottom:16px;color:var(--muted)">Room {{ b.room_no }} | Total: ₹{{ "{:,.2f}".format(b.total) }} | Paid: ₹{{ "{:,.2f}".format(b.paid) }} | <strong class="danger">Balance: ₹{{ "{:,.2f}".format(b.balance) }}</strong></p>
+        <form method="post" action="{{ url_for('checkout', booking_id=b.id) }}">
+            <div class="form-grid">
+                <input name="discount" type="number" placeholder="Discount ₹" value="0" min="0">
+                <input name="payment_amount" type="number" placeholder="Collect Payment ₹" value="{{ b.balance|int if b.balance > 0 else 0 }}" min="0" step="0.01">
+                <select name="payment_mode">
+                    {% for m in payment_modes %}<option>{{ m }}</option>{% endfor %}
+                </select>
+            </div>
+            {% if b.balance > 0 %}
+            <label style="display:flex;align-items:center;gap:8px;margin:12px 0;font-size:13px">
+                <input type="checkbox" name="allow_pending" value="1"> Allow checkout with pending balance
+            </label>
+            {% endif %}
+            <button type="submit" class="btn btn-primary">Complete Check Out & Generate Bill</button>
+        </form>
+    </div>
+</div>
+{% endfor %}
+
+{% endblock %}

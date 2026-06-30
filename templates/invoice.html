@@ -1,4 +1,3 @@
-
 {% extends "base.html" %}
 {% set title = "Invoice" %}
 {% block content %}
@@ -6,34 +5,61 @@
 <div class="panel invoice">
     <div class="invoice-head">
         <div>
-            <h2>{{ app_name }} Tax Invoice</h2>
-            <p>Bill ID: #{{ bill.id }} | {{ bill.bill_date }}</p>
+            <h2>{{ app_name }} — Tax Invoice</h2>
+            <p>Bill #{{ bill.id }} | {{ bill.bill_date }}</p>
         </div>
-        <button onclick="window.print()">Print</button>
+        <button onclick="window.print()" class="btn btn-primary">🖨️ Print</button>
     </div>
 
     <div class="invoice-info">
         <p><b>Customer:</b> {{ bill.name }}</p>
         <p><b>Phone:</b> {{ bill.phone }}</p>
-        <p><b>Room:</b> {{ bill.room_no }} {{ bill.category }}</p>
+        <p><b>Email:</b> {{ bill.email or '—' }}</p>
+        <p><b>Address:</b> {{ bill.address or '—' }}</p>
+        <p><b>Room:</b> {{ bill.room_no }} ({{ bill.room_type }})</p>
         <p><b>Stay:</b> {{ bill.checkin }} → {{ bill.checkout }}</p>
     </div>
 
-    <table>
-        <tr><th>Item</th><th>Qty</th><th>Amount</th></tr>
+    <table class="data-table">
+        <thead><tr><th>Description</th><th>Qty</th><th>Amount</th></tr></thead>
+        <tbody>
+        <tr><td>Room Charges</td><td>—</td><td>₹{{ "%.2f"|format(bill.room_charges) }}</td></tr>
         {% for s in services %}
-        <tr><td>{{ s.item_name }}</td><td>{{ s.quantity }}</td><td>₹{{ s.amount }}</td></tr>
+        <tr><td>{{ s.item_name }}</td><td>{{ s.quantity }}</td><td>₹{{ "%.2f"|format(s.amount) }}</td></tr>
         {% endfor %}
+        {% for rs in rs_charges %}
+        <tr><td>Room Service — {{ rs.request_type }}: {{ rs.description }}</td><td>1</td><td>₹{{ "%.2f"|format(rs.charges) }}</td></tr>
+        {% endfor %}
+        </tbody>
     </table>
 
     <div class="invoice-total">
         <p>Room Charges: ₹{{ "%.2f"|format(bill.room_charges) }}</p>
         <p>Service Charges: ₹{{ "%.2f"|format(bill.service_charges) }}</p>
-        <p>Discount: ₹{{ "%.2f"|format(bill.discount) }}</p>
-        <p>GST 12%: ₹{{ "%.2f"|format(bill.tax) }}</p>
+        <p>Discount: −₹{{ "%.2f"|format(bill.discount) }}</p>
+        <p>GST (12%): ₹{{ "%.2f"|format(bill.tax) }}</p>
         <h2>Total: ₹{{ "%.2f"|format(bill.total) }}</h2>
-        <p>Status: {{ bill.payment_status }}</p>
+        <p>Payment Status: <span class="badge badge-{{ bill.payment_status }}">{{ bill.payment_status }}</span></p>
     </div>
+
+    {% if payments %}
+    <div style="margin-top:24px">
+        <h4>Payment History</h4>
+        <table class="data-table">
+            <thead><tr><th>Receipt</th><th>Amount</th><th>Mode</th><th>Date</th></tr></thead>
+            <tbody>
+            {% for p in payments %}
+            <tr>
+                <td>{{ p.receipt_number }}</td>
+                <td>₹{{ "%.2f"|format(p.amount) }}</td>
+                <td>{{ p.payment_mode }}</td>
+                <td>{{ p.payment_date }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
 </div>
 
 {% endblock %}

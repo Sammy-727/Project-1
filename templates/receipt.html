@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% set title = "Payment Receipt" %}
+{% block content %}
+
+<div class="panel invoice">
+    <div class="invoice-head">
+        <div>
+            <h2>{{ app_name }}</h2>
+            <p>Payment Receipt</p>
+        </div>
+        <button onclick="window.print()" class="btn btn-primary">🖨️ Print</button>
+    </div>
+
+    <div class="invoice-info">
+        <p><b>Receipt No:</b> {{ payment.receipt_number }}</p>
+        <p><b>Date:</b> {{ payment.payment_date }}</p>
+        <p><b>Customer:</b> {{ payment.name }}</p>
+        <p><b>Phone:</b> {{ payment.phone }}</p>
+        <p><b>Room:</b> {{ payment.room_no }} ({{ payment.room_type }})</p>
+        <p><b>Stay:</b> {{ payment.checkin }} → {{ payment.checkout }}</p>
+    </div>
+
+    <div class="invoice-total">
+        <p>Payment Mode: <strong>{{ payment.payment_mode }}</strong></p>
+        <h2>Amount Paid: ₹{{ "%.2f"|format(payment.amount) }}</h2>
+        {% if payment.notes %}<p>Notes: {{ payment.notes }}</p>{% endif %}
+    </div>
+
+    <p style="text-align:center;margin-top:30px;color:var(--muted);font-size:13px">Thank you for staying with us!</p>
+</div>
+
+{% endblock %}

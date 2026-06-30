@@ -1,59 +1,151 @@
-
 {% extends "base.html" %}
 {% set title = "Dashboard" %}
 {% block content %}
 
 <section class="hero">
     <div>
-        <h2>Welcome, {{ current_user.username }} 👋</h2>
-        <p>Here is today's {{ app_name }} overview.</p>
+        <h2>Welcome back, {{ current_user.full_name or current_user.username }} 👋</h2>
+        <p>Here's your hotel overview for today.</p>
     </div>
     <div class="hero-total">
         <span>Total Revenue</span>
-        <strong>₹{{ "%.2f"|format(stats.revenue) }}</strong>
+        <strong>₹{{ "{:,.0f}".format(stats.revenue) }}</strong>
     </div>
 </section>
 
 <div class="cards">
-    <div class="card blue"><span>Total Rooms</span><h2>{{ stats.total_rooms }}</h2></div>
-    <div class="card green"><span>Available</span><h2>{{ stats.available }}</h2></div>
-    <div class="card red"><span>Occupied</span><h2>{{ stats.occupied }}</h2></div>
-    <div class="card purple"><span>Bookings</span><h2>{{ stats.active_bookings }}</h2></div>
-    <div class="card gold"><span>Employees</span><h2>{{ stats.employees }}</h2></div>
+    <div class="stat-card">
+        <div class="stat-icon blue">🛏️</div>
+        <div class="stat-info"><span>Total Rooms</span><h3>{{ stats.total_rooms }}</h3></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon green">✅</div>
+        <div class="stat-info"><span>Available</span><h3>{{ stats.available }}</h3></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon red">🔴</div>
+        <div class="stat-info"><span>Occupied</span><h3>{{ stats.occupied }}</h3></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon purple">📅</div>
+        <div class="stat-info"><span>Active Bookings</span><h3>{{ stats.active_bookings }}</h3></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon orange">👔</div>
+        <div class="stat-info"><span>Employees</span><h3>{{ stats.employees }}</h3></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon pink">🧹</div>
+        <div class="stat-info"><span>Cleaning</span><h3>{{ stats.cleaning }}</h3></div>
+    </div>
+</div>
+
+<div class="grid-3">
+    <div class="panel">
+        <div class="panel-head">
+            <h3>Revenue Overview</h3>
+            <span>Last 6 months</span>
+        </div>
+        {% if monthly_revenue %}
+        {% set max_rev = monthly_revenue|map(attribute='total')|max %}
+        <div class="chart-bars">
+            {% for m in monthly_revenue %}
+            <div class="chart-bar-wrap">
+                <span class="chart-value">₹{{ "{:,.0f}".format(m.total) }}</span>
+                <div class="chart-bar" style="height: {{ (m.total / max_rev * 140) if max_rev else 4 }}px"></div>
+                <span class="chart-label">{{ m.month[5:] }}/{{ m.month[:4] }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state"><div class="empty-icon">📊</div><p>No revenue data yet.</p></div>
+        {% endif %}
+    </div>
+
+    <div class="panel">
+        <div class="panel-head"><h3>Room Status</h3></div>
+        <div class="status-pills">
+            {% for s in room_summary %}
+            <div class="status-pill">
+                <span class="status-dot {{ s.status|lower }}"></span>
+                <strong>{{ s.c }}</strong> {{ s.status }}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
 </div>
 
 <div class="grid-2">
     <div class="panel">
         <div class="panel-head">
-            <h3>Low Stock</h3>
-            <span>Inventory alert</span>
+            <h3>Recent Bookings</h3>
+            <a href="{{ url_for('bookings') }}" class="btn btn-secondary btn-sm">View All</a>
         </div>
-
-        {% if low_stock %}
-        <table>
-            <tr><th>Item</th><th>Qty</th><th>Reorder</th></tr>
-            {% for i in low_stock %}
-            <tr><td>{{ i.item_name }}</td><td><b class="danger">{{ i.quantity }}</b></td><td>{{ i.reorder_level }}</td></tr>
+        {% if recent_bookings %}
+        <table class="data-table">
+            <thead><tr><th>ID</th><th>Customer</th><th>Room</th><th>Dates</th><th>Status</th></tr></thead>
+            <tbody>
+            {% for b in recent_bookings %}
+            <tr>
+                <td>#{{ b.id }}</td>
+                <td>{{ b.name }}</td>
+                <td>{{ b.room_no }} <small class="muted">{{ b.room_type }}</small></td>
+                <td>{{ b.checkin }} → {{ b.checkout }}</td>
+                <td><span class="badge badge-{{ b.status }}">{{ b.status }}</span></td>
+            </tr>
             {% endfor %}
+            </tbody>
         </table>
         {% else %}
-        <p class="empty">No low stock items.</p>
+        <div class="empty-state"><div class="empty-icon">📅</div><p>No bookings yet.</p></div>
         {% endif %}
     </div>
 
     <div class="panel">
         <div class="panel-head">
-            <h3>Recent Bookings</h3>
-            <span>Latest activity</span>
+            <h3>Recent Payments</h3>
+            <a href="{{ url_for('payments') }}" class="btn btn-secondary btn-sm">View All</a>
         </div>
-
-        <table>
-            <tr><th>ID</th><th>Customer</th><th>Room</th><th>Status</th></tr>
-            {% for b in recent_bookings %}
-            <tr><td>#{{ b.id }}</td><td>{{ b.name }}</td><td>{{ b.room_no }} {{ b.category }}</td><td><span class="badge">{{ b.status }}</span></td></tr>
+        {% if recent_payments %}
+        <table class="data-table">
+            <thead><tr><th>Receipt</th><th>Customer</th><th>Amount</th><th>Mode</th></tr></thead>
+            <tbody>
+            {% for p in recent_payments %}
+            <tr>
+                <td>{{ p.receipt_number }}</td>
+                <td>{{ p.name }}</td>
+                <td><strong>₹{{ "{:,.0f}".format(p.amount) }}</strong></td>
+                <td>{{ p.payment_mode }}</td>
+            </tr>
             {% endfor %}
+            </tbody>
         </table>
+        {% else %}
+        <div class="empty-state"><div class="empty-icon">💳</div><p>No payments recorded yet.</p></div>
+        {% endif %}
     </div>
 </div>
+
+{% if low_stock %}
+<div class="panel">
+    <div class="panel-head">
+        <h3>⚠️ Low Stock Alerts</h3>
+        <a href="{{ url_for('inventory', low=1) }}" class="btn btn-secondary btn-sm">View Inventory</a>
+    </div>
+    <table class="data-table">
+        <thead><tr><th>Item</th><th>Category</th><th>Qty</th><th>Reorder Level</th></tr></thead>
+        <tbody>
+        {% for i in low_stock %}
+        <tr class="low-stock">
+            <td>{{ i.item_name }}</td>
+            <td>{{ i.category }}</td>
+            <td class="danger">{{ i.quantity }}</td>
+            <td>{{ i.reorder_level }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
 
 {% endblock %}
