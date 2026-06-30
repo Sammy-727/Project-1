@@ -231,7 +231,11 @@ def is_logged_in():
 
 @app.context_processor
 def inject_user():
-    return dict(app_name=APP_NAME, current_user=session)
+    return dict(
+        app_name=APP_NAME,
+        current_user=session,
+        today=datetime.now().strftime("%a, %d %b, %Y"),
+    )
 
 
 @app.before_request
@@ -288,7 +292,25 @@ def dashboard():
         JOIN rooms r ON b.room_id=r.id
         ORDER BY b.id DESC LIMIT 6
     """)
-    return render_template("dashboard.html", stats=stats, low_stock=low_stock, recent_bookings=recent_bookings)
+
+    monthly_revenue = [0] * 12
+    year = str(datetime.now().year)
+    for row in query("""
+        SELECT CAST(strftime('%m', bill_date) AS INTEGER) AS month,
+               COALESCE(SUM(total), 0) AS revenue
+        FROM bills
+        WHERE strftime('%Y', bill_date) = ?
+        GROUP BY month
+    """, (year,)):
+        monthly_revenue[row["month"] - 1] = row["revenue"]
+
+    return render_template(
+        "dashboard.html",
+        stats=stats,
+        low_stock=low_stock,
+        recent_bookings=recent_bookings,
+        monthly_revenue=monthly_revenue,
+    )
 
 
 @app.route("/manage")
