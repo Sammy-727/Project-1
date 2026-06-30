@@ -19,15 +19,29 @@
         <input name="salary" placeholder="Salary">
         <input name="shift" placeholder="Shift">
         <select name="status"><option>Active</option><option>Inactive</option></select>
-        <button>Add</button>
+        <button>Add Employee</button>
     </form>
 
-    <table>
-        <tr><th>Name</th><th>Phone</th><th>Email</th><th>Designation</th><th>Salary</th><th>Shift</th><th>Status</th></tr>
-        {% for e in employees %}
-        <tr><td>{{ e.name }}</td><td>{{ e.phone }}</td><td>{{ e.email }}</td><td>{{ e.designation }}</td><td>₹{{ e.salary }}</td><td>{{ e.shift }}</td><td><span class="badge">{{ e.status }}</span></td></tr>
-        {% endfor %}
-    </table>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr><th>Name</th><th>Phone</th><th>Email</th><th>Designation</th><th>Salary</th><th>Shift</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+                {% for e in employees %}
+                <tr>
+                    <td>{{ e.name }}</td>
+                    <td>{{ e.phone }}</td>
+                    <td>{{ e.email }}</td>
+                    <td>{{ e.designation }}</td>
+                    <td>₹{{ e.salary }}</td>
+                    <td>{{ e.shift }}</td>
+                    <td><span class="badge badge-{{ e.status|lower }}">{{ e.status }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </section>
 
 <section id="users" class="panel section">
@@ -41,12 +55,22 @@
         <button>Add User</button>
     </form>
 
-    <table>
-        <tr><th>Username</th><th>Role</th><th>Status</th></tr>
-        {% for u in users %}
-        <tr><td>{{ u.username }}</td><td>{{ u.role }}</td><td><span class="badge">{{ u.status }}</span></td></tr>
-        {% endfor %}
-    </table>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr><th>Username</th><th>Role</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                <tr>
+                    <td>{{ u.username }}</td>
+                    <td><span class="badge">{{ u.role }}</span></td>
+                    <td><span class="badge badge-{{ u.status|lower }}">{{ u.status }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </section>
 
 {% endblock %}

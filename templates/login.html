@@ -5,19 +5,18 @@
     <div class="login-box">
         <div class="login-logo">H</div>
         <h1>{{ app_name }}</h1>
-        <p>Login to continue</p>
+        <p>Sign in to your hotel management account</p>
 
         <form method="post">
-            <input name="username" placeholder="Username" required>
-            <input name="password" type="password" placeholder="Password" required>
-            <button>Login</button>
+            <input name="username" placeholder="Username" autocomplete="username" required>
+            <input name="password" type="password" placeholder="Password" autocomplete="current-password" required>
+            <button type="submit">Sign In</button>
         </form>
 
-        <small>
-            admin / admin123<br>
-            manager / manager123<br>
-            reception / rec123
-        </small>
+        <div class="login-hint">
+            <strong>Demo accounts</strong>
+            admin / admin123 &nbsp;·&nbsp; manager / manager123 &nbsp;·&nbsp; reception / rec123
+        </div>
     </div>
 </div>
 {% endblock %}
