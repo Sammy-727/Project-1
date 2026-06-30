@@ -1,23 +1,26 @@
-
 {% extends "base.html" %}
 {% block content %}
 <div class="login-page">
     <div class="login-box">
-        <div class="login-logo">H</div>
+        <div class="login-logo">🏨</div>
         <h1>{{ app_name }}</h1>
-        <p>Login to continue</p>
+        <p>Sign in to your account</p>
 
         <form method="post">
-            <input name="username" placeholder="Username" required>
-            <input name="password" type="password" placeholder="Password" required>
-            <button>Login</button>
+            <input name="username" placeholder="Username" required autocomplete="username">
+            <input name="password" type="password" placeholder="Password" required autocomplete="current-password">
+            <button type="submit" class="btn btn-primary">Sign In</button>
         </form>
 
-        <small>
-            admin / admin123<br>
-            manager / manager123<br>
-            reception / rec123
-        </small>
+        <div class="login-hint">
+            <strong>Demo Accounts:</strong><br>
+            superadmin / admin123 (Super Admin)<br>
+            admin / admin123 (Admin)<br>
+            manager / manager123 (Manager)<br>
+            reception / rec123 (Receptionist)<br>
+            housekeeping / hk123 (Housekeeping)<br>
+            staff / staff123 (Staff)
+        </div>
     </div>
 </div>
 {% endblock %}

@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% set title = "Customers" %}
+{% block content %}
+
+<div class="page-actions">
+    <form class="filter-bar" method="get">
+        <input type="search" name="q" placeholder="Search by name, phone, email..." value="{{ search_q }}" style="width:240px">
+        <button type="submit" class="btn btn-secondary btn-sm">Search</button>
+    </form>
+    <button class="btn btn-primary modal-trigger" data-target="#addCustomerModal">+ Add Customer</button>
+</div>
+
+<div class="panel">
+    {% if customers %}
+    <table class="data-table">
+        <thead>
+            <tr><th>Name</th><th>Phone</th><th>Email</th><th>Gender</th><th>Age</th><th>ID Proof</th><th>Guests</th><th>Bookings</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+        {% for c in customers %}
+        <tr>
+            <td><strong>{{ c.name }}</strong><br><small>{{ c.address or '' }}</small></td>
+            <td>{{ c.phone }}</td>
+            <td>{{ c.email or '—' }}</td>
+            <td>{{ c.gender or '—' }}</td>
+            <td>{{ c.age or '—' }}</td>
+            <td>{{ c.id_proof_type or '' }} {{ c.id_proof_number or '' }}</td>
+            <td>{{ c.guests|length }}</td>
+            <td>{{ c.booking_count }}</td>
+            <td>
+                <button class="btn btn-secondary btn-sm modal-trigger" data-target="#editCustomer{{ c.id }}">Edit</button>
+                <a href="{{ url_for('bookings', new_customer=c.id) }}" class="btn btn-success btn-sm">Book</a>
+                <form class="inline-form" method="post" action="{{ url_for('delete_customer', customer_id=c.id) }}" data-confirm="Delete customer {{ c.name }}?">
+                    <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state"><div class="empty-icon">👥</div><p>No customers found.</p></div>
+    {% endif %}
+</div>
+
+<!-- Add Customer Modal -->
+<div class="modal" id="addCustomerModal">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <button class="modal-close">✕</button>
+        <h3>Add Customer</h3>
+        <form method="post" action="{{ url_for('add_customer') }}">
+            <div class="form-grid">
+                <input name="name" placeholder="Full Name" required>
+                <input name="phone" placeholder="Phone" required>
+                <input name="email" type="email" placeholder="Email">
+                <input name="address" placeholder="Address">
+                <select name="gender"><option value="">Gender</option><option>Male</option><option>Female</option><option>Other</option></select>
+                <input name="age" type="number" placeholder="Age" min="0">
+                <select name="id_proof_type"><option value="">ID Type</option>{% for t in id_proof_types %}<option>{{ t }}</option>{% endfor %}</select>
+                <input name="id_proof_number" placeholder="ID Number">
+            </div>
+            <div class="guest-section">
+                <h4>Additional Guests (Family/Group)</h4>
+                <div id="guestRows">
+                    <div class="guest-row form-row">
+                        <input name="guest_name" placeholder="Guest name">
+                        <input name="guest_age" type="number" placeholder="Age">
+                        <select name="guest_gender"><option value="">Gender</option><option>Male</option><option>Female</option><option>Other</option></select>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="addGuestRow('guestRows')">+ Add Guest</button>
+            </div>
+            <div style="margin-top:16px;display:flex;gap:10px">
+                <button type="submit" class="btn btn-primary">Save Customer</button>
+                <button type="submit" name="redirect_to" value="bookings" class="btn btn-success">Save & Create Booking</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% for c in customers %}
+<div class="modal" id="editCustomer{{ c.id }}">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <button class="modal-close">✕</button>
+        <h3>Edit Customer</h3>
+        <form method="post" action="{{ url_for('update_customer', customer_id=c.id) }}">
+            <div class="form-grid">
+                <input name="name" value="{{ c.name }}" required>
+                <input name="phone" value="{{ c.phone }}" required>
+                <input name="email" value="{{ c.email or '' }}">
+                <input name="address" value="{{ c.address or '' }}">
+                <select name="gender"><option value="">Gender</option>{% for g in ['Male','Female','Other'] %}<option {% if c.gender == g %}selected{% endif %}>{{ g }}</option>{% endfor %}</select>
+                <input name="age" type="number" value="{{ c.age or '' }}">
+                <select name="id_proof_type"><option value="">ID Type</option>{% for t in id_proof_types %}<option {% if c.id_proof_type == t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select>
+                <input name="id_proof_number" value="{{ c.id_proof_number or '' }}">
+            </div>
+            <div class="guest-section">
+                <h4>Additional Guests</h4>
+                <div id="guestRows{{ c.id }}">
+                    {% for g in c.guests %}
+                    <div class="guest-row form-row"><input name="guest_name" value="{{ g.name }}"></div>
+                    {% else %}
+                    <div class="guest-row form-row"><input name="guest_name" placeholder="Guest name"></div>
+                    {% endfor %}
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="addGuestRow('guestRows{{ c.id }}')">+ Add Guest</button>
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top:16px">Save Changes</button>
+        </form>
+    </div>
+</div>
+{% endfor %}
+
+{% endblock %}

@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% set title = "Rooms" %}
+{% block content %}
+
+<div class="page-actions">
+    <form class="filter-bar" method="get">
+        <input type="search" name="q" placeholder="Search room..." value="{{ search_q }}" style="width:180px">
+        <select name="status" onchange="this.form.submit()">
+            <option value="">All Status</option>
+            {% for s in room_statuses %}
+            <option value="{{ s }}" {% if filter_status == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+        </select>
+        <select name="type" onchange="this.form.submit()">
+            <option value="">All Types</option>
+            {% for t in types %}
+            <option value="{{ t.room_type }}" {% if filter_type == t.room_type %}selected{% endif %}>{{ t.room_type }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
+    </form>
+    <button class="btn btn-primary modal-trigger" data-target="#addRoomModal">+ Add Room</button>
+</div>
+
+<div class="panel">
+    {% if rooms %}
+    <table class="data-table">
+        <thead>
+            <tr><th>Room</th><th>Type</th><th>Floor</th><th>Price/Night</th><th>Capacity</th><th>Amenities</th><th>Status</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+        {% for r in rooms %}
+        <tr>
+            <td><strong>{{ r.room_no }}</strong></td>
+            <td>{{ r.room_type or r.category }}</td>
+            <td>{{ r.floor or 1 }}</td>
+            <td>₹{{ "{:,.0f}".format(r.price) }}</td>
+            <td>{{ r.capacity or 2 }}</td>
+            <td><small>{{ r.amenities or '—' }}</small></td>
+            <td><span class="badge badge-{{ r.status }}">{{ r.status }}</span></td>
+            <td>
+                <button class="btn btn-secondary btn-sm modal-trigger" data-target="#editRoom{{ r.id }}">Edit</button>
+                <form class="inline-form" method="post" action="{{ url_for('delete_room', room_id=r.id) }}" data-confirm="Delete room {{ r.room_no }}?">
+                    <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state"><div class="empty-icon">🛏️</div><p>No rooms found. Add your first room.</p></div>
+    {% endif %}
+</div>
+
+<!-- Add Room Modal -->
+<div class="modal" id="addRoomModal">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <button class="modal-close">✕</button>
+        <h3>Add New Room</h3>
+        <form method="post" action="{{ url_for('add_room') }}">
+            <div class="form-grid">
+                <input name="room_no" placeholder="Room Number" required>
+                <select name="room_type" required>
+                    <option value="">Room Type</option>
+                    <option>Standard</option><option>Deluxe</option><option>Super Deluxe</option>
+                    <option>Luxury</option><option>Presidential Suite</option>
+                </select>
+                <input name="floor" type="number" placeholder="Floor" value="1" min="1">
+                <input name="price" type="number" placeholder="Price/Night" required min="0">
+                <input name="capacity" type="number" placeholder="Capacity" value="2" min="1">
+                <select name="status">
+                    {% for s in room_statuses %}<option>{{ s }}</option>{% endfor %}
+                </select>
+                <input name="amenities" placeholder="Amenities (comma separated)">
+                <input name="image_url" placeholder="Image URL (optional)">
+            </div>
+            <button type="submit" class="btn btn-primary">Add Room</button>
+        </form>
+    </div>
+</div>
+
+{% for r in rooms %}
+<div class="modal" id="editRoom{{ r.id }}">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <button class="modal-close">✕</button>
+        <h3>Edit Room {{ r.room_no }}</h3>
+        <form method="post" action="{{ url_for('update_room', room_id=r.id) }}">
+            <div class="form-grid">
+                <input name="room_no" value="{{ r.room_no }}" required>
+                <select name="room_type" required>
+                    {% for t in ['Standard','Deluxe','Super Deluxe','Luxury','Presidential Suite'] %}
+                    <option {% if (r.room_type or r.category) == t %}selected{% endif %}>{{ t }}</option>
+                    {% endfor %}
+                </select>
+                <input name="floor" type="number" value="{{ r.floor or 1 }}">
+                <input name="price" type="number" value="{{ r.price }}" required>
+                <input name="capacity" type="number" value="{{ r.capacity or 2 }}">
+                <select name="status">
+                    {% for s in room_statuses %}
+                    <option {% if r.status == s %}selected{% endif %}>{{ s }}</option>
+                    {% endfor %}
+                </select>
+                <input name="amenities" value="{{ r.amenities or '' }}">
+                <input name="image_url" value="{{ r.image_url or '' }}">
+            </div>
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+        </form>
+    </div>
+</div>
+{% endfor %}
+
+{% endblock %}

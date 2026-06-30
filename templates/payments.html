@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% set title = "Payments" %}
+{% block content %}
+
+<div class="page-actions">
+    <div>
+        <strong style="font-size:20px">Total Revenue: ₹{{ "{:,.2f}".format(total_revenue) }}</strong>
+    </div>
+    <div class="filter-bar">
+        <form method="get" class="filter-bar">
+            <input type="search" name="q" placeholder="Search receipts..." value="{{ search_q }}">
+            <button type="submit" class="btn btn-secondary btn-sm">Search</button>
+        </form>
+        <a href="{{ url_for('export_reports') }}" class="btn btn-secondary btn-sm">Export CSV</a>
+        <button class="btn btn-primary modal-trigger" data-target="#addPaymentModal">+ Record Payment</button>
+    </div>
+</div>
+
+{% if pending_bookings %}
+<div class="panel">
+    <div class="panel-head"><h3>Pending Payments</h3></div>
+    <table class="data-table">
+        <thead><tr><th>Booking</th><th>Customer</th><th>Room</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead>
+        <tbody>
+        {% for pb in pending_bookings %}
+        <tr>
+            <td>#{{ pb.id }}</td>
+            <td>{{ pb.name }}</td>
+            <td>{{ pb.room_no }}</td>
+            <td>₹{{ "{:,.0f}".format(pb.total_amount or 0) }}</td>
+            <td>₹{{ "{:,.0f}".format(pb.paid) }}</td>
+            <td class="danger">₹{{ "{:,.0f}".format(pb.balance) }}</td>
+            <td><span class="badge badge-{{ pb.payment_status }}">{{ pb.payment_status }}</span></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<div class="panel">
+    <div class="panel-head"><h3>Payment History</h3></div>
+    {% if payments %}
+    <table class="data-table">
+        <thead><tr><th>Receipt</th><th>Customer</th><th>Room</th><th>Amount</th><th>Mode</th><th>Date</th><th>Action</th></tr></thead>
+        <tbody>
+        {% for p in payments %}
+        <tr>
+            <td><strong>{{ p.receipt_number }}</strong></td>
+            <td>{{ p.customer_name }}</td>
+            <td>{{ p.room_no }}</td>
+            <td>₹{{ "{:,.2f}".format(p.amount) }}</td>
+            <td>{{ p.payment_mode }}</td>
+            <td>{{ p.payment_date }}</td>
+            <td><a href="{{ url_for('receipt', payment_id=p.id) }}" class="btn btn-secondary btn-sm" target="_blank">Receipt</a></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state"><div class="empty-icon">💳</div><p>No payments recorded yet.</p></div>
+    {% endif %}
+</div>
+
+<div class="modal" id="addPaymentModal">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <button class="modal-close">✕</button>
+        <h3>Record Payment</h3>
+        <form method="post" action="{{ url_for('add_payment') }}">
+            <div class="form-grid">
+                <select name="booking_id" required>
+                    <option value="">Select Booking</option>
+                    {% for pb in pending_bookings %}
+                    <option value="{{ pb.id }}">#{{ pb.id }} — {{ pb.name }} — Room {{ pb.room_no }} (Bal: ₹{{ "{:,.0f}".format(pb.balance) }})</option>
+                    {% endfor %}
+                </select>
+                <input name="amount" type="number" placeholder="Amount" required min="1" step="0.01">
+                <select name="payment_mode" required>
+                    {% for m in payment_modes %}<option>{{ m }}</option>{% endfor %}
+                </select>
+                <input name="notes" placeholder="Notes (optional)">
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top:16px">Record Payment</button>
+        </form>
+    </div>
+</div>
+
+{% endblock %}

@@ -1,52 +1,49 @@
-
 {% extends "base.html" %}
-{% set title = "Admin" %}
+{% set title = "User Management" %}
 {% block content %}
 
-<div class="quick-tabs">
-    <a href="#employees">Employees</a>
-    <a href="#users">Users</a>
+<div class="page-actions">
+    <button class="btn btn-primary modal-trigger" data-target="#addUserModal">+ Add User</button>
 </div>
 
-<section id="employees" class="panel section">
-    <div class="panel-head"><h3>Employees</h3><span>Staff records</span></div>
-
-    <form class="form-grid" method="post" action="{{ url_for('add_employee') }}">
-        <input name="name" placeholder="Name" required>
-        <input name="phone" placeholder="Phone">
-        <input name="email" placeholder="Email">
-        <input name="designation" placeholder="Designation">
-        <input name="salary" placeholder="Salary">
-        <input name="shift" placeholder="Shift">
-        <select name="status"><option>Active</option><option>Inactive</option></select>
-        <button>Add</button>
-    </form>
-
-    <table>
-        <tr><th>Name</th><th>Phone</th><th>Email</th><th>Designation</th><th>Salary</th><th>Shift</th><th>Status</th></tr>
-        {% for e in employees %}
-        <tr><td>{{ e.name }}</td><td>{{ e.phone }}</td><td>{{ e.email }}</td><td>{{ e.designation }}</td><td>₹{{ e.salary }}</td><td>{{ e.shift }}</td><td><span class="badge">{{ e.status }}</span></td></tr>
-        {% endfor %}
-    </table>
-</section>
-
-<section id="users" class="panel section">
-    <div class="panel-head"><h3>Users</h3><span>Role based access</span></div>
-
-    <form class="form-grid" method="post" action="{{ url_for('add_user') }}">
-        <input name="username" placeholder="Username" required>
-        <input name="password" placeholder="Password" required>
-        <select name="role"><option>Admin</option><option>Manager</option><option>Receptionist</option></select>
-        <select name="status"><option>Active</option><option>Inactive</option></select>
-        <button>Add User</button>
-    </form>
-
-    <table>
-        <tr><th>Username</th><th>Role</th><th>Status</th></tr>
+<div class="panel">
+    {% if users %}
+    <table class="data-table">
+        <thead><tr><th>Username</th><th>Full Name</th><th>Role</th><th>Status</th></tr></thead>
+        <tbody>
         {% for u in users %}
-        <tr><td>{{ u.username }}</td><td>{{ u.role }}</td><td><span class="badge">{{ u.status }}</span></td></tr>
+        <tr>
+            <td><strong>{{ u.username }}</strong></td>
+            <td>{{ u.full_name or u.username }}</td>
+            <td>{{ u.role }}</td>
+            <td><span class="badge badge-{{ u.status }}">{{ u.status }}</span></td>
+        </tr>
         {% endfor %}
+        </tbody>
     </table>
-</section>
+    {% else %}
+    <div class="empty-state"><div class="empty-icon">🔐</div><p>No users found.</p></div>
+    {% endif %}
+</div>
+
+<div class="modal" id="addUserModal">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <button class="modal-close">✕</button>
+        <h3>Add User</h3>
+        <form method="post" action="{{ url_for('add_user') }}">
+            <div class="form-grid">
+                <input name="username" placeholder="Username" required>
+                <input name="password" type="password" placeholder="Password" required>
+                <input name="full_name" placeholder="Full Name">
+                <select name="role">
+                    {% for r in roles %}<option>{{ r }}</option>{% endfor %}
+                </select>
+                <select name="status"><option>Active</option><option>Inactive</option></select>
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top:16px">Add User</button>
+        </form>
+    </div>
+</div>
 
 {% endblock %}

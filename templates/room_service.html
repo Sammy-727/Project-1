@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% set title = "Room Service" %}
+{% block content %}
+
+<div class="page-actions">
+    <form class="filter-bar" method="get">
+        <select name="status" onchange="this.form.submit()">
+            <option value="">All Status</option>
+            {% for s in rs_statuses %}
+            <option value="{{ s }}" {% if filter_status == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+        </select>
+    </form>
+    <button class="btn btn-primary modal-trigger" data-target="#addRSModal">+ New Request</button>
+</div>
+
+<div class="panel">
+    {% if requests %}
+    <table class="data-table">
+        <thead><tr><th>Room</th><th>Guest</th><th>Type</th><th>Description</th><th>Charges</th><th>Bill</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+        <tbody>
+        {% for r in requests %}
+        <tr>
+            <td><strong>{{ r.room_no }}</strong></td>
+            <td>{{ r.customer_name or '—' }}</td>
+            <td>{{ r.request_type }}</td>
+            <td>{{ r.description or '—' }}</td>
+            <td>₹{{ "{:,.0f}".format(r.charges or 0) }}</td>
+            <td>{{ 'Yes' if r.add_to_bill else 'No' }}</td>
+            <td><span class="badge badge-{{ r.status }}">{{ r.status }}</span></td>
+            <td>{{ r.created_at }}</td>
+            <td>
+                <button class="btn btn-secondary btn-sm modal-trigger" data-target="#editRS{{ r.id }}">Update</button>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state"><div class="empty-icon">🛎️</div><p>No room service requests.</p></div>
+    {% endif %}
+</div>
+
+<div class="modal" id="addRSModal">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <button class="modal-close">✕</button>
+        <h3>New Service Request</h3>
+        <form method="post" action="{{ url_for('add_room_service') }}">
+            <div class="form-grid">
+                <select name="booking_id">
+                    <option value="">Select Booking (optional)</option>
+                    {% for b in active_bookings %}
+                    <option value="{{ b.id }}">#{{ b.id }} — {{ b.name }} — Room {{ b.room_no }}</option>
+                    {% endfor %}
+                </select>
+                <select name="request_type" required>
+                    {% for t in rs_types %}<option>{{ t }}</option>{% endfor %}
+                </select>
+                <input name="charges" type="number" placeholder="Charges ₹" value="0" min="0">
+                <label style="display:flex;align-items:center;gap:6px;font-size:13px">
+                    <input type="checkbox" name="add_to_bill" value="1" checked> Add to booking bill
+                </label>
+            </div>
+            <textarea name="description" placeholder="Description" style="margin-top:12px"></textarea>
+            <button type="submit" class="btn btn-primary" style="margin-top:16px">Submit Request</button>
+        </form>
+    </div>
+</div>
+
+{% for r in requests %}
+<div class="modal" id="editRS{{ r.id }}">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <button class="modal-close">✕</button>
+        <h3>Update Request — Room {{ r.room_no }}</h3>
+        <form method="post" action="{{ url_for('update_room_service', req_id=r.id) }}">
+            <div class="form-grid">
+                <select name="status">
+                    {% for s in rs_statuses %}
+                    <option {% if r.status == s %}selected{% endif %}>{{ s }}</option>
+                    {% endfor %}
+                </select>
+                <input name="charges" type="number" value="{{ r.charges or 0 }}" min="0">
+            </div>
+            <textarea name="description" style="margin-top:12px">{{ r.description or '' }}</textarea>
+            <button type="submit" class="btn btn-primary" style="margin-top:16px">Update</button>
+        </form>
+    </div>
+</div>
+{% endfor %}
+
+{% endblock %}

@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% set title = "Search Results" %}
+{% block content %}
+
+<div class="panel">
+    <div class="panel-head">
+        <h3>Search Results{% if q %} for "{{ q }}"{% endif %}</h3>
+    </div>
+
+    {% if not q %}
+    <div class="empty-state"><div class="empty-icon">🔍</div><p>Enter a search term in the top bar.</p></div>
+    {% else %}
+
+    {% if results.rooms %}
+    <div class="search-section">
+        <h3>🛏️ Rooms ({{ results.rooms|length }})</h3>
+        <table class="data-table">
+            <thead><tr><th>Room</th><th>Type</th><th>Price</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+            {% for r in results.rooms %}
+            <tr>
+                <td>{{ r.room_no }}</td><td>{{ r.room_type }}</td><td>₹{{ r.price }}</td>
+                <td><span class="badge badge-{{ r.status }}">{{ r.status }}</span></td>
+                <td><a href="{{ url_for('rooms', q=r.room_no) }}" class="btn btn-secondary btn-sm">View</a></td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if results.customers %}
+    <div class="search-section">
+        <h3>👥 Customers ({{ results.customers|length }})</h3>
+        <table class="data-table">
+            <thead><tr><th>Name</th><th>Phone</th><th>Email</th><th></th></tr></thead>
+            <tbody>
+            {% for c in results.customers %}
+            <tr>
+                <td>{{ c.name }}</td><td>{{ c.phone }}</td><td>{{ c.email or '—' }}</td>
+                <td><a href="{{ url_for('customers', q=c.name) }}" class="btn btn-secondary btn-sm">View</a></td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if results.bookings %}
+    <div class="search-section">
+        <h3>📅 Bookings ({{ results.bookings|length }})</h3>
+        <table class="data-table">
+            <thead><tr><th>ID</th><th>Customer</th><th>Room</th><th>Dates</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+            {% for b in results.bookings %}
+            <tr>
+                <td>#{{ b.id }}</td><td>{{ b.name }}</td><td>{{ b.room_no }}</td>
+                <td>{{ b.checkin }} → {{ b.checkout }}</td>
+                <td><span class="badge badge-{{ b.status }}">{{ b.status }}</span></td>
+                <td><a href="{{ url_for('bookings', q=b.name) }}" class="btn btn-secondary btn-sm">View</a></td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if results.payments %}
+    <div class="search-section">
+        <h3>💳 Payments ({{ results.payments|length }})</h3>
+        <table class="data-table">
+            <thead><tr><th>Receipt</th><th>Customer</th><th>Room</th><th>Amount</th><th></th></tr></thead>
+            <tbody>
+            {% for p in results.payments %}
+            <tr>
+                <td>{{ p.receipt_number }}</td><td>{{ p.name }}</td><td>{{ p.room_no }}</td>
+                <td>₹{{ p.amount }}</td>
+                <td><a href="{{ url_for('receipt', payment_id=p.id) }}" class="btn btn-secondary btn-sm">Receipt</a></td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if not results.rooms and not results.customers and not results.bookings and not results.payments %}
+    <div class="empty-state"><div class="empty-icon">🔍</div><p>No results found for "{{ q }}".</p></div>
+    {% endif %}
+
+    {% endif %}
+</div>
+
+{% endblock %}

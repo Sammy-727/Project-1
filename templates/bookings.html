@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% set title = "Bookings" %}
+{% block content %}
+
+<div class="page-actions">
+    <form class="filter-bar" method="get">
+        <input type="search" name="q" placeholder="Search..." value="{{ search_q }}" style="width:160px">
+        <select name="status" onchange="this.form.submit()">
+            <option value="">All Status</option>
+            {% for s in booking_statuses %}
+            <option value="{{ s }}" {% if filter_status == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+        </select>
+        <input type="date" name="from" value="{{ date_from }}" title="From">
+        <input type="date" name="to" value="{{ date_to }}" title="To">
+        <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
+    </form>
+    <button class="btn btn-primary modal-trigger" data-target="#addBookingModal">+ New Booking</button>
+</div>
+
+<div class="panel">
+    {% if bookings %}
+    <table class="data-table">
+        <thead>
+            <tr><th>ID</th><th>Customer</th><th>Room</th><th>Check-in</th><th>Check-out</th><th>Guests</th><th>Amount</th><th>Status</th><th>Payment</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+        {% for b in bookings %}
+        <tr>
+            <td>#{{ b.id }}</td>
+            <td>{{ b.customer_name }}<br><small>{{ b.phone }}</small></td>
+            <td>{{ b.room_no }} <small>{{ b.room_type }}</small></td>
+            <td>{{ b.checkin }}</td>
+            <td>{{ b.checkout }}</td>
+            <td>{{ b.num_guests or 1 }}</td>
+            <td>₹{{ "{:,.0f}".format(b.total_amount or 0) }}</td>
+            <td><span class="badge badge-{{ b.status }}">{{ b.status }}</span></td>
+            <td><span class="badge badge-{{ b.payment_status }}">{{ b.payment_status }}</span></td>
+            <td>
+                {% if b.status in ['Reserved','Checked-in'] %}
+                <form class="inline-form" method="post" action="{{ url_for('cancel_booking', booking_id=b.id) }}" data-confirm="Cancel booking #{{ b.id }}?">
+                    <button type="submit" class="btn btn-danger btn-sm">Cancel</button>
+                </form>
+                {% endif %}
+                <a href="{{ url_for('invoice', booking_id=b.id) }}" class="btn btn-secondary btn-sm">Bill</a>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state"><div class="empty-icon">📅</div><p>No bookings found.</p></div>
+    {% endif %}
+</div>
+
+<div class="modal {% if new_customer %}show{% endif %}" id="addBookingModal">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <button class="modal-close">✕</button>
+        <h3>Create Booking</h3>
+        <form method="post" action="{{ url_for('add_booking') }}">
+            <div class="form-grid">
+                <select name="customer_id" required>
+                    <option value="">Select Customer</option>
+                    {% for c in customers %}
+                    <option value="{{ c.id }}" {% if new_customer == c.id %}selected{% endif %}>{{ c.name }} — {{ c.phone }}</option>
+                    {% endfor %}
+                </select>
+                <select name="room_id" required>
+                    <option value="">Select Room</option>
+                    {% for r in rooms %}
+                    <option value="{{ r.id }}">{{ r.room_no }} — {{ r.room_type }} — ₹{{ r.price }}/night ({{ r.status }})</option>
+                    {% endfor %}
+                </select>
+                <input type="date" name="checkin" required>
+                <input type="date" name="checkout" required>
+                <input type="number" name="num_guests" value="1" min="1" placeholder="Guests">
+            </div>
+            <div class="guest-section">
+                <h4>Extra Guests for this Booking</h4>
+                <div id="bookingGuestRows">
+                    <div class="guest-row form-row"><input name="guest_name" placeholder="Guest name"></div>
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="addGuestRow('bookingGuestRows')">+ Add Guest</button>
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top:16px">Create Booking</button>
+        </form>
+    </div>
+</div>
+
+{% endblock %}

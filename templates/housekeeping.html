@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% set title = "Housekeeping" %}
+{% block content %}
+
+<div class="page-actions">
+    <form class="filter-bar" method="get">
+        <select name="status" onchange="this.form.submit()">
+            <option value="">All Status</option>
+            {% for s in hk_statuses %}
+            <option value="{{ s }}" {% if filter_status == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+        </select>
+    </form>
+    <button class="btn btn-primary modal-trigger" data-target="#addHKModal">+ New Task</button>
+</div>
+
+<div class="panel">
+    {% if tasks %}
+    <table class="data-table">
+        <thead><tr><th>Room</th><th>Assigned To</th><th>Priority</th><th>Status</th><th>Notes</th><th>Created</th><th>Actions</th></tr></thead>
+        <tbody>
+        {% for t in tasks %}
+        <tr>
+            <td><strong>{{ t.room_no }}</strong> <small>{{ t.room_type }}</small></td>
+            <td>{{ t.staff_name or 'Unassigned' }}</td>
+            <td><span class="badge badge-{{ t.priority }}">{{ t.priority }}</span></td>
+            <td><span class="badge badge-{{ t.status }}">{{ t.status }}</span></td>
+            <td>{{ t.notes or '—' }}</td>
+            <td>{{ t.created_at }}</td>
+            <td>
+                <button class="btn btn-secondary btn-sm modal-trigger" data-target="#editHK{{ t.id }}">Update</button>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state"><div class="empty-icon">🧹</div><p>No housekeeping tasks.</p></div>
+    {% endif %}
+</div>
+
+<div class="modal" id="addHKModal">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <button class="modal-close">✕</button>
+        <h3>Create Housekeeping Task</h3>
+        <form method="post" action="{{ url_for('add_housekeeping') }}">
+            <div class="form-grid">
+                <select name="room_id" required>
+                    <option value="">Select Room</option>
+                    {% for r in cleaning_rooms %}
+                    <option value="{{ r.id }}">Room {{ r.room_no }}</option>
+                    {% endfor %}
+                </select>
+                <select name="assigned_to">
+                    <option value="">Assign Staff</option>
+                    {% for s in hk_staff %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+                </select>
+                <select name="priority">
+                    {% for p in hk_priorities %}<option>{{ p }}</option>{% endfor %}
+                </select>
+                <input name="notes" placeholder="Notes">
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top:16px">Create Task</button>
+        </form>
+    </div>
+</div>
+
+{% for t in tasks %}
+<div class="modal" id="editHK{{ t.id }}">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <button class="modal-close">✕</button>
+        <h3>Update Task — Room {{ t.room_no }}</h3>
+        <form method="post" action="{{ url_for('update_housekeeping', task_id=t.id) }}">
+            <div class="form-grid">
+                <select name="assigned_to">
+                    <option value="">Unassigned</option>
+                    {% for s in hk_staff %}
+                    <option value="{{ s.id }}" {% if t.assigned_to == s.id %}selected{% endif %}>{{ s.name }}</option>
+                    {% endfor %}
+                </select>
+                <select name="status">
+                    {% for s in hk_statuses %}
+                    <option {% if t.status == s %}selected{% endif %}>{{ s }}</option>
+                    {% endfor %}
+                </select>
+                <select name="priority">
+                    {% for p in hk_priorities %}
+                    <option {% if t.priority == p %}selected{% endif %}>{{ p }}</option>
+                    {% endfor %}
+                </select>
+                <input name="notes" value="{{ t.notes or '' }}">
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top:16px">Update Task</button>
+        </form>
+    </div>
+</div>
+{% endfor %}
+
+{% endblock %}

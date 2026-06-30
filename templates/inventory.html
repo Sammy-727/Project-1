@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% set title = "Inventory" %}
+{% block content %}
+
+<div class="page-actions">
+    <form class="filter-bar" method="get">
+        <input type="search" name="q" placeholder="Search items..." value="{{ search_q }}">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px">
+            <input type="checkbox" name="low" value="1" {% if low_only %}checked{% endif %} onchange="this.form.submit()"> Low stock only
+        </label>
+        <button type="submit" class="btn btn-secondary btn-sm">Search</button>
+    </form>
+    <button class="btn btn-primary modal-trigger" data-target="#addInvModal">+ Add Item</button>
+</div>
+
+<div class="panel">
+    {% if items %}
+    <table class="data-table">
+        <thead><tr><th>Item</th><th>Category</th><th>Qty</th><th>Unit</th><th>Price</th><th>Reorder</th><th>Supplier</th><th>Updated</th><th>Actions</th></tr></thead>
+        <tbody>
+        {% for i in items %}
+        <tr {% if i.quantity <= i.reorder_level %}class="low-stock"{% endif %}>
+            <td><strong>{{ i.item_name }}</strong>{% if i.quantity <= i.reorder_level %} ⚠️{% endif %}</td>
+            <td>{{ i.category }}</td>
+            <td {% if i.quantity <= i.reorder_level %}class="danger"{% endif %}>{{ i.quantity }}</td>
+            <td>{{ i.unit }}</td>
+            <td>₹{{ i.price }}</td>
+            <td>{{ i.reorder_level }}</td>
+            <td>{{ i.supplier_name or '—' }}</td>
+            <td>{{ i.last_updated or '—' }}</td>
+            <td>
+                <button class="btn btn-secondary btn-sm modal-trigger" data-target="#editInv{{ i.id }}">Edit</button>
+                <form class="inline-form" method="post" action="{{ url_for('restock_inventory', item_id=i.id) }}">
+                    <input name="quantity" type="number" placeholder="Qty" min="1" style="width:70px" required>
+                    <button type="submit" class="btn btn-success btn-sm">Restock</button>
+                </form>
+                <form class="inline-form" method="post" action="{{ url_for('delete_inventory', item_id=i.id) }}" data-confirm="Delete {{ i.item_name }}?">
+                    <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state"><div class="empty-icon">📦</div><p>No inventory items found.</p></div>
+    {% endif %}
+</div>
+
+<div class="modal" id="addInvModal">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <button class="modal-close">✕</button>
+        <h3>Add Inventory Item</h3>
+        <form method="post" action="{{ url_for('add_inventory') }}">
+            <div class="form-grid">
+                <input name="item_name" placeholder="Item Name" required>
+                <input name="category" placeholder="Category" required>
+                <input name="quantity" type="number" placeholder="Quantity" required min="0">
+                <input name="unit" placeholder="Unit (pcs, L, kg)" required>
+                <input name="price" type="number" placeholder="Unit Price" min="0">
+                <input name="reorder_level" type="number" placeholder="Low Stock Alert" value="10">
+                <input name="supplier_name" placeholder="Supplier">
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top:16px">Add Item</button>
+        </form>
+    </div>
+</div>
+
+{% for i in items %}
+<div class="modal" id="editInv{{ i.id }}">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <button class="modal-close">✕</button>
+        <h3>Edit {{ i.item_name }}</h3>
+        <form method="post" action="{{ url_for('update_inventory', item_id=i.id) }}">
+            <div class="form-grid">
+                <input name="item_name" value="{{ i.item_name }}" required>
+                <input name="category" value="{{ i.category }}" required>
+                <input name="quantity" type="number" value="{{ i.quantity }}" required>
+                <input name="unit" value="{{ i.unit }}" required>
+                <input name="price" type="number" value="{{ i.price }}">
+                <input name="reorder_level" type="number" value="{{ i.reorder_level }}">
+                <input name="supplier_name" value="{{ i.supplier_name or '' }}">
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top:16px">Save</button>
+        </form>
+    </div>
+</div>
+{% endfor %}
+
+{% endblock %}
