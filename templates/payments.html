@@ -30,7 +30,7 @@
             <td>₹{{ "{:,.0f}".format(pb.total_amount or 0) }}</td>
             <td>₹{{ "{:,.0f}".format(pb.paid) }}</td>
             <td class="danger">₹{{ "{:,.0f}".format(pb.balance) }}</td>
-            <td><span class="badge badge-{{ pb.payment_status }}">{{ pb.payment_status }}</span></td>
+            <td><span class="badge badge-{{ pb.payment_status|css_class }}">{{ pb.payment_status }}</span></td>
         </tr>
         {% endfor %}
         </tbody>

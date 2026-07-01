@@ -24,7 +24,7 @@
             <td>{{ e.email or '—' }}</td>
             <td>₹{{ "{:,.0f}".format(e.salary or 0) }}</td>
             <td>{{ e.joining_date or '—' }}</td>
-            <td><span class="badge badge-{{ e.status }}">{{ e.status }}</span></td>
+            <td><span class="badge badge-{{ e.status|css_class }}">{{ e.status }}</span></td>
             <td>
                 <button class="btn btn-secondary btn-sm modal-trigger" data-target="#editEmp{{ e.id }}">Edit</button>
                 <form class="inline-form" method="post" action="{{ url_for('delete_employee', emp_id=e.id) }}" data-confirm="Delete {{ e.name }}?">

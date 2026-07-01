@@ -34,8 +34,8 @@
             <td>{{ b.checkout }}</td>
             <td>{{ b.num_guests or 1 }}</td>
             <td>₹{{ "{:,.0f}".format(b.total_amount or 0) }}</td>
-            <td><span class="badge badge-{{ b.status }}">{{ b.status }}</span></td>
-            <td><span class="badge badge-{{ b.payment_status }}">{{ b.payment_status }}</span></td>
+            <td><span class="badge badge-{{ b.status|css_class }}">{{ b.status }}</span></td>
+            <td><span class="badge badge-{{ b.payment_status|css_class }}">{{ b.payment_status }}</span></td>
             <td>
                 {% if b.status in ['Reserved','Checked-in'] %}
                 <form class="inline-form" method="post" action="{{ url_for('cancel_booking', booking_id=b.id) }}" data-confirm="Cancel booking #{{ b.id }}?">

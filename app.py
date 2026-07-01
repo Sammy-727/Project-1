@@ -1,15 +1,19 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file, jsonify
 import sqlite3
 import os
+import sys
 import csv
 from io import StringIO, BytesIO
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from functools import wraps
 
 app = Flask(__name__)
+application = app  # WSGI entry for gunicorn / Replit / Render
 app.secret_key = os.environ.get("SECRET_KEY", "hms-v2-secret-key")
 APP_NAME = "GrandStay HMS"
-DB_PATH = os.path.join("instance", "hotel_v2.db")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "instance", "hotel_v2.db")
+_db_ready = False
 
 ROLES = ["Super Admin", "Admin", "Manager", "Receptionist", "Housekeeping", "Staff"]
 ROOM_STATUSES = ["Available", "Occupied", "Maintenance", "Cleaning", "Reserved"]
@@ -50,8 +54,11 @@ def table_columns(table):
 
 
 def add_column_if_missing(table, column, col_type):
-    if column not in table_columns(table):
-        query(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}", commit=True)
+    try:
+        if column not in table_columns(table):
+            query(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}", commit=True)
+    except Exception:
+        pass
 
 
 def nights_between(checkin, checkout):
@@ -153,7 +160,10 @@ def sync_room_status_from_bookings(room_id):
 
 
 def init_db():
-    os.makedirs("instance", exist_ok=True)
+    global _db_ready
+    if _db_ready:
+        return
+    os.makedirs(os.path.join(BASE_DIR, "instance"), exist_ok=True)
     conn = get_db()
     c = conn.cursor()
 
@@ -309,6 +319,16 @@ def init_db():
     conn.close()
     migrate_db()
     seed_db()
+    _db_ready = True
+
+
+def ensure_db():
+    """Initialize database once — safe to call from any entry point."""
+    try:
+        init_db()
+    except Exception as exc:
+        print(f"[HMS ERROR] Database setup failed: {exc}", file=sys.stderr)
+        raise
 
 
 def migrate_db():
@@ -436,7 +456,7 @@ def seed_db():
             (12, 22, "2026-06-30", "2026-07-05", 3, "Reserved", "Pending"),
             (13, 23, "2026-06-27", "2026-06-30", 2, "Checked-in", "Partial"),
             (14, 31, "2026-06-29", "2026-07-04", 2, "Reserved", "Pending"),
-            (15, 32, str(today), str(date(today.year, today.month, min(today.day + 3, 28))), 4, "Checked-in", "Pending"),
+            (15, 32, str(today), str(today + timedelta(days=3)), 4, "Checked-in", "Pending"),
         ]
         for b in bookings_data:
             room = query("SELECT price FROM rooms WHERE id=?", (b[1],), one=True)
@@ -533,6 +553,16 @@ def role_required(*roles):
 
 def admin_roles():
     return ["Super Admin", "Admin", "Manager"]
+
+
+@app.template_filter("css_class")
+def css_class_filter(value):
+    return (str(value or "")).replace(" ", "-")
+
+
+@app.errorhandler(500)
+def server_error(e):
+    return render_template("error.html", error=str(e)), 500
 
 
 @app.context_processor
@@ -1375,7 +1405,13 @@ def operations_redirect():
 
 
 if __name__ == "__main__":
-    init_db()
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+    ensure_db()
+    port = int(os.environ.get("PORT", 5000))
+    debug = os.environ.get("FLASK_DEBUG", "1") == "1"
+    # Disable reloader on Windows to avoid SQLite "database is locked" errors
+    use_reloader = debug and sys.platform != "win32"
+    print(f"\n  GrandStay HMS running at http://127.0.0.1:{port}")
+    print("  Login: admin / admin123\n")
+    app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=use_reloader)
 else:
-    init_db()
+    ensure_db()

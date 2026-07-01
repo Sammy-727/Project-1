@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% set title = "Error" %}
+{% block content %}
+<div class="panel" style="max-width:600px;margin:40px auto;text-align:center">
+    <div class="empty-icon" style="font-size:64px">⚠️</div>
+    <h2 style="margin:16px 0">Something went wrong</h2>
+    <p style="color:var(--muted);margin-bottom:20px">{{ error or "An unexpected error occurred." }}</p>
+    <h4 style="text-align:left;margin:20px 0 10px">Quick fixes:</h4>
+    <ol style="text-align:left;color:var(--muted);line-height:1.8">
+        <li>Delete <code>instance/hotel_v2.db</code> and restart the app</li>
+        <li>Run <code>pip install -r requirements.txt</code></li>
+        <li>Use <code>python run.py</code> to start (not double-click app.py)</li>
+        <li>Make sure Python 3.10+ is installed</li>
+    </ol>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-primary" style="margin-top:20px">Back to Dashboard</a>
+</div>
+{% endblock %}

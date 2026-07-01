@@ -16,7 +16,7 @@
             <td><strong>{{ u.username }}</strong></td>
             <td>{{ u.full_name or u.username }}</td>
             <td>{{ u.role }}</td>
-            <td><span class="badge badge-{{ u.status }}">{{ u.status }}</span></td>
+            <td><span class="badge badge-{{ u.status|css_class }}">{{ u.status }}</span></td>
         </tr>
         {% endfor %}
         </tbody>

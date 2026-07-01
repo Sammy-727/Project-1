@@ -39,7 +39,7 @@
         <p>Discount: −₹{{ "%.2f"|format(bill.discount) }}</p>
         <p>GST (12%): ₹{{ "%.2f"|format(bill.tax) }}</p>
         <h2>Total: ₹{{ "%.2f"|format(bill.total) }}</h2>
-        <p>Payment Status: <span class="badge badge-{{ bill.payment_status }}">{{ bill.payment_status }}</span></p>
+        <p>Payment Status: <span class="badge badge-{{ bill.payment_status|css_class }}">{{ bill.payment_status }}</span></p>
     </div>
 
     {% if payments %}

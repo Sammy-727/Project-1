@@ -91,7 +91,7 @@
                 <td>{{ b.name }}</td>
                 <td>{{ b.room_no }} <small class="muted">{{ b.room_type }}</small></td>
                 <td>{{ b.checkin }} → {{ b.checkout }}</td>
-                <td><span class="badge badge-{{ b.status }}">{{ b.status }}</span></td>
+                <td><span class="badge badge-{{ b.status|css_class }}">{{ b.status }}</span></td>
             </tr>
             {% endfor %}
             </tbody>

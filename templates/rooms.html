@@ -37,7 +37,7 @@
             <td>₹{{ "{:,.0f}".format(r.price) }}</td>
             <td>{{ r.capacity or 2 }}</td>
             <td><small>{{ r.amenities or '—' }}</small></td>
-            <td><span class="badge badge-{{ r.status }}">{{ r.status }}</span></td>
+            <td><span class="badge badge-{{ r.status|css_class }}">{{ r.status }}</span></td>
             <td>
                 <button class="btn btn-secondary btn-sm modal-trigger" data-target="#editRoom{{ r.id }}">Edit</button>
                 <form class="inline-form" method="post" action="{{ url_for('delete_room', room_id=r.id) }}" data-confirm="Delete room {{ r.room_no }}?">

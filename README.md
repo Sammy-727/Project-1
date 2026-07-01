@@ -1,74 +1,122 @@
 # GrandStay HMS — Hotel Management System
 
-A full-featured Hotel Management System built with **Flask**, **Jinja2**, and **SQLite**. Includes a modern dashboard UI with role-based access, real database operations, and demo seed data.
+A full-featured Hotel Management System built with **Flask**, **Jinja2**, and **SQLite**.
 
-## Features
+---
 
-- **Authentication** — Login/logout with roles: Super Admin, Admin, Manager, Receptionist, Housekeeping, Staff
-- **Dashboard** — Live stats, revenue chart, recent bookings/payments, room status summary
-- **Rooms** — Full CRUD, filters, search, amenities, floor, capacity
-- **Customers** — Full CRUD with guest/family support
-- **Bookings** — Create with double-booking prevention, auto total calculation
-- **Check In/Out** — Arrivals, active stays, payment collection, bill generation
-- **Payments** — Record payments, receipts, revenue tracking
-- **Employees** — Staff management with departments
-- **Housekeeping** — Task assignment, priority, room status sync
-- **Room Service** — Service requests with billable charges
-- **Inventory** — Stock management with low-stock alerts
-- **Global Search** — Search rooms, customers, bookings, payments
+## Quick Start (Recommended)
 
-## Run Locally
+### Windows
+1. Unzip the project folder
+2. Double-click **`run_hms_v2.bat`**
+3. Open **http://127.0.0.1:5000**
+4. Login: `admin` / `admin123`
 
+### Mac / Linux
 ```bash
-python -m pip install -r requirements.txt
-python app.py
+cd GrandStay-HMS
+python3 -m pip install -r requirements.txt
+python3 run.py
 ```
 
 Open: **http://127.0.0.1:5000**
 
-## Demo Login Accounts
+---
 
-| Username     | Password   | Role          |
-|-------------|------------|---------------|
-| superadmin  | admin123   | Super Admin   |
-| admin       | admin123   | Admin         |
-| manager     | manager123 | Manager       |
-| reception   | rec123     | Receptionist  |
-| housekeeping| hk123      | Housekeeping  |
-| staff       | staff123   | Staff         |
+## Login Accounts
 
-## Database Reset
+| Username      | Password   | Role          |
+|---------------|------------|---------------|
+| superadmin    | admin123   | Super Admin   |
+| admin         | admin123   | Admin         |
+| manager       | manager123 | Manager       |
+| reception     | rec123     | Receptionist  |
+| housekeeping  | hk123      | Housekeeping  |
+| staff         | staff123   | Staff         |
 
-To start fresh with new demo data, delete the database file and restart:
+---
 
-```bash
-rm -f instance/hotel_v2.db
-python app.py
-```
+## Troubleshooting
 
-The app auto-creates tables, runs migrations, and seeds demo data on first launch.
+### "python is not recognized" (Windows)
+- Install Python from https://www.python.org/downloads/
+- Check **"Add Python to PATH"** during install
+- Or use: `py -3 run.py`
 
-## Deploy (Render / Gunicorn)
-
-**Build Command:**
+### "No module named flask"
 ```bash
 pip install -r requirements.txt
 ```
 
-**Start Command:**
+### "Address already in use" / Port 5000 busy
 ```bash
-gunicorn app:app
+# Windows
+set PORT=5001 && python run.py
+
+# Mac/Linux
+PORT=5001 python3 run.py
 ```
 
-Set environment variable `SECRET_KEY` for production.
+### "database is locked" (Windows)
+- Use `python run.py` instead of `python app.py`
+- The app disables auto-reload on Windows to prevent this
+
+### Blank page or 500 error
+Delete the database and restart:
+```bash
+# Windows
+del instance\hotel_v2.db
+python run.py
+
+# Mac/Linux
+rm -f instance/hotel_v2.db
+python3 run.py
+```
+
+### Templates not found
+Make sure you extracted the **full zip** with these folders:
+- `templates/`
+- `static/`
+- `app.py`
+- `run.py`
+
+---
+
+## Database Reset
+
+```bash
+rm -f instance/hotel_v2.db   # Mac/Linux
+del instance\hotel_v2.db     # Windows
+python run.py
+```
+
+Demo data is auto-seeded: 37 rooms, 20 customers, 15 bookings, etc.
+
+---
+
+## Deploy
+
+**Render / Gunicorn:**
+```bash
+pip install -r requirements.txt
+gunicorn app:application --bind 0.0.0.0:$PORT
+```
+
+**Replit:** Use the included `.replit` file — click Run.
+
+Set `SECRET_KEY` environment variable in production.
+
+---
 
 ## Project Structure
 
 ```
-app.py                  # Main Flask application
-instance/hotel_v2.db    # SQLite database (auto-created)
-static/css/style.css    # Premium UI styles
-static/js/app.js        # Sidebar, modals, confirmations
-templates/              # Jinja2 templates per module
-requirements.txt        # Python dependencies
+app.py              # Main application
+run.py              # Easy launcher (use this!)
+run_hms_v2.bat      # Windows one-click start
+requirements.txt    # Dependencies
+templates/          # HTML pages
+static/css/         # Styles
+static/js/          # JavaScript
+instance/           # SQLite DB (auto-created)
 ```

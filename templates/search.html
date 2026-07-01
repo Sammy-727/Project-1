@@ -20,7 +20,7 @@
             {% for r in results.rooms %}
             <tr>
                 <td>{{ r.room_no }}</td><td>{{ r.room_type }}</td><td>₹{{ r.price }}</td>
-                <td><span class="badge badge-{{ r.status }}">{{ r.status }}</span></td>
+                <td><span class="badge badge-{{ r.status|css_class }}">{{ r.status }}</span></td>
                 <td><a href="{{ url_for('rooms', q=r.room_no) }}" class="btn btn-secondary btn-sm">View</a></td>
             </tr>
             {% endfor %}
@@ -56,7 +56,7 @@
             <tr>
                 <td>#{{ b.id }}</td><td>{{ b.name }}</td><td>{{ b.room_no }}</td>
                 <td>{{ b.checkin }} → {{ b.checkout }}</td>
-                <td><span class="badge badge-{{ b.status }}">{{ b.status }}</span></td>
+                <td><span class="badge badge-{{ b.status|css_class }}">{{ b.status }}</span></td>
                 <td><a href="{{ url_for('bookings', q=b.name) }}" class="btn btn-secondary btn-sm">View</a></td>
             </tr>
             {% endfor %}

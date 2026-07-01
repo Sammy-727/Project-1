@@ -23,8 +23,8 @@
         <tr>
             <td><strong>{{ t.room_no }}</strong> <small>{{ t.room_type }}</small></td>
             <td>{{ t.staff_name or 'Unassigned' }}</td>
-            <td><span class="badge badge-{{ t.priority }}">{{ t.priority }}</span></td>
-            <td><span class="badge badge-{{ t.status }}">{{ t.status }}</span></td>
+            <td><span class="badge badge-{{ t.priority|css_class }}">{{ t.priority }}</span></td>
+            <td><span class="badge badge-{{ t.status|css_class }}">{{ t.status }}</span></td>
             <td>{{ t.notes or '—' }}</td>
             <td>{{ t.created_at }}</td>
             <td>
