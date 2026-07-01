@@ -29,9 +29,10 @@ ID_PROOF_TYPES = ["Aadhar", "Passport", "Driving License", "Voter ID", "PAN Card
 
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=30)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = WAL")
     return conn
 
 
@@ -1405,13 +1406,21 @@ def operations_redirect():
 
 
 if __name__ == "__main__":
+    if sys.platform == "win32":
+        os.environ.setdefault("PYTHONIOENCODING", "utf-8")
     ensure_db()
     port = int(os.environ.get("PORT", 5000))
-    debug = os.environ.get("FLASK_DEBUG", "1") == "1"
-    # Disable reloader on Windows to avoid SQLite "database is locked" errors
-    use_reloader = debug and sys.platform != "win32"
+    is_windows = sys.platform == "win32"
+    debug = (not is_windows) and os.environ.get("FLASK_DEBUG", "0") == "1"
     print(f"\n  GrandStay HMS running at http://127.0.0.1:{port}")
-    print("  Login: admin / admin123\n")
-    app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=use_reloader)
+    print("  Login: admin / admin123")
+    print("  Tip: On Windows use START.bat instead\n")
+    app.run(
+        host="127.0.0.1",
+        port=port,
+        debug=debug,
+        use_reloader=False,
+        threaded=True,
+    )
 else:
     ensure_db()

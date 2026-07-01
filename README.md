@@ -1,122 +1,79 @@
 # GrandStay HMS — Hotel Management System
 
-A full-featured Hotel Management System built with **Flask**, **Jinja2**, and **SQLite**.
+## WINDOWS — Follow These Steps
+
+### Step 1: Install Python
+1. Go to https://www.python.org/downloads/
+2. Download **Python 3.10** or newer
+3. Run installer → **CHECK** ✅ **"Add python.exe to PATH"**
+4. Click **Install Now**
+5. **Restart your computer**
+
+### Step 2: Run the App
+1. Unzip the project folder (e.g. `GrandStay-HMS`)
+2. Double-click **`START.bat`**
+3. Wait for "Installing dependencies..." (first time only, 1-2 min)
+4. Browser opens automatically → **http://127.0.0.1:5000**
+5. Login: **`admin`** / **`admin123`**
+
+> ⚠️ **Keep the black command window open** while using the app. Closing it stops the server.
+
+### Step 3: If Something Fails
+1. Double-click **`TEST_SETUP.bat`** — shows what is broken
+2. Double-click **`RESET_DATABASE.bat`** — fixes database errors
+3. Double-click **`START.bat`** again
 
 ---
 
-## Quick Start (Recommended)
+## Windows Files
 
-### Windows
-1. Unzip the project folder
-2. Double-click **`run_hms_v2.bat`**
-3. Open **http://127.0.0.1:5000**
-4. Login: `admin` / `admin123`
+| File | Purpose |
+|------|---------|
+| **START.bat** | ⭐ Main launcher — use this! |
+| TEST_SETUP.bat | Check if Python/Flask/DB work |
+| RESET_DATABASE.bat | Delete corrupt database |
+| run_hms_v2.bat | Same as START.bat |
 
-### Mac / Linux
+---
+
+## Common Windows Errors
+
+| Error | Fix |
+|-------|-----|
+| `python is not recognized` | Reinstall Python with "Add to PATH" checked, restart PC |
+| `database is locked` | Run RESET_DATABASE.bat, then START.bat |
+| Port 5000 busy | START.bat auto-finds free port |
+| Window closes instantly | Use START.bat (not app.py) |
+| Blank page | Wait 30 sec after first run, refresh browser |
+
+---
+
+## Mac / Linux
+
 ```bash
 cd GrandStay-HMS
 python3 -m pip install -r requirements.txt
 python3 run.py
 ```
 
-Open: **http://127.0.0.1:5000**
+Open: http://127.0.0.1:5000
 
 ---
 
 ## Login Accounts
 
-| Username      | Password   | Role          |
-|---------------|------------|---------------|
-| superadmin    | admin123   | Super Admin   |
-| admin         | admin123   | Admin         |
-| manager       | manager123 | Manager       |
-| reception     | rec123     | Receptionist  |
-| housekeeping  | hk123      | Housekeeping  |
-| staff         | staff123   | Staff         |
+| Username | Password | Role |
+|----------|----------|------|
+| admin | admin123 | Admin |
+| manager | manager123 | Manager |
+| reception | rec123 | Receptionist |
+| superadmin | admin123 | Super Admin |
 
 ---
 
-## Troubleshooting
+## Deploy (Render)
 
-### "python is not recognized" (Windows)
-- Install Python from https://www.python.org/downloads/
-- Check **"Add Python to PATH"** during install
-- Or use: `py -3 run.py`
-
-### "No module named flask"
 ```bash
 pip install -r requirements.txt
-```
-
-### "Address already in use" / Port 5000 busy
-```bash
-# Windows
-set PORT=5001 && python run.py
-
-# Mac/Linux
-PORT=5001 python3 run.py
-```
-
-### "database is locked" (Windows)
-- Use `python run.py` instead of `python app.py`
-- The app disables auto-reload on Windows to prevent this
-
-### Blank page or 500 error
-Delete the database and restart:
-```bash
-# Windows
-del instance\hotel_v2.db
-python run.py
-
-# Mac/Linux
-rm -f instance/hotel_v2.db
-python3 run.py
-```
-
-### Templates not found
-Make sure you extracted the **full zip** with these folders:
-- `templates/`
-- `static/`
-- `app.py`
-- `run.py`
-
----
-
-## Database Reset
-
-```bash
-rm -f instance/hotel_v2.db   # Mac/Linux
-del instance\hotel_v2.db     # Windows
-python run.py
-```
-
-Demo data is auto-seeded: 37 rooms, 20 customers, 15 bookings, etc.
-
----
-
-## Deploy
-
-**Render / Gunicorn:**
-```bash
-pip install -r requirements.txt
-gunicorn app:application --bind 0.0.0.0:$PORT
-```
-
-**Replit:** Use the included `.replit` file — click Run.
-
-Set `SECRET_KEY` environment variable in production.
-
----
-
-## Project Structure
-
-```
-app.py              # Main application
-run.py              # Easy launcher (use this!)
-run_hms_v2.bat      # Windows one-click start
-requirements.txt    # Dependencies
-templates/          # HTML pages
-static/css/         # Styles
-static/js/          # JavaScript
-instance/           # SQLite DB (auto-created)
+gunicorn app:application --workers 1 --bind 0.0.0.0:$PORT
 ```
