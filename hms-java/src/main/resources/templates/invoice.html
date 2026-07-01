@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{base :: layout('Invoice', ~{::main})}">
+<main>
+<div class="panel invoice">
+    <div class="invoice-head"><h2>Tax Invoice</h2><button onclick="window.print()" class="btn btn-primary">Print</button></div>
+    <div class="invoice-info">
+        <p><b>Customer:</b> <span th:text="${booking.customer.name}">Name</span></p>
+        <p><b>Room:</b> <span th:text="${booking.room.roomNo}">101</span></p>
+        <p><b>Stay:</b> <span th:text="${booking.checkin} + ' to ' + ${booking.checkout}">dates</span></p>
+    </div>
+    <div class="invoice-total">
+        <p th:text="'Room Charges: Rs.' + ${roomCharges}">0</p>
+        <p th:text="'Service: Rs.' + ${serviceCharges}">0</p>
+        <p th:text="'GST 12%: Rs.' + ${tax}">0</p>
+        <h2 th:text="'Total: Rs.' + ${total}">0</h2>
+    </div>
+</div>
+</main>
+</html>

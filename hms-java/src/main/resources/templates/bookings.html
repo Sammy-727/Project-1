@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{base :: layout('Bookings', ~{::main})}">
+<main>
+<div class="panel">
+    <table class="data-table">
+        <thead><tr><th>ID</th><th>Customer</th><th>Room</th><th>Check-in</th><th>Check-out</th><th>Status</th><th>Payment</th><th>Actions</th></tr></thead>
+        <tbody>
+        <tr th:each="b : ${bookings}">
+            <td th:text="'#' + ${b.id}">#1</td>
+            <td th:text="${b.customer.name}">Name</td>
+            <td th:text="${b.room.roomNo}">101</td>
+            <td th:text="${b.checkin}">date</td>
+            <td th:text="${b.checkout}">date</td>
+            <td th:text="${b.status}">Reserved</td>
+            <td th:text="${b.paymentStatus}">Pending</td>
+            <td>
+                <form th:if="${b.status.name() == 'RESERVED' or b.status.name() == 'CHECKED_IN'}" th:action="@{/bookings/cancel/{id}(id=${b.id})}" method="post" style="display:inline">
+                    <button class="btn btn-danger btn-sm">Cancel</button></form>
+                <a th:href="@{/invoice/{id}(id=${b.id})}" class="btn btn-secondary btn-sm">Bill</a>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+<div class="panel">
+    <h3>Create Booking</h3>
+    <form th:action="@{/bookings/add}" method="post" class="form-grid">
+        <select name="customerId" required>
+            <option value="">Customer</option>
+            <option th:each="c : ${customers}" th:value="${c.id}" th:text="${c.name + ' - ' + c.phone}" th:selected="${newCustomer == c.id}"></option>
+        </select>
+        <select name="roomId" required>
+            <option value="">Room</option>
+            <option th:each="r : ${rooms}" th:value="${r.id}" th:text="${r.roomNo + ' - ' + r.roomType + ' Rs.' + r.price}"></option>
+        </select>
+        <input type="date" name="checkin" required>
+        <input type="date" name="checkout" required>
+        <input type="number" name="numGuests" value="1" min="1">
+        <button type="submit" class="btn btn-primary">Create Booking</button>
+    </form>
+</div>
+</main>
+</html>

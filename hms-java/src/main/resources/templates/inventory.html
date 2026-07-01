@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{base :: layout('Inventory', ~{::main})}">
+<main>
+<div class="panel">
+    <table class="data-table">
+        <thead><tr><th>Item</th><th>Category</th><th>Qty</th><th>Unit</th><th>Reorder</th><th>Supplier</th><th>Actions</th></tr></thead>
+        <tbody>
+        <tr th:each="i : ${items}" th:classappend="${i.lowStock} ? 'low-stock'">
+            <td th:text="${i.itemName}">Item</td>
+            <td th:text="${i.category}">Cat</td>
+            <td th:text="${i.quantity}" th:classappend="${i.lowStock} ? 'danger'">0</td>
+            <td th:text="${i.unit}">pcs</td>
+            <td th:text="${i.reorderLevel}">10</td>
+            <td th:text="${i.supplierName}">Supplier</td>
+            <td>
+                <form th:action="@{/inventory/restock/{id}(id=${i.id})}" method="post" class="inline-form">
+                    <input name="quantity" type="number" min="1" style="width:70px" required>
+                    <button class="btn btn-success btn-sm">Restock</button></form>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+<div class="panel">
+    <form th:action="@{/inventory/add}" method="post" class="form-grid">
+        <input name="itemName" placeholder="Item name" required>
+        <input name="category" placeholder="Category" required>
+        <input name="quantity" type="number" required>
+        <input name="unit" placeholder="Unit" required>
+        <input name="price" type="number">
+        <input name="reorderLevel" type="number" value="10">
+        <input name="supplierName" placeholder="Supplier">
+        <button type="submit" class="btn btn-primary">Add Item</button>
+    </form>
+</div>
+</main>
+</html>

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:fragment="layout (pageTitle, content)">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="${pageTitle + ' - ' + appName}">HMS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link th:href="@{/css/style.css}" rel="stylesheet">
+</head>
+<body>
+<div class="layout" sec:authorize="isAuthenticated()">
+    <aside class="sidebar" id="sidebar">
+        <div class="brand"><div class="brand-icon">H</div><div><h2 th:text="${appName}">HMS</h2><p>Hotel Management</p></div></div>
+        <div class="user-card" th:if="${currentUser != null}">
+            <div class="user-avatar" th:text="${#strings.substring(currentUser.fullName,0,1)}">A</div>
+            <div><strong th:text="${currentUser.fullName}">User</strong><span th:text="${currentUser.roleDisplay}">Role</span></div>
+        </div>
+        <nav class="sidebar-nav">
+            <p class="nav-section">Overview</p>
+            <a th:href="@{/dashboard}" class="nav-link">📊 Dashboard</a>
+            <p class="nav-section">Front Desk</p>
+            <a th:href="@{/rooms}" class="nav-link">🛏️ Rooms</a>
+            <a th:href="@{/bookings}" class="nav-link">📅 Bookings</a>
+            <a th:href="@{/customers}" class="nav-link">👥 Customers</a>
+            <a th:href="@{/checkin-out}" class="nav-link">🔑 Check In / Out</a>
+            <p class="nav-section">Operations</p>
+            <a th:href="@{/inventory}" class="nav-link">📦 Inventory</a>
+            <a th:href="@{/room-service}" class="nav-link">🛎️ Room Service</a>
+            <a th:href="@{/housekeeping}" class="nav-link">🧹 Housekeeping</a>
+            <p class="nav-section">Finance</p>
+            <a th:href="@{/payments}" class="nav-link">💳 Payments</a>
+            <p class="nav-section">Management</p>
+            <a th:href="@{/employees}" class="nav-link" sec:authorize="hasAnyRole('SUPER_ADMIN','ADMIN','MANAGER')">👔 Employees</a>
+            <a th:href="@{/admin}" class="nav-link" sec:authorize="hasAnyRole('SUPER_ADMIN','ADMIN','MANAGER')">🔐 Users</a>
+            <a th:href="@{/logout}" class="nav-link logout">🚪 Logout</a>
+        </nav>
+    </aside>
+    <div class="main-wrap">
+        <header class="topbar">
+            <button class="menu-toggle" id="menuToggle">☰</button>
+            <div class="topbar-left"><h1 th:text="${pageTitle}">Page</h1></div>
+            <form class="search-bar" th:action="@{/search}" method="get"><input type="search" name="q" placeholder="Search..."></form>
+            <div class="topbar-profile" th:if="${currentUser != null}">
+                <div class="profile-avatar" th:text="${#strings.substring(currentUser.fullName,0,1)}">A</div>
+                <div class="profile-info"><strong th:text="${currentUser.fullName}">User</strong><span th:text="${currentUser.roleDisplay}">Role</span></div>
+            </div>
+        </header>
+        <main class="content">
+            <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
+            <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
+            <th:block th:replace="${content}"></th:block>
+        </main>
+    </div>
+</div>
+<script th:src="@{/js/app.js}" sec:authorize="isAuthenticated()"></script>
+</body>
+</html>

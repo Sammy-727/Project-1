@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{base :: layout('Room Service', ~{::main})}">
+<main>
+<div class="panel">
+    <table class="data-table">
+        <thead><tr><th>Room</th><th>Type</th><th>Description</th><th>Charges</th><th>Status</th></tr></thead>
+        <tbody>
+        <tr th:each="r : ${requests}">
+            <td th:text="${r.room.roomNo}">101</td>
+            <td th:text="${r.requestType}">Food</td>
+            <td th:text="${r.description}">desc</td>
+            <td th:text="'Rs.' + ${r.charges}">0</td>
+            <td th:text="${r.status}">Pending</td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+<div class="panel">
+    <form th:action="@{/room-service/add}" method="post" class="form-grid">
+        <select name="bookingId" required><option value="">Booking</option>
+            <option th:each="b : ${activeBookings}" th:value="${b.id}" th:text="'#' + ${b.id} + ' Room ' + ${b.room.roomNo}"></option></select>
+        <select name="requestType"><option>Food</option><option>Laundry</option><option>Cleaning</option><option>Maintenance</option><option>Other</option></select>
+        <input name="description" placeholder="Description">
+        <input name="charges" type="number" value="0">
+        <label><input type="checkbox" name="addToBill" value="true" checked> Add to bill</label>
+        <button type="submit" class="btn btn-primary">Add Request</button>
+    </form>
+</div>
+</main>
+</html>

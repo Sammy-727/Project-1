@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{base :: layout('Customers', ~{::main})}">
+<main>
+<div class="page-actions">
+    <form method="get" th:action="@{/customers}"><input name="q" th:value="${searchQ}" placeholder="Search...">
+        <button class="btn btn-secondary btn-sm">Search</button></form>
+</div>
+<div class="panel">
+    <table class="data-table">
+        <thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Bookings</th><th>Actions</th></tr></thead>
+        <tbody>
+        <tr th:each="c : ${customers}">
+            <td th:text="${c.name}">Name</td>
+            <td th:text="${c.phone}">Phone</td>
+            <td th:text="${c.email}">Email</td>
+            <td th:text="${bookingCounts[c.id]}">0</td>
+            <td>
+                <a th:href="@{/bookings(newCustomer=${c.id})}" class="btn btn-success btn-sm">Book</a>
+                <form th:action="@{/customers/delete/{id}(id=${c.id})}" method="post" style="display:inline" onsubmit="return confirm('Delete?')">
+                    <button class="btn btn-danger btn-sm">Delete</button></form>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+<div class="panel">
+    <h3>Add Customer</h3>
+    <form th:action="@{/customers/add}" method="post" class="form-grid">
+        <input name="name" placeholder="Name" required>
+        <input name="phone" placeholder="Phone" required>
+        <input name="email" placeholder="Email">
+        <input name="address" placeholder="Address">
+        <input name="gender" placeholder="Gender">
+        <input name="age" type="number" placeholder="Age">
+        <input name="idProofType" placeholder="ID Type">
+        <input name="idProofNumber" placeholder="ID Number">
+        <input name="guestName" placeholder="Guest name (optional)">
+        <button type="submit" class="btn btn-primary">Add Customer</button>
+        <button type="submit" name="redirectTo" value="bookings" class="btn btn-success">Save & Book</button>
+    </form>
+</div>
+</main>
+</html>

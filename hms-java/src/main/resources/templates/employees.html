@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{base :: layout('Employees', ~{::main})}">
+<main>
+<div class="panel">
+    <table class="data-table">
+        <thead><tr><th>Name</th><th>Role</th><th>Department</th><th>Salary</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>
+        <tr th:each="e : ${employees}">
+            <td th:text="${e.name}">Name</td>
+            <td th:text="${e.role}">Role</td>
+            <td th:text="${e.department}">Dept</td>
+            <td th:text="'Rs.' + ${e.salary}">0</td>
+            <td th:text="${e.status}">Active</td>
+            <td><form th:action="@{/employees/delete/{id}(id=${e.id})}" method="post" onsubmit="return confirm('Delete?')"><button class="btn btn-danger btn-sm">Delete</button></form></td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+<div class="panel">
+    <form th:action="@{/employees/add}" method="post" class="form-grid">
+        <input name="name" placeholder="Name" required>
+        <input name="phone" placeholder="Phone">
+        <input name="email" placeholder="Email">
+        <input name="role" placeholder="Role" required>
+        <input name="department" placeholder="Department">
+        <input name="salary" type="number" placeholder="Salary">
+        <input name="shift" placeholder="Shift">
+        <input name="joiningDate" type="date">
+        <select name="status"><option>Active</option><option>Inactive</option></select>
+        <button type="submit" class="btn btn-primary">Add Employee</button>
+    </form>
+</div>
+</main>
+</html>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{base :: layout('Payments', ~{::main})}">
+<main>
+<div class="page-actions"><strong th:text="'Total Revenue: Rs.' + ${totalRevenue}">0</strong></div>
+<div class="panel">
+    <h3>Record Payment</h3>
+    <form th:action="@{/payments/add}" method="post" class="form-grid">
+        <select name="bookingId" required>
+            <option value="">Booking</option>
+            <option th:each="b : ${pendingBookings}" th:value="${b.id}" th:text="'#' + ${b.id} + ' ' + ${b.customer.name} + ' Bal: Rs.' + ${balanceMap[b.id]}"></option>
+        </select>
+        <input name="amount" type="number" required min="1">
+        <select name="paymentMode"><option>Cash</option><option>UPI</option><option>Card</option><option>Bank Transfer</option></select>
+        <button type="submit" class="btn btn-primary">Record</button>
+    </form>
+</div>
+<div class="panel">
+    <table class="data-table">
+        <thead><tr><th>Receipt</th><th>Customer</th><th>Room</th><th>Amount</th><th>Mode</th><th>Date</th></tr></thead>
+        <tbody>
+        <tr th:each="p : ${payments}">
+            <td th:text="${p.receiptNumber}">RCP</td>
+            <td th:text="${p.booking.customer.name}">Name</td>
+            <td th:text="${p.booking.room.roomNo}">101</td>
+            <td th:text="'Rs.' + ${p.amount}">0</td>
+            <td th:text="${p.paymentMode}">Cash</td>
+            <td th:text="${p.paymentDate}">date</td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+</main>
+</html>

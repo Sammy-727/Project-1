@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{base :: layout('Rooms', ~{::main})}">
+<main>
+<div class="page-actions">
+    <form class="filter-bar" method="get" th:action="@{/rooms}">
+        <input name="q" placeholder="Search room..." th:value="${searchQ}">
+        <select name="status"><option value="">All Status</option>
+            <option th:each="s : ${roomStatuses}" th:value="${s.name()}" th:text="${s.name().replace('_',' ')}" th:selected="${filterStatus == s.name()}"></option>
+        </select>
+        <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
+    </form>
+</div>
+<div class="panel">
+    <table class="data-table">
+        <thead><tr><th>Room</th><th>Type</th><th>Floor</th><th>Price</th><th>Capacity</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>
+        <tr th:each="r : ${rooms}">
+            <td th:text="${r.roomNo}">101</td>
+            <td th:text="${r.roomType}">Standard</td>
+            <td th:text="${r.floor}">1</td>
+            <td th:text="'Rs.' + ${r.price}">0</td>
+            <td th:text="${r.capacity}">2</td>
+            <td><span class="badge" th:text="${r.status}">Available</span></td>
+            <td>
+                <form th:action="@{/rooms/delete/{id}(id=${r.id})}" method="post" style="display:inline" onsubmit="return confirm('Delete room?')">
+                    <button class="btn btn-danger btn-sm">Delete</button>
+                </form>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+<div class="panel">
+    <h3>Add Room</h3>
+    <form th:action="@{/rooms/add}" method="post" class="form-grid">
+        <input name="roomNo" placeholder="Room No" required>
+        <input name="roomType" placeholder="Type" value="Standard" required>
+        <input name="floor" type="number" value="1">
+        <input name="price" type="number" placeholder="Price" required>
+        <input name="capacity" type="number" value="2">
+        <select name="status"><option th:each="s : ${roomStatuses}" th:value="${s}" th:text="${s}"></option></select>
+        <input name="amenities" placeholder="Amenities">
+        <button type="submit" class="btn btn-primary">Add Room</button>
+    </form>
+</div>
+</main>
+</html>

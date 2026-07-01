@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{base :: layout('Search Results', ~{::main})}">
+<main>
+<div class="panel">
+    <h3 th:text="'Results for: ' + ${q}">Search</h3>
+    <div th:if="${rooms != null and !rooms.isEmpty()}">
+        <h4>Rooms</h4>
+        <ul><li th:each="r : ${rooms}" th:text="${r.roomNo + ' - ' + r.roomType}"></li></ul>
+    </div>
+    <div th:if="${customers != null and !customers.isEmpty()}">
+        <h4>Customers</h4>
+        <ul><li th:each="c : ${customers}" th:text="${c.name + ' - ' + c.phone}"></li></ul>
+    </div>
+    <div th:if="${bookings != null and !bookings.isEmpty()}">
+        <h4>Bookings</h4>
+        <ul><li th:each="b : ${bookings}" th:text="'#' + ${b.id} + ' ' + ${b.customer.name}"></li></ul>
+    </div>
+</div>
+</main>
+</html>

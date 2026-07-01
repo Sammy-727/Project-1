@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{base :: layout('Dashboard', ~{::main})}">
+<main xmlns:th="http://www.thymeleaf.org">
+<section class="hero">
+    <div><h2>Welcome back 👋</h2><p>Here's your hotel overview for today.</p></div>
+    <div class="hero-total"><span>Total Revenue</span><strong th:text="'Rs.' + ${#numbers.formatDecimal(stats.revenue,1,0)}">0</strong></div>
+</section>
+<div class="cards">
+    <div class="stat-card"><div class="stat-icon blue">🛏️</div><div class="stat-info"><span>Total Rooms</span><h3 th:text="${stats.totalRooms}">0</h3></div></div>
+    <div class="stat-card"><div class="stat-icon green">✅</div><div class="stat-info"><span>Available</span><h3 th:text="${stats.available}">0</h3></div></div>
+    <div class="stat-card"><div class="stat-icon red">🔴</div><div class="stat-info"><span>Occupied</span><h3 th:text="${stats.occupied}">0</h3></div></div>
+    <div class="stat-card"><div class="stat-icon purple">📅</div><div class="stat-info"><span>Active Bookings</span><h3 th:text="${stats.activeBookings}">0</h3></div></div>
+    <div class="stat-card"><div class="stat-icon orange">👔</div><div class="stat-info"><span>Employees</span><h3 th:text="${stats.employees}">0</h3></div></div>
+    <div class="stat-card"><div class="stat-icon pink">🧹</div><div class="stat-info"><span>Cleaning</span><h3 th:text="${stats.cleaning}">0</h3></div></div>
+</div>
+<div class="grid-2">
+    <div class="panel">
+        <div class="panel-head"><h3>Recent Bookings</h3><a th:href="@{/bookings}" class="btn btn-secondary btn-sm">View All</a></div>
+        <table class="data-table" th:if="${!recentBookings.isEmpty()}">
+            <thead><tr><th>ID</th><th>Customer</th><th>Room</th><th>Status</th></tr></thead>
+            <tbody>
+            <tr th:each="b : ${recentBookings}">
+                <td th:text="'#' + ${b.id}">#1</td>
+                <td th:text="${b.customer.name}">Name</td>
+                <td th:text="${b.room.roomNo}">101</td>
+                <td><span class="badge" th:text="${b.status}">Status</span></td>
+            </tr>
+            </tbody>
+        </table>
+        <div class="empty-state" th:if="${recentBookings.isEmpty()}"><p>No bookings yet.</p></div>
+    </div>
+    <div class="panel">
+        <div class="panel-head"><h3>Recent Payments</h3><a th:href="@{/payments}" class="btn btn-secondary btn-sm">View All</a></div>
+        <table class="data-table" th:if="${!recentPayments.isEmpty()}">
+            <thead><tr><th>Receipt</th><th>Amount</th><th>Mode</th></tr></thead>
+            <tbody>
+            <tr th:each="p : ${recentPayments}">
+                <td th:text="${p.receiptNumber}">RCP</td>
+                <td th:text="'Rs.' + ${p.amount}">0</td>
+                <td th:text="${p.paymentMode}">Cash</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+</main>
+</html>

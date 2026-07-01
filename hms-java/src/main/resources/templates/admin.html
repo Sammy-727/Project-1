@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{base :: layout('User Management', ~{::main})}">
+<main>
+<div class="panel">
+    <table class="data-table">
+        <thead><tr><th>Username</th><th>Full Name</th><th>Role</th><th>Status</th></tr></thead>
+        <tbody>
+        <tr th:each="u : ${users}">
+            <td th:text="${u.username}">admin</td>
+            <td th:text="${u.fullName}">Admin</td>
+            <td th:text="${u.roleDisplay}">Admin</td>
+            <td th:text="${u.status}">Active</td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+<div class="panel">
+    <form th:action="@{/admin/users/add}" method="post" class="form-grid">
+        <input name="username" required placeholder="Username">
+        <input name="password" type="password" required placeholder="Password">
+        <input name="fullName" placeholder="Full Name">
+        <select name="role"><option th:each="r : ${roles}" th:value="${r}" th:text="${r}"></option></select>
+        <button type="submit" class="btn btn-primary">Add User</button>
+    </form>
+</div>
+</main>
+</html>

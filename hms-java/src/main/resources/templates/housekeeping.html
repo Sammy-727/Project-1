@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{base :: layout('Housekeeping', ~{::main})}">
+<main>
+<div class="panel">
+    <table class="data-table">
+        <thead><tr><th>Room</th><th>Staff</th><th>Priority</th><th>Status</th><th>Notes</th><th>Update</th></tr></thead>
+        <tbody>
+        <tr th:each="t : ${tasks}">
+            <td th:text="${t.room.roomNo}">101</td>
+            <td th:text="${t.assignedTo != null ? t.assignedTo.name : 'Unassigned'}">Staff</td>
+            <td th:text="${t.priority}">Medium</td>
+            <td th:text="${t.status}">Pending</td>
+            <td th:text="${t.notes}">notes</td>
+            <td>
+                <form th:action="@{/housekeeping/update/{id}(id=${t.id})}" method="post" class="inline-form">
+                    <select name="status"><option>Pending</option><option>In Progress</option><option>Completed</option></select>
+                    <input type="hidden" name="priority" th:value="${t.priority}">
+                    <button class="btn btn-secondary btn-sm">Save</button>
+                </form>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+<div class="panel">
+    <form th:action="@{/housekeeping/add}" method="post" class="form-grid">
+        <select name="roomId" required><option value="">Room</option>
+            <option th:each="r : ${cleaningRooms}" th:value="${r.id}" th:text="${r.roomNo}"></option></select>
+        <select name="assignedTo"><option value="">Staff</option>
+            <option th:each="s : ${hkStaff}" th:value="${s.id}" th:text="${s.name}"></option></select>
+        <select name="priority"><option>Low</option><option selected>Medium</option><option>High</option></select>
+        <input name="notes" placeholder="Notes">
+        <button type="submit" class="btn btn-primary">Add Task</button>
+    </form>
+</div>
+</main>
+</html>
