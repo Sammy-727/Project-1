@@ -30,31 +30,38 @@ function renderBookingRows(bookings) {
   if (table) table.hidden = false;
 
   tbody.innerHTML = bookings
-    .map(
-      (b) => `
+    .map((b) => {
+      const menu = [
+        `<a href="/invoice/${b.id}" class="actions-item"><i data-lucide="file-text" class="icon"></i>Invoice</a>`,
+        b.status === 'Reserved' ? `<a href="/checkin-out" class="actions-item"><i data-lucide="log-in" class="icon"></i>Check-in</a>` : '',
+        b.status === 'Checked-in' ? `<a href="/checkin-out" class="actions-item"><i data-lucide="log-out" class="icon"></i>Check-out</a>` : '',
+        ['Reserved', 'Checked-in'].includes(b.status)
+          ? `<form method="post" action="/bookings/cancel/${b.id}" data-confirm="Cancel booking #${b.id}?"><button type="submit" class="actions-item danger"><i data-lucide="x-circle" class="icon"></i>Cancel</button></form>`
+          : '',
+      ].filter(Boolean).join('');
+      return `
     <tr>
-      <td>#${b.id}</td>
-      <td>${escapeHtml(b.customer_name)}<br><small>${escapeHtml(b.phone || '')}</small></td>
-      <td>${escapeHtml(b.room_no)} <small>${escapeHtml(b.room_type)}</small></td>
-      <td>${escapeHtml(b.checkin)}</td>
-      <td>${escapeHtml(b.checkout)}</td>
-      <td>${b.num_guests || 1}</td>
-      <td>₹${formatNum(b.total_amount)}</td>
-      <td><span class="badge badge-${cssClass(b.status)}">${escapeHtml(b.status)}</span></td>
-      <td><span class="badge badge-${cssClass(b.payment_status)}">${escapeHtml(b.payment_status)}</span></td>
-      <td>
-        ${
-          ['Reserved', 'Checked-in'].includes(b.status)
-            ? `<form class="inline-form" method="post" action="/bookings/cancel/${b.id}" data-confirm="Cancel booking #${b.id}?">
-            <button type="submit" class="btn btn-danger btn-sm">Cancel</button>
-          </form>`
-            : ''
-        }
-        <a href="/invoice/${b.id}" class="btn btn-secondary btn-sm">Bill</a>
+      <td><input type="checkbox" class="row-check" aria-label="Select row"></td>
+      <td data-label="ID">#${b.id}</td>
+      <td data-label="Customer"><strong>${escapeHtml(b.customer_name)}</strong><br><small>${escapeHtml(b.phone || '')}</small></td>
+      <td data-label="Room">${escapeHtml(b.room_no)} <small>${escapeHtml(b.room_type)}</small></td>
+      <td data-label="Check-in">${escapeHtml(b.checkin)}</td>
+      <td data-label="Check-out">${escapeHtml(b.checkout)}</td>
+      <td data-label="Guests">${b.num_guests || 1}</td>
+      <td data-label="Amount">₹${formatNum(b.total_amount)}</td>
+      <td data-label="Status"><span class="badge badge-${cssClass(b.status)}">${escapeHtml(b.status)}</span></td>
+      <td data-label="Payment"><span class="badge badge-${cssClass(b.payment_status)}">${escapeHtml(b.payment_status)}</span></td>
+      <td data-label="Actions">
+        <div class="actions-dropdown">
+          <button type="button" class="btn-icon-round actions-toggle" aria-label="Row actions"><i data-lucide="more-vertical" class="icon"></i></button>
+          <div class="actions-menu">${menu}</div>
+        </div>
       </td>
-    </tr>`,
-    )
+    </tr>`;
+    })
     .join('');
+
+  window.refreshIcons?.(tbody);
 
   document.querySelectorAll('form[data-confirm]').forEach((form) => {
     form.addEventListener('submit', (e) => {
@@ -66,14 +73,14 @@ function renderBookingRows(bookings) {
 async function refreshBookingsTable() {
   const tbody = document.getElementById('bookingsTableBody');
   if (!tbody) return;
-  tbody.closest('.panel')?.classList.add('loading');
+  tbody.closest('.saas-table-wrap, .panel')?.classList.add('loading');
   try {
     const bookings = await fetchBookings(getFilterParams());
     renderBookingRows(bookings);
   } catch (err) {
     window.showToast?.(err.message, 'danger');
   } finally {
-    tbody.closest('.panel')?.classList.remove('loading');
+    tbody.closest('.saas-table-wrap, .panel')?.classList.remove('loading');
   }
 }
 

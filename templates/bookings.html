@@ -1,73 +1,92 @@
 {% extends "base.html" %}
+{% from "macros/ui.html" import breadcrumb, page_header, empty_state, status_badge, table_toolbar, row_actions, icon %}
 {% set title = "Bookings" %}
 {% block content %}
 
-<div class="page-actions">
-    <form class="filter-bar" method="get" id="bookingsFilterForm">
-        <input type="search" name="q" placeholder="Search..." value="{{ search_q }}" style="width:160px">
-        <select name="status" onchange="this.form.submit()">
-            <option value="">All Status</option>
-            {% for s in booking_statuses %}
-            <option value="{{ s }}" {% if filter_status == s %}selected{% endif %}>{{ s }}</option>
-            {% endfor %}
-        </select>
-        <input type="date" name="from" value="{{ date_from }}" title="From">
-        <input type="date" name="to" value="{{ date_to }}" title="To">
-        <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
-    </form>
-    <div class="page-actions-group">
-        <button type="button" class="btn btn-secondary" id="quickAddCustomerBtn">+ Add Customer</button>
-        <button type="button" class="btn btn-primary" id="newBookingBtn">+ New Booking</button>
-    </div>
+{{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Front Desk"}, {"label": "Bookings"}]) }}
+{{ page_header("Bookings", "Manage reservations and guest stays") }}
+
+<div class="page-header-actions" style="margin: -8px 0 12px; display:flex; gap:8px; justify-content:flex-end">
+    <button type="button" class="btn btn-secondary" id="quickAddCustomerBtn">{{ icon('user-plus', 16) }} Add Customer</button>
+    <button type="button" class="btn btn-primary" id="newBookingBtn">{{ icon('plus', 16) }} New Booking</button>
 </div>
 
-<div class="panel" id="bookingsPanel">
+<form class="filter-toolbar" method="get" id="bookingsFilterForm">
+    <div class="table-search-wrap filter-search">
+        {{ icon('search', 16) }}
+        <input type="search" name="q" placeholder="Search guest, room, ID..." value="{{ search_q }}">
+    </div>
+    <select name="status">
+        <option value="">All Status</option>
+        {% for s in booking_statuses %}
+        <option value="{{ s }}" {% if filter_status == s %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+    </select>
+    <input type="date" name="from" value="{{ date_from }}" title="From">
+    <input type="date" name="to" value="{{ date_to }}" title="To">
+    <div class="filter-toolbar-actions">
+        <button type="reset" class="btn btn-ghost btn-sm" onclick="window.location.href='{{ url_for('bookings') }}'">Reset</button>
+        <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+    </div>
+</form>
+
+<div class="saas-table-wrap" id="bookingsPanel">
     {% if bookings %}
-    <table class="data-table" id="bookingsTable">
+    {{ table_toolbar('Search bookings...') }}
+    <div class="table-wrap">
+    <table class="data-table" id="bookingsTable" data-paginate>
         <thead>
-            <tr><th>ID</th><th>Customer</th><th>Room</th><th>Check-in</th><th>Check-out</th><th>Guests</th><th>Amount</th><th>Status</th><th>Payment</th><th>Actions</th></tr>
+            <tr>
+                <th style="width:36px"></th>
+                <th class="sortable">ID</th>
+                <th class="sortable">Customer</th>
+                <th class="sortable">Room</th>
+                <th class="sortable">Check-in</th>
+                <th class="sortable">Check-out</th>
+                <th>Guests</th>
+                <th class="sortable">Amount</th>
+                <th>Status</th>
+                <th>Payment</th>
+                <th style="width:48px"></th>
+            </tr>
         </thead>
         <tbody id="bookingsTableBody">
         {% for b in bookings %}
         <tr>
-            <td>#{{ b.id }}</td>
-            <td>{{ b.customer_name }}<br><small>{{ b.phone }}</small></td>
-            <td>{{ b.room_no }} <small>{{ b.room_type }}</small></td>
-            <td>{{ b.checkin }}</td>
-            <td>{{ b.checkout }}</td>
-            <td>{{ b.num_guests or 1 }}</td>
-            <td>₹{{ "{:,.0f}".format(b.total_amount or 0) }}</td>
-            <td><span class="badge badge-{{ b.status|css_class }}">{{ b.status }}</span></td>
-            <td><span class="badge badge-{{ b.payment_status|css_class }}">{{ b.payment_status }}</span></td>
-            <td>
-                {% if b.status in ['Reserved','Checked-in'] %}
-                <form class="inline-form" method="post" action="{{ url_for('cancel_booking', booking_id=b.id) }}" data-confirm="Cancel booking #{{ b.id }}?">
-                    <button type="submit" class="btn btn-danger btn-sm">Cancel</button>
-                </form>
-                {% endif %}
-                <a href="{{ url_for('invoice', booking_id=b.id) }}" class="btn btn-secondary btn-sm">Bill</a>
+            <td><input type="checkbox" class="row-check" aria-label="Select row"></td>
+            <td data-label="ID">#{{ b.id }}</td>
+            <td data-label="Customer"><strong>{{ b.customer_name }}</strong><br><small class="text-muted">{{ b.phone }}</small></td>
+            <td data-label="Room">{{ b.room_no }} <small>{{ b.room_type }}</small></td>
+            <td data-label="Check-in">{{ b.checkin }}</td>
+            <td data-label="Check-out">{{ b.checkout }}</td>
+            <td data-label="Guests">{{ b.num_guests or 1 }}</td>
+            <td data-label="Amount">₹{{ "{:,.0f}".format(b.total_amount or 0) }}</td>
+            <td data-label="Status">{{ status_badge(b.status) }}</td>
+            <td data-label="Payment">{{ status_badge(b.payment_status) }}</td>
+            <td data-label="Actions">
+                {{ row_actions([
+                    {'type': 'link', 'label': 'Invoice', 'url': url_for('invoice', booking_id=b.id), 'icon': 'file-text'},
+                ] + ([{'type': 'link', 'label': 'Check-in', 'url': url_for('checkin_out'), 'icon': 'log-in'}] if b.status == 'Reserved' else [])
+                  + ([{'type': 'link', 'label': 'Check-out', 'url': url_for('checkin_out'), 'icon': 'log-out'}] if b.status == 'Checked-in' else [])
+                  + ([{'type': 'form', 'label': 'Cancel', 'url': url_for('cancel_booking', booking_id=b.id), 'icon': 'x-circle', 'danger': true, 'confirm': 'Cancel booking #' ~ b.id ~ '?'}] if b.status in ['Reserved','Checked-in'] else [])) }}
             </td>
         </tr>
         {% endfor %}
         </tbody>
     </table>
+    </div>
     {% else %}
-    <div class="empty-state" id="bookingsEmpty"><div class="empty-icon">📅</div><p>No bookings found.</p></div>
+    {{ empty_state("calendar-days", "No bookings yet", "Create your first booking to start managing reservations.", "New Booking", "", "newBookingBtnEmpty") }}
     <table class="data-table" id="bookingsTable" hidden>
-        <thead>
-            <tr><th>ID</th><th>Customer</th><th>Room</th><th>Check-in</th><th>Check-out</th><th>Guests</th><th>Amount</th><th>Status</th><th>Payment</th><th>Actions</th></tr>
-        </thead>
+        <thead><tr><th>ID</th><th>Customer</th><th>Room</th><th>Check-in</th><th>Check-out</th><th>Guests</th><th>Amount</th><th>Status</th><th>Payment</th><th></th></tr></thead>
         <tbody id="bookingsTableBody"></tbody>
     </table>
     {% endif %}
 </div>
 
-<!-- New Booking Drawer -->
 <aside class="drawer drawer-booking" id="bookingDrawer"
        data-sources='{{ booking_sources|tojson }}'
        data-payment-modes='{{ payment_modes|tojson }}'></aside>
-
-<!-- Quick Add Customer Modal -->
 <div class="modal" id="quickAddCustomerModal"></div>
 
 {% endblock %}
@@ -75,4 +94,7 @@
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/axios@1.7.9/dist/axios.min.js"></script>
 <script type="module" src="{{ url_for('static', filename='js/booking/index.js') }}"></script>
+<script>
+document.getElementById('newBookingBtnEmpty')?.addEventListener('click', () => document.getElementById('newBookingBtn')?.click());
+</script>
 {% endblock %}
