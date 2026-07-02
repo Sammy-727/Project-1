@@ -71,7 +71,21 @@ Open: http://127.0.0.1:5000
 
 ---
 
-## Deploy (Render)
+## Deploy Online (Live Web Link)
+
+**One-click free hosting on Render:**
+
+👉 **[Deploy GrandStay HMS to the Web](https://render.com/deploy?repo=https://github.com/Sammy-727/Project-1)**
+
+After deploy (~3 min), open your live URL (e.g. `https://grandstay-hms.onrender.com`).
+
+Login: **`admin`** / **`admin123`**
+
+See `DEPLOY_WEB.md` for details.
+
+---
+
+## Deploy (Manual / Render)
 
 ```bash
 pip install -r requirements.txt
