@@ -34,6 +34,8 @@ HK_PRIORITIES = ["Low", "Medium", "High"]
 RS_TYPES = ["Food", "Laundry", "Cleaning", "Maintenance", "Other"]
 RS_STATUSES = ["Pending", "In Progress", "Completed", "Cancelled"]
 ID_PROOF_TYPES = ["Aadhar", "Passport", "Driving License", "Voter ID", "PAN Card", "Other"]
+BOOKING_SOURCES = ["Walk-in", "Phone", "Website", "OTA", "Corporate", "Travel Agent", "Other"]
+UNAVAILABLE_ROOM_STATUSES = {"Maintenance", "Cleaning"}
 
 
 def get_db():
@@ -141,6 +143,76 @@ def update_booking_payment_status(booking_id):
         status = "Partial"
     query("UPDATE bookings SET total_amount=?, payment_status=? WHERE id=?",
           (total, status, booking_id), commit=True)
+
+
+def customer_to_dict(row):
+    if not row:
+        return None
+    d = dict(row)
+    return {
+        "id": d["id"],
+        "name": d["name"],
+        "phone": d["phone"],
+        "email": d["email"],
+        "address": d["address"],
+        "gender": d["gender"],
+        "age": d["age"],
+        "id_proof_type": d["id_proof_type"],
+        "id_proof_number": d["id_proof_number"],
+        "emergency_contact": d.get("emergency_contact"),
+    }
+
+
+def room_to_dict(row):
+    return {
+        "id": row["id"],
+        "room_no": row["room_no"],
+        "room_type": row["room_type"],
+        "category": row["category"],
+        "floor": row["floor"],
+        "price": float(row["price"]),
+        "capacity": row["capacity"],
+        "status": row["status"],
+        "amenities": row["amenities"],
+    }
+
+
+def booking_row_to_dict(row):
+    return {
+        "id": row["id"],
+        "customer_name": row["customer_name"],
+        "phone": row["phone"],
+        "room_no": row["room_no"],
+        "room_type": row["room_type"],
+        "checkin": row["checkin"],
+        "checkout": row["checkout"],
+        "num_guests": row["num_guests"] or 1,
+        "total_amount": float(row["total_amount"] or 0),
+        "status": row["status"],
+        "payment_status": row["payment_status"],
+    }
+
+
+def get_available_rooms(checkin, checkout, num_guests=1):
+    rooms = query("SELECT * FROM rooms ORDER BY CAST(room_no AS INTEGER), room_no")
+    available = []
+    for room in rooms:
+        if room["status"] in UNAVAILABLE_ROOM_STATUSES:
+            continue
+        if room_has_overlap(room["id"], checkin, checkout):
+            continue
+        if num_guests and room["capacity"] < num_guests:
+            continue
+        available.append(room_to_dict(room))
+    return available
+
+
+def api_error(message, status=400):
+    return jsonify({"ok": False, "error": message}), status
+
+
+def api_ok(**payload):
+    return jsonify({"ok": True, **payload})
 
 
 def sync_room_status_from_bookings(room_id):
@@ -365,6 +437,11 @@ def migrate_db():
     add_column_if_missing("employees", "archived_at", "TEXT")
     add_column_if_missing("users", "last_login", "TEXT")
     add_column_if_missing("users", "archived_at", "TEXT")
+    add_column_if_missing("customers", "emergency_contact", "TEXT")
+    add_column_if_missing("bookings", "adults", "INTEGER")
+    add_column_if_missing("bookings", "children", "INTEGER")
+    add_column_if_missing("bookings", "booking_source", "TEXT")
+    add_column_if_missing("bookings", "special_request", "TEXT")
 
     # Normalize legacy booking statuses
     query("UPDATE bookings SET status='Reserved' WHERE status='Active'", commit=True)
@@ -625,6 +702,7 @@ def inject_globals():
         employee_statuses=EMPLOYEE_STATUSES,
         user_statuses=USER_STATUSES,
         id_proof_types=ID_PROOF_TYPES,
+        booking_sources=BOOKING_SOURCES,
     )
 
 
@@ -855,13 +933,14 @@ def customers():
 
 @app.route("/customers/add", methods=["POST"])
 def add_customer():
-    cid = query("""INSERT INTO customers(name,phone,email,address,id_proof_type,id_proof_number,gender,age,id_proof)
-                   VALUES(?,?,?,?,?,?,?,?,?)""",
+    cid = query("""INSERT INTO customers(name,phone,email,address,id_proof_type,id_proof_number,gender,age,id_proof,emergency_contact)
+                   VALUES(?,?,?,?,?,?,?,?,?,?)""",
                 (request.form["name"], request.form["phone"], request.form.get("email"),
                  request.form.get("address"), request.form.get("id_proof_type"),
                  request.form.get("id_proof_number"), request.form.get("gender"),
                  int(request.form["age"]) if request.form.get("age") else None,
-                 f"{request.form.get('id_proof_type','')}-{request.form.get('id_proof_number','')}"), commit=True)
+                 f"{request.form.get('id_proof_type','')}-{request.form.get('id_proof_number','')}",
+                 request.form.get("emergency_contact")), commit=True)
     guest_names = request.form.getlist("guest_name")
     for i, gn in enumerate(guest_names):
         if gn.strip():
@@ -905,6 +984,199 @@ def delete_customer(customer_id):
         query("DELETE FROM customers WHERE id=?", (customer_id,), commit=True)
         flash("Customer deleted.", "success")
     return redirect(url_for("customers"))
+
+
+# ─── Booking API (JSON) ───────────────────────────────────────────────────────
+
+@app.route("/api/customers/search")
+def api_search_customers():
+    q = request.args.get("q", "").strip()
+    if not q:
+        rows = query("SELECT * FROM customers ORDER BY name LIMIT 20")
+    else:
+        like = f"%{q}%"
+        rows = query(
+            "SELECT * FROM customers WHERE name LIKE ? OR phone LIKE ? OR email LIKE ? ORDER BY name LIMIT 20",
+            (like, like, like),
+        )
+    return api_ok(customers=[customer_to_dict(r) for r in rows])
+
+
+@app.route("/api/customers", methods=["POST"])
+def api_create_customer():
+    data = request.get_json(silent=True) or {}
+    name = (data.get("name") or "").strip()
+    phone = (data.get("phone") or "").strip()
+    if not name or not phone:
+        return api_error("Name and phone are required.")
+
+    cid = query(
+        """INSERT INTO customers(name,phone,email,address,id_proof_type,id_proof_number,gender,age,id_proof,emergency_contact)
+           VALUES(?,?,?,?,?,?,?,?,?,?)""",
+        (
+            name,
+            phone,
+            data.get("email"),
+            data.get("address"),
+            data.get("id_proof_type"),
+            data.get("id_proof_number"),
+            data.get("gender"),
+            int(data["age"]) if data.get("age") else None,
+            f"{data.get('id_proof_type', '')}-{data.get('id_proof_number', '')}",
+            data.get("emergency_contact"),
+        ),
+        commit=True,
+    )
+    customer = customer_to_dict(query("SELECT * FROM customers WHERE id=?", (cid,), one=True))
+    return api_ok(customer=customer)
+
+
+@app.route("/api/rooms/available")
+def api_available_rooms():
+    checkin = request.args.get("checkin", "").strip()
+    checkout = request.args.get("checkout", "").strip()
+    num_guests = int(request.args.get("guests") or request.args.get("num_guests") or 1)
+
+    if not checkin or not checkout:
+        return api_error("Check-in and check-out dates are required.")
+    try:
+        if datetime.strptime(checkout, "%Y-%m-%d") <= datetime.strptime(checkin, "%Y-%m-%d"):
+            return api_error("Check-out must be after check-in.")
+    except ValueError:
+        return api_error("Invalid date format.")
+
+    rooms = get_available_rooms(checkin, checkout, num_guests)
+    return api_ok(rooms=rooms, nights=nights_between(checkin, checkout))
+
+
+@app.route("/api/bookings/list")
+def api_bookings_list():
+    status = request.args.get("status", "")
+    search_q = request.args.get("q", "").strip()
+    date_from = request.args.get("from", "")
+    date_to = request.args.get("to", "")
+    sql = """
+        SELECT b.*, c.name customer_name, c.phone, r.room_no, r.room_type, r.price
+        FROM bookings b JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id WHERE 1=1
+    """
+    params = []
+    if status:
+        sql += " AND b.status=?"
+        params.append(status)
+    if search_q:
+        sql += " AND (c.name LIKE ? OR r.room_no LIKE ? OR CAST(b.id AS TEXT) LIKE ?)"
+        params.extend([f"%{search_q}%"] * 3)
+    if date_from:
+        sql += " AND b.checkin >= ?"
+        params.append(date_from)
+    if date_to:
+        sql += " AND b.checkout <= ?"
+        params.append(date_to)
+    sql += " ORDER BY b.id DESC"
+    rows = query(sql, params)
+    return api_ok(bookings=[booking_row_to_dict(r) for r in rows])
+
+
+@app.route("/api/bookings", methods=["POST"])
+def api_create_booking():
+    data = request.get_json(silent=True) or {}
+    customer_id = data.get("customer_id")
+    room_id = data.get("room_id")
+    checkin = (data.get("checkin") or "").strip()
+    checkout = (data.get("checkout") or "").strip()
+    adults = int(data.get("adults") or 1)
+    children = int(data.get("children") or 0)
+    num_guests = int(data.get("num_guests") or adults + children or 1)
+    booking_source = data.get("booking_source") or "Walk-in"
+    special_request = data.get("special_request") or ""
+    advance_amount = float(data.get("advance_amount") or 0)
+    payment_mode = data.get("payment_mode") or "Cash"
+
+    if not all([customer_id, room_id, checkin, checkout]):
+        return api_error("Customer, room, check-in, and check-out are required.")
+
+    try:
+        if datetime.strptime(checkout, "%Y-%m-%d") <= datetime.strptime(checkin, "%Y-%m-%d"):
+            return api_error("Check-out must be after check-in.")
+    except ValueError:
+        return api_error("Invalid date format.")
+
+    room = query("SELECT * FROM rooms WHERE id=?", (room_id,), one=True)
+    if not room:
+        return api_error("Room not found.", 404)
+    if room["status"] in UNAVAILABLE_ROOM_STATUSES:
+        return api_error(f"Room {room['room_no']} is not available ({room['status']}).")
+    if room_has_overlap(int(room_id), checkin, checkout):
+        return api_error("Room is already booked for overlapping dates.")
+    if num_guests > room["capacity"]:
+        return api_error(f"Room capacity is {room['capacity']} guests.")
+
+    total = calc_room_charges(room["price"], checkin, checkout)
+    payment_status = "Pending"
+    if advance_amount >= total:
+        payment_status = "Paid"
+    elif advance_amount > 0:
+        payment_status = "Partial"
+
+    bid = query(
+        """INSERT INTO bookings(customer_id,room_id,checkin,checkout,num_guests,adults,children,
+           booking_source,special_request,total_amount,status,payment_status,notes)
+           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+        (
+            customer_id,
+            room_id,
+            checkin,
+            checkout,
+            num_guests,
+            adults,
+            children,
+            booking_source,
+            special_request,
+            total,
+            "Reserved",
+            payment_status,
+            special_request,
+        ),
+        commit=True,
+    )
+
+    if advance_amount > 0:
+        query(
+            """INSERT INTO payments(booking_id,amount,payment_mode,receipt_number,payment_date,notes)
+               VALUES(?,?,?,?,?,?)""",
+            (
+                bid,
+                advance_amount,
+                payment_mode,
+                receipt_number(),
+                datetime.now().strftime("%Y-%m-%d %H:%M"),
+                "Advance payment at booking",
+            ),
+            commit=True,
+        )
+        update_booking_payment_status(bid)
+
+    query("UPDATE rooms SET status='Reserved' WHERE id=?", (room_id,), commit=True)
+
+    booking = query(
+        """
+        SELECT b.*, c.name customer_name, c.phone, r.room_no, r.room_type, r.price
+        FROM bookings b JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
+        WHERE b.id=?
+        """,
+        (bid,),
+        one=True,
+    )
+    paid = booking_paid_amount(bid)
+    return api_ok(
+        booking=booking_row_to_dict(booking),
+        summary={
+            "nights": nights_between(checkin, checkout),
+            "total_amount": total,
+            "advance_paid": paid,
+            "balance": max(total - paid, 0),
+        },
+    )
 
 
 # ─── Bookings ────────────────────────────────────────────────────────────────

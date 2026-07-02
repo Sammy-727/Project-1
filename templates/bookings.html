@@ -3,7 +3,7 @@
 {% block content %}
 
 <div class="page-actions">
-    <form class="filter-bar" method="get">
+    <form class="filter-bar" method="get" id="bookingsFilterForm">
         <input type="search" name="q" placeholder="Search..." value="{{ search_q }}" style="width:160px">
         <select name="status" onchange="this.form.submit()">
             <option value="">All Status</option>
@@ -15,16 +15,19 @@
         <input type="date" name="to" value="{{ date_to }}" title="To">
         <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
     </form>
-    <button class="btn btn-primary modal-trigger" data-target="#addBookingModal">+ New Booking</button>
+    <div class="page-actions-group">
+        <button type="button" class="btn btn-secondary" id="quickAddCustomerBtn">+ Add Customer</button>
+        <button type="button" class="btn btn-primary" id="newBookingBtn">+ New Booking</button>
+    </div>
 </div>
 
-<div class="panel">
+<div class="panel" id="bookingsPanel">
     {% if bookings %}
-    <table class="data-table">
+    <table class="data-table" id="bookingsTable">
         <thead>
             <tr><th>ID</th><th>Customer</th><th>Room</th><th>Check-in</th><th>Check-out</th><th>Guests</th><th>Amount</th><th>Status</th><th>Payment</th><th>Actions</th></tr>
         </thead>
-        <tbody>
+        <tbody id="bookingsTableBody">
         {% for b in bookings %}
         <tr>
             <td>#{{ b.id }}</td>
@@ -34,8 +37,8 @@
             <td>{{ b.checkout }}</td>
             <td>{{ b.num_guests or 1 }}</td>
             <td>₹{{ "{:,.0f}".format(b.total_amount or 0) }}</td>
-            <td><span class="badge badge-{{ b.status }}">{{ b.status }}</span></td>
-            <td><span class="badge badge-{{ b.payment_status }}">{{ b.payment_status }}</span></td>
+            <td><span class="badge badge-{{ b.status|css_class }}">{{ b.status }}</span></td>
+            <td><span class="badge badge-{{ b.payment_status|css_class }}">{{ b.payment_status }}</span></td>
             <td>
                 {% if b.status in ['Reserved','Checked-in'] %}
                 <form class="inline-form" method="post" action="{{ url_for('cancel_booking', booking_id=b.id) }}" data-confirm="Cancel booking #{{ b.id }}?">
@@ -49,43 +52,27 @@
         </tbody>
     </table>
     {% else %}
-    <div class="empty-state"><div class="empty-icon">📅</div><p>No bookings found.</p></div>
+    <div class="empty-state" id="bookingsEmpty"><div class="empty-icon">📅</div><p>No bookings found.</p></div>
+    <table class="data-table" id="bookingsTable" hidden>
+        <thead>
+            <tr><th>ID</th><th>Customer</th><th>Room</th><th>Check-in</th><th>Check-out</th><th>Guests</th><th>Amount</th><th>Status</th><th>Payment</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="bookingsTableBody"></tbody>
+    </table>
     {% endif %}
 </div>
 
-<div class="modal {% if new_customer %}show{% endif %}" id="addBookingModal">
-    <div class="modal-overlay"></div>
-    <div class="modal-content">
-        <button class="modal-close">✕</button>
-        <h3>Create Booking</h3>
-        <form method="post" action="{{ url_for('add_booking') }}">
-            <div class="form-grid">
-                <select name="customer_id" required>
-                    <option value="">Select Customer</option>
-                    {% for c in customers %}
-                    <option value="{{ c.id }}" {% if new_customer == c.id %}selected{% endif %}>{{ c.name }} — {{ c.phone }}</option>
-                    {% endfor %}
-                </select>
-                <select name="room_id" required>
-                    <option value="">Select Room</option>
-                    {% for r in rooms %}
-                    <option value="{{ r.id }}">{{ r.room_no }} — {{ r.room_type }} — ₹{{ r.price }}/night ({{ r.status }})</option>
-                    {% endfor %}
-                </select>
-                <input type="date" name="checkin" required>
-                <input type="date" name="checkout" required>
-                <input type="number" name="num_guests" value="1" min="1" placeholder="Guests">
-            </div>
-            <div class="guest-section">
-                <h4>Extra Guests for this Booking</h4>
-                <div id="bookingGuestRows">
-                    <div class="guest-row form-row"><input name="guest_name" placeholder="Guest name"></div>
-                </div>
-                <button type="button" class="btn btn-secondary btn-sm" onclick="addGuestRow('bookingGuestRows')">+ Add Guest</button>
-            </div>
-            <button type="submit" class="btn btn-primary" style="margin-top:16px">Create Booking</button>
-        </form>
-    </div>
-</div>
+<!-- New Booking Drawer -->
+<aside class="drawer drawer-booking" id="bookingDrawer"
+       data-sources='{{ booking_sources|tojson }}'
+       data-payment-modes='{{ payment_modes|tojson }}'></aside>
 
+<!-- Quick Add Customer Modal -->
+<div class="modal" id="quickAddCustomerModal"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/axios@1.7.9/dist/axios.min.js"></script>
+<script type="module" src="{{ url_for('static', filename='js/booking/index.js') }}"></script>
 {% endblock %}

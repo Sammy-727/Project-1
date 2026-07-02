@@ -156,6 +156,7 @@
 <div class="toast-container" id="toastContainer"></div>
 <div class="drawer-backdrop" id="drawerBackdrop"></div>
 
+{% block scripts %}{% endblock %}
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 {% else %}
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
