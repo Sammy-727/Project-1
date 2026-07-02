@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros/ui.html" import breadcrumb, page_header, empty_state, status_badge, view_toggle, card_menu, table_toolbar, row_actions, icon %}
+{% from "macros/ui.html" import breadcrumb, page_header, empty_state, status_badge, view_toggle, card_menu, table_toolbar, row_actions, icon, filter_meta, filter_empty, sort_controls %}
 {% set title = "Bookings" %}
 {% block content %}
 
@@ -12,26 +12,45 @@
     <button type="button" class="btn btn-primary" id="newBookingBtn">{{ icon('plus', 16) }} New Booking</button>
 </div>
 
-<form class="filter-toolbar" method="get" id="bookingsFilterForm" data-card-filter="#bookingCardGrid">
+<div class="list-filter-shell">
+<form class="filter-toolbar-basic" method="get" id="bookingsFilterForm" data-list-filters data-card-filter="#bookingCardGrid" data-auto-search="true">
     <div class="table-search-wrap filter-search">
         {{ icon('search', 16) }}
-        <input type="search" name="q" placeholder="Search guest, room, ID..." value="{{ search_q }}" data-local-search>
+        <input type="search" name="q" placeholder="Search guest, room, ID, phone..." value="{{ search_q }}" data-local-search>
     </div>
-    <select name="status">
-        <option value="">All Status</option>
-        {% for s in booking_statuses %}
-        <option value="{{ s }}" {% if filter_status == s %}selected{% endif %}>{{ s }}</option>
-        {% endfor %}
-    </select>
-    <input type="date" name="from" value="{{ date_from }}">
-    <input type="date" name="to" value="{{ date_to }}">
+    {{ sort_controls(sort_by|default('id'), sort_dir|default('desc'), [
+        ('id', 'Booking ID'), ('guest', 'Guest'), ('room', 'Room'), ('checkin', 'Check-in'),
+        ('checkout', 'Check-out'), ('amount', 'Amount'), ('status', 'Status'), ('payment', 'Payment')
+    ]) }}
+    <button type="button" class="btn btn-ghost btn-sm filter-advanced-toggle" data-advanced-toggle>
+        {{ icon('sliders-horizontal', 14) }} Advanced
+    </button>
     <div class="filter-toolbar-actions">
-        <a href="{{ url_for('bookings') }}" class="btn btn-ghost btn-sm">Reset</a>
+        <button type="button" class="btn btn-ghost btn-sm" data-clear-filters>Clear All</button>
         <button type="submit" class="btn btn-primary btn-sm">Apply</button>
     </div>
+    <div class="filter-advanced-panel" data-advanced-panel style="width:100%">
+        <div class="filter-advanced-grid">
+            <label>Status<select name="status"><option value="">All</option>{% for s in booking_statuses %}<option value="{{ s }}" {% if filter_status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
+            <label>Payment<select name="payment_status"><option value="">All</option>{% for s in ['Pending','Partial','Paid'] %}<option value="{{ s }}" {% if payment_status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
+            <label>Phone<input type="text" name="phone" value="{{ phone or '' }}" placeholder="Phone"></label>
+            <label>Room<input type="text" name="room_no" value="{{ room_no or '' }}" placeholder="Room no"></label>
+            <label>Source<select name="booking_source"><option value="">All</option>{% for s in booking_sources %}<option value="{{ s }}" {% if booking_source == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
+            <label>Check-in from<input type="date" name="checkin_from" value="{{ checkin_from or '' }}"></label>
+            <label>Check-in to<input type="date" name="checkin_to" value="{{ checkin_to or '' }}"></label>
+            <label>Check-out from<input type="date" name="checkout_from" value="{{ checkout_from or '' }}"></label>
+            <label>Check-out to<input type="date" name="checkout_to" value="{{ checkout_to or '' }}"></label>
+            <label>Min amount<input type="number" name="amount_min" value="{{ amount_min or '' }}" min="0" step="1"></label>
+            <label>Max amount<input type="number" name="amount_max" value="{{ amount_max or '' }}" min="0" step="1"></label>
+        </div>
+    </div>
 </form>
+{{ filter_meta(list_showing|default(bookings|length), list_total|default(bookings|length)) }}
+{{ filter_empty() }}
+</div>
 
 {% if bookings %}
+<div data-list-results>
 <div class="entity-grid wide" id="bookingCardGrid" data-view-panel="cards" data-page="bookings">
   {% for b in bookings %}
   <article class="entity-card status-{{ b.status|css_class }}" data-searchable
@@ -118,6 +137,7 @@
         </tbody>
     </table>
     </div>
+</div>
 </div>
 {% else %}
 {{ empty_state("calendar-days", "No bookings yet", "Create your first booking.", "New Booking", "", "newBookingBtnEmpty") }}

@@ -90,7 +90,6 @@
     </div>
     <div class="bulk-actions" hidden>
       <span class="bulk-count">0 selected</span>
-      <button type="button" class="btn btn-ghost btn-sm" disabled>Bulk actions</button>
     </div>
   </div>
   <div class="table-toolbar-actions">
@@ -129,6 +128,34 @@
       {% endif %}
     {% endfor %}
   </div>
+</div>
+{% endmacro %}
+
+{% macro filter_meta(showing, total) %}
+<div class="filter-meta" data-list-meta data-showing="{{ showing }}" data-total="{{ total }}">
+  <div class="filter-chips" data-filter-chips></div>
+  <div class="filter-result-count">Showing {{ showing }} of {{ total }} results</div>
+</div>
+{% endmacro %}
+
+{% macro filter_empty() %}
+<div class="filter-empty-results" data-filter-empty hidden>
+  <h3>No results found</h3>
+  <p>Try changing filters or <a href="#" data-clear-filters>clear all filters</a>.</p>
+</div>
+{% endmacro %}
+
+{% macro sort_controls(sort_by, sort_dir, options) %}
+<div class="filter-sort-group">
+  <select name="sortBy" aria-label="Sort by">
+    {% for val, label in options %}
+    <option value="{{ val }}" {% if sort_by == val %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <select name="sortDir" aria-label="Sort direction">
+    <option value="asc" {% if sort_dir == 'asc' %}selected{% endif %}>Asc</option>
+    <option value="desc" {% if sort_dir != 'asc' %}selected{% endif %}>Desc</option>
+  </select>
 </div>
 {% endmacro %}
 

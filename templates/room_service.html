@@ -1,22 +1,36 @@
 {% extends "base.html" %}
-{% from "macros/ui.html" import breadcrumb, page_header, empty_state, status_badge, card_menu, icon %}
+{% from "macros/ui.html" import breadcrumb, page_header, empty_state, status_badge, card_menu, icon, filter_meta, filter_empty, sort_controls %}
 {% set title = "Room Service" %}
 {% block content %}
 
 {{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Operations"}, {"label": "Services"}]) }}
 {{ page_header("Services & Requests", "Hotel services and guest requests") }}
 
-<div class="page-header-actions" style="margin:-8px 0 16px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
-  <form class="filter-toolbar" method="get" style="margin:0;flex:1" data-card-filter="#serviceRequestGrid">
-    <select name="status">
-      <option value="">All Status</option>
-      {% for s in rs_statuses %}
-      <option value="{{ s }}" {% if filter_status == s %}selected{% endif %}>{{ s }}</option>
-      {% endfor %}
-    </select>
-    <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+<div class="list-filter-shell" style="margin:-8px 0 16px">
+  <form class="filter-toolbar-basic" method="get" data-list-filters data-card-filter="#serviceRequestGrid" data-auto-search="true">
+    <div class="table-search-wrap filter-search">
+      {{ icon('search', 16) }}
+      <input type="search" name="q" placeholder="Room, guest, description..." value="{{ search_q or '' }}">
+    </div>
+    {{ sort_controls(sort_by|default('id'), sort_dir|default('desc'), [('room', 'Room'), ('type', 'Type'), ('status', 'Status'), ('date', 'Date')]) }}
+    <button type="button" class="btn btn-ghost btn-sm filter-advanced-toggle" data-advanced-toggle>{{ icon('sliders-horizontal', 14) }} Advanced</button>
+    <div class="filter-toolbar-actions">
+      <button type="button" class="btn btn-ghost btn-sm" data-clear-filters>Clear All</button>
+      <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+      <button class="btn btn-primary modal-trigger" data-target="#addRSModal">{{ icon('plus', 16) }} New Request</button>
+    </div>
+    <div class="filter-advanced-panel" data-advanced-panel style="width:100%">
+      <div class="filter-advanced-grid">
+        <label>Status<select name="status"><option value="">All</option>{% for s in rs_statuses %}<option value="{{ s }}" {% if filter_status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
+        <label>Request type<select name="request_type"><option value="">All</option>{% for t in rs_types %}<option value="{{ t }}" {% if request_type == t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></label>
+        <label>Room<input type="text" name="room_no" value="{{ room_no or '' }}"></label>
+        <label>From<input type="date" name="from" value="{{ date_from or '' }}"></label>
+        <label>To<input type="date" name="to" value="{{ date_to or '' }}"></label>
+      </div>
+    </div>
   </form>
-  <button class="btn btn-primary modal-trigger" data-target="#addRSModal">{{ icon('plus', 16) }} New Request</button>
+  {{ filter_meta(list_showing|default(requests|length), list_total|default(requests|length)) }}
+  {{ filter_empty() }}
 </div>
 
 <h3 class="page-title" style="font-size:14px;margin-bottom:10px">Available Services</h3>
@@ -69,7 +83,7 @@
   {% endfor %}
 </div>
 
-{% set maintenance = requests|selectattr('request_type', 'equalto', 'Maintenance')|list %}
+{% set maintenance = maintenance|default([]) %}
 {% if maintenance %}
 <h3 class="page-title" style="font-size:14px;margin:20px 0 10px">Maintenance Issues</h3>
 <div class="entity-grid wide">

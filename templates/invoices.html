@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% from "macros/ui.html" import breadcrumb, page_header, empty_state, status_badge, table_toolbar, icon, filter_meta, filter_empty, sort_controls %}
+{% set title = "Invoices" %}
+{% block content %}
+
+{{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Finance"}, {"label": "Invoices"}]) }}
+{{ page_header("Invoices", "Generated bills and payment status") }}
+
+<div class="list-filter-shell">
+<form class="filter-toolbar-basic" method="get" data-list-filters data-auto-search="true">
+  <div class="table-search-wrap filter-search">
+    {{ icon('search', 16) }}
+    <input type="search" name="q" placeholder="Invoice #, guest, booking..." value="{{ search_q }}">
+  </div>
+  {{ sort_controls(sort_by|default('bill_date'), sort_dir|default('desc'), [
+    ('id', 'Invoice'), ('guest', 'Guest'), ('amount', 'Amount'), ('date', 'Date'), ('status', 'Status')
+  ]) }}
+  <button type="button" class="btn btn-ghost btn-sm filter-advanced-toggle" data-advanced-toggle>{{ icon('sliders-horizontal', 14) }} Advanced</button>
+  <div class="filter-toolbar-actions">
+    <button type="button" class="btn btn-ghost btn-sm" data-clear-filters>Clear All</button>
+    <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+  </div>
+  <div class="filter-advanced-panel" data-advanced-panel style="width:100%">
+    <div class="filter-advanced-grid">
+      <label>Booking ID<input type="number" name="booking_id" value="{{ booking_id or '' }}" min="1"></label>
+      <label>Payment status<select name="payment_status"><option value="">All</option>{% for s in ['Pending','Partial','Paid'] %}<option value="{{ s }}" {% if payment_status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
+      <label>From<input type="date" name="from" value="{{ date_from or '' }}"></label>
+      <label>To<input type="date" name="to" value="{{ date_to or '' }}"></label>
+      <label>Min amount<input type="number" name="amount_min" value="{{ amount_min or '' }}" min="0"></label>
+      <label>Max amount<input type="number" name="amount_max" value="{{ amount_max or '' }}" min="0"></label>
+    </div>
+  </div>
+</form>
+{{ filter_meta(list_showing|default(invoices|length), list_total|default(invoices|length)) }}
+{{ filter_empty() }}
+</div>
+
+{% if invoices %}
+<div class="saas-table-wrap" data-list-results>
+  {{ table_toolbar('Search invoices...') }}
+  <div class="table-wrap">
+    <table class="data-table" data-paginate>
+      <thead>
+        <tr>
+          <th class="sortable">Invoice</th><th class="sortable">Booking</th><th class="sortable">Guest</th>
+          <th>Room</th><th class="sortable">Amount</th><th>Status</th><th class="sortable">Date</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for inv in invoices %}
+      <tr>
+        <td><strong>#{{ inv.invoice_id }}</strong></td>
+        <td>#{{ inv.booking_id }}</td>
+        <td>{{ inv.customer_name }}</td>
+        <td>{{ inv.room_no }}</td>
+        <td>₹{{ "{:,.0f}".format(inv.total or 0) }}</td>
+        <td>{{ status_badge(inv.payment_status) }}</td>
+        <td>{{ inv.bill_date }}</td>
+        <td><a href="{{ url_for('invoice', booking_id=inv.booking_id) }}" class="btn btn-ghost btn-sm">{{ icon('file-text', 14) }} View</a></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+{{ empty_state("file-text", "No invoices found", "Invoices are generated at checkout.", "", "") }}
+{% endif %}
+
+{% endblock %}

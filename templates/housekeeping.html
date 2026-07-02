@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros/ui.html" import breadcrumb, page_header, empty_state, status_badge, card_menu, icon %}
+{% from "macros/ui.html" import breadcrumb, page_header, empty_state, status_badge, card_menu, icon, filter_meta, filter_empty, sort_controls %}
 {% set title = "Housekeeping" %}
 {% block content %}
 
@@ -12,7 +12,35 @@
   <button class="btn btn-primary modal-trigger" data-target="#addHKModal">{{ icon('plus', 16) }} New Task</button>
 </div>
 
+<div class="list-filter-shell">
+<form class="filter-toolbar-basic" method="get" data-list-filters data-auto-search="true">
+  <div class="table-search-wrap filter-search">
+    {{ icon('search', 16) }}
+    <input type="search" name="q" placeholder="Room, staff, notes..." value="{{ search_q or '' }}">
+  </div>
+  {{ sort_controls(sort_by|default('id'), sort_dir|default('desc'), [('room', 'Room'), ('priority', 'Priority'), ('status', 'Status'), ('date', 'Date')]) }}
+  <button type="button" class="btn btn-ghost btn-sm filter-advanced-toggle" data-advanced-toggle>{{ icon('sliders-horizontal', 14) }} Advanced</button>
+  <div class="filter-toolbar-actions">
+    <button type="button" class="btn btn-ghost btn-sm" data-clear-filters>Clear All</button>
+    <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+  </div>
+  <div class="filter-advanced-panel" data-advanced-panel style="width:100%">
+    <div class="filter-advanced-grid">
+      <label>Status<select name="status"><option value="">All</option>{% for s in hk_statuses %}<option value="{{ s }}" {% if filter_status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
+      <label>Priority<select name="priority"><option value="">All</option>{% for p in hk_priorities %}<option value="{{ p }}" {% if priority == p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select></label>
+      <label>Room<input type="text" name="room_no" value="{{ room_no or '' }}"></label>
+      <label>Staff<select name="assigned_to"><option value="">All</option>{% for s in hk_staff %}<option value="{{ s.id }}" {% if assigned_to == s.id %}selected{% endif %}>{{ s.name }}</option>{% endfor %}</select></label>
+      <label>From<input type="date" name="from" value="{{ date_from or '' }}"></label>
+      <label>To<input type="date" name="to" value="{{ date_to or '' }}"></label>
+    </div>
+  </div>
+</form>
+{{ filter_meta(list_showing|default(tasks|length), list_total|default(tasks|length)) }}
+{{ filter_empty() }}
+</div>
+
 {% if tasks %}
+<div data-list-results>
 <div class="kanban-board" data-kanban>
   {% for col_status in hk_statuses %}
   <div class="kanban-column">
@@ -44,6 +72,7 @@
     </div>
   </div>
   {% endfor %}
+</div>
 </div>
 {% else %}
 {{ empty_state("sparkles", "No housekeeping tasks", "Create a task when a room needs cleaning.", "New Task", "#addHKModal") }}

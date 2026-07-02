@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros/ui.html" import breadcrumb, page_header, status_badge, empty_state, view_toggle, card_menu, icon %}
+{% from "macros/ui.html" import breadcrumb, page_header, status_badge, empty_state, view_toggle, card_menu, icon, filter_meta, filter_empty, sort_controls %}
 {% set title = "Guests" %}
 {% block content %}
 
@@ -15,17 +15,35 @@
   </div>
 </div>
 
-<form class="filter-toolbar" method="get" data-card-filter="#guestCardGrid">
+<div class="list-filter-shell">
+<form class="filter-toolbar-basic" method="get" data-list-filters data-card-filter="#guestCardGrid" data-auto-search="true">
   <div class="table-search-wrap filter-search">
     {{ icon('search', 16) }}
     <input type="search" name="q" placeholder="Search name, phone, email..." value="{{ search_q }}" data-local-search>
   </div>
+  {{ sort_controls(sort_by|default('id'), sort_dir|default('desc'), [('name', 'Name'), ('phone', 'Phone'), ('email', 'Email'), ('date', 'Date added')]) }}
+  <button type="button" class="btn btn-ghost btn-sm filter-advanced-toggle" data-advanced-toggle>{{ icon('sliders-horizontal', 14) }} Advanced</button>
   <div class="filter-toolbar-actions">
-    <button type="submit" class="btn btn-primary btn-sm">Search</button>
+    <button type="button" class="btn btn-ghost btn-sm" data-clear-filters>Clear All</button>
+    <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+  </div>
+  <div class="filter-advanced-panel" data-advanced-panel style="width:100%">
+    <div class="filter-advanced-grid">
+      <label>Email<input type="text" name="email" value="{{ email or '' }}"></label>
+      <label>City<input type="text" name="city" value="{{ city or '' }}" placeholder="City in address"></label>
+      <label>Guest type<select name="guest_type"><option value="">All</option><option value="new" {% if guest_type == 'new' %}selected{% endif %}>New</option><option value="returning" {% if guest_type == 'returning' %}selected{% endif %}>Returning</option></select></label>
+      <label>ID proof<select name="id_proof_type"><option value="">All</option>{% for t in id_proof_types %}<option value="{{ t }}" {% if id_proof_type == t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></label>
+      <label>Added from<input type="date" name="from" value="{{ date_from or '' }}"></label>
+      <label>Added to<input type="date" name="to" value="{{ date_to or '' }}"></label>
+    </div>
   </div>
 </form>
+{{ filter_meta(list_showing|default(customers|length), list_total|default(customers|length)) }}
+{{ filter_empty() }}
+</div>
 
 {% if customers %}
+<div data-list-results>
 <div class="entity-grid wide" id="guestCardGrid" data-view-panel="cards" data-page="guests">
   {% for c in customers %}
   {% set loyalty = 'Gold' if c.booking_count >= 5 else ('Silver' if c.booking_count >= 2 else 'New') %}
@@ -98,6 +116,7 @@
       </tbody>
     </table>
   </div>
+</div>
 </div>
 {% else %}
 {{ empty_state("users", "No guests found", "Add your first guest to start taking bookings.", "Add Guest", "#addCustomerModal") }}

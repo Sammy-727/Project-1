@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros/ui.html" import breadcrumb, page_header, status_badge, empty_state, view_toggle, card_menu, icon %}
+{% from "macros/ui.html" import breadcrumb, page_header, status_badge, empty_state, view_toggle, card_menu, icon, filter_meta, filter_empty, sort_controls %}
 {% set title = "Rooms" %}
 {% block content %}
 
@@ -16,30 +16,37 @@
   </div>
 </div>
 
-<form class="filter-toolbar" method="get" data-card-filter="#roomCardGrid" data-enrich-bookings>
+<div class="list-filter-shell">
+<form class="filter-toolbar-basic" method="get" data-list-filters data-card-filter="#roomCardGrid" data-enrich-bookings data-auto-search="true">
   <div class="table-search-wrap filter-search">
     {{ icon('search', 16) }}
     <input type="search" name="q" placeholder="Search rooms..." value="{{ search_q }}" data-local-search>
   </div>
-  <select name="status">
-    <option value="">All Status</option>
-    {% for s in room_statuses %}
-    <option value="{{ s }}" {% if filter_status == s %}selected{% endif %}>{{ s }}</option>
-    {% endfor %}
-  </select>
-  <select name="type">
-    <option value="">All Types</option>
-    {% for t in types %}
-    <option value="{{ t.room_type }}" {% if filter_type == t.room_type %}selected{% endif %}>{{ t.room_type }}</option>
-    {% endfor %}
-  </select>
+  {{ sort_controls(sort_by|default('room_no'), sort_dir|default('asc'), [
+    ('room_no', 'Room'), ('type', 'Type'), ('floor', 'Floor'), ('price', 'Price'), ('capacity', 'Capacity'), ('status', 'Status')
+  ]) }}
+  <button type="button" class="btn btn-ghost btn-sm filter-advanced-toggle" data-advanced-toggle>{{ icon('sliders-horizontal', 14) }} Advanced</button>
   <div class="filter-toolbar-actions">
-    <a href="{{ url_for('rooms') }}" class="btn btn-ghost btn-sm">Reset</a>
+    <button type="button" class="btn btn-ghost btn-sm" data-clear-filters>Clear All</button>
     <button type="submit" class="btn btn-primary btn-sm">Apply</button>
   </div>
+  <div class="filter-advanced-panel" data-advanced-panel style="width:100%">
+    <div class="filter-advanced-grid">
+      <label>Status<select name="status"><option value="">All</option>{% for s in room_statuses %}<option value="{{ s }}" {% if filter_status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
+      <label>Type<select name="type"><option value="">All</option>{% for t in types %}<option value="{{ t.room_type }}" {% if filter_type == t.room_type %}selected{% endif %}>{{ t.room_type }}</option>{% endfor %}</select></label>
+      <label>Floor<input type="number" name="floor" value="{{ floor or '' }}" min="0"></label>
+      <label>Capacity<input type="number" name="capacity" value="{{ capacity or '' }}" min="1"></label>
+      <label>Min price<input type="number" name="price_min" value="{{ price_min or '' }}" min="0"></label>
+      <label>Max price<input type="number" name="price_max" value="{{ price_max or '' }}" min="0"></label>
+    </div>
+  </div>
 </form>
+{{ filter_meta(list_showing|default(rooms|length), list_total|default(rooms|length)) }}
+{{ filter_empty() }}
+</div>
 
 {% if rooms %}
+<div data-list-results>
 <div class="entity-grid wide" id="roomCardGrid" data-view-panel="cards" data-page="rooms" data-enrich-bookings>
   {% for r in rooms %}
   {% set amenities = (r.amenities or '').split(',')[:4] %}
@@ -122,6 +129,7 @@
       </tbody>
     </table>
   </div>
+</div>
 </div>
 {% else %}
 {{ empty_state("bed-double", "No rooms yet", "Add your first room to start managing availability.", "Add Room", "#addRoomModal") }}

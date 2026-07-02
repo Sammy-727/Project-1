@@ -1,13 +1,23 @@
 {% extends "base.html" %}
-{% from "macros/ui.html" import breadcrumb, page_header, empty_state %}
+{% from "macros/ui.html" import breadcrumb, page_header, empty_state, filter_meta, sort_controls, icon, status_badge %}
 {% set title = "Reports" %}
 {% block content %}
 
 {{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Reports"}]) }}
 {{ page_header("Reports & Analytics", "Interactive insights across revenue, occupancy, and bookings") }}
 
-<div class="page-header-actions" style="margin-bottom:20px">
-    <a href="{{ url_for('export_reports') }}" class="btn btn-outline btn-sm" title="Export CSV">Export CSV</a>
+<div class="list-filter-shell" style="margin-bottom:20px">
+  <form class="filter-toolbar-basic" method="get" data-list-filters>
+    <label style="font-size:12px;color:var(--text-muted)">Date range</label>
+    <input type="date" name="from" value="{{ date_from or '' }}">
+    <input type="date" name="to" value="{{ date_to or '' }}">
+    <div class="filter-toolbar-actions">
+      <button type="button" class="btn btn-ghost btn-sm" data-clear-filters>Clear All</button>
+      <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+      <a href="{{ url_for('export_reports', **request.args) }}" class="btn btn-outline btn-sm">{{ icon('download', 14) }} Export CSV</a>
+    </div>
+  </form>
+  {{ filter_meta(list_showing|default(payment_rows|length), list_total|default(payment_rows|length)) }}
 </div>
 
 <div class="kpi-grid">
@@ -19,7 +29,7 @@
 
 <div class="grid-2">
     <div class="panel">
-        <div class="panel-head"><h3>Revenue Trend</h3><span>12 months</span></div>
+        <div class="panel-head"><h3>Revenue Trend</h3><span>Filtered period</span></div>
         {% if monthly_revenue %}
         <div class="chart-container">
             <canvas id="revenueChart"
@@ -27,7 +37,7 @@
                 data-values='{{ monthly_revenue|map(attribute="total")|list|tojson }}'></canvas>
         </div>
         {% else %}
-        {{ empty_state("📊", "No revenue data", "Charts appear after payments are recorded.") }}
+        {{ empty_state("bar-chart-3", "No revenue data", "Adjust date filters or record payments.") }}
         {% endif %}
     </div>
     <div class="panel">
@@ -39,9 +49,34 @@
                 data-values='{{ booking_status|map(attribute="c")|list|tojson }}'></canvas>
         </div>
         {% else %}
-        {{ empty_state("📅", "No bookings", "Booking analytics will appear here.") }}
+        {{ empty_state("calendar-days", "No bookings", "Booking analytics will appear here.") }}
         {% endif %}
     </div>
+</div>
+
+<div class="panel saas-panel">
+  <div class="panel-head"><h3>Payment Details</h3></div>
+  {% if payment_rows %}
+  <div class="table-wrap">
+    <table class="data-table" data-paginate>
+      <thead><tr><th class="sortable">Receipt</th><th class="sortable">Guest</th><th>Room</th><th class="sortable">Amount</th><th>Mode</th><th class="sortable">Date</th></tr></thead>
+      <tbody>
+      {% for p in payment_rows %}
+      <tr>
+        <td>{{ p.receipt_number }}</td>
+        <td>{{ p.customer_name }}</td>
+        <td>{{ p.room_no }}</td>
+        <td>₹{{ "{:,.0f}".format(p.amount) }}</td>
+        <td>{{ p.payment_mode }}</td>
+        <td>{{ p.payment_date }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  {{ empty_state("credit-card", "No payments in range", "No results found. Try changing filters.") }}
+  {% endif %}
 </div>
 
 <div class="panel">
@@ -52,8 +87,6 @@
             data-labels='{{ room_types|map(attribute="room_type")|list|tojson }}'
             data-values='{{ room_types|map(attribute="c")|list|tojson }}'></canvas>
     </div>
-    {% else %}
-    {{ empty_state("🛏️", "No room data", "Add rooms to see distribution.") }}
     {% endif %}
 </div>
 
