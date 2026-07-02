@@ -155,6 +155,7 @@ const CardUI = {
           try {
             await fetch(form.action, { method: 'POST', body: fd });
             window.showToast?.(`Task moved to ${newStatus}`, 'success');
+            window.refreshAlerts?.().catch(() => {});
           } catch (_) {
             window.showToast?.('Failed to update task', 'danger');
           }
