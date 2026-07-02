@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros/ui.html" import breadcrumb, page_header, status_badge, empty_state, view_toggle, card_menu, icon %}
+{% from "macros/ui.html" import breadcrumb, page_header, status_badge, empty_state, view_toggle, card_menu, icon, filter_meta, filter_empty, sort_controls %}
 {% set title = "Employees" %}
 {% block content %}
 
@@ -16,30 +16,29 @@
   </div>
 </div>
 
-<form class="filter-toolbar" method="get" id="filterForm" data-card-filter="#employeeCardGrid">
-        <input type="search" name="q" placeholder="Search employees..." value="{{ search_q }}" data-local-search>
-        <select name="status">
-            <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Employees</option>
-            <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
-            <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
-            <option value="archived" {% if status_filter == 'archived' %}selected{% endif %}>Archived Employees</option>
-        </select>
-        <select name="department">
-            <option value="">All Departments</option>
-            {% for d in departments %}
-            <option value="{{ d }}" {% if department == d %}selected{% endif %}>{{ d }}</option>
-            {% endfor %}
-        </select>
-        <select name="role">
-            <option value="">All Roles</option>
-            {% for r in roles if r != 'Super Admin' %}
-            <option value="{{ r }}" {% if role == r %}selected{% endif %}>{{ r }}</option>
-            {% endfor %}
-        </select>
-        <div class="filter-toolbar-actions">
+<div class="list-filter-shell">
+<form class="filter-toolbar-basic" method="get" id="filterForm" data-list-filters data-card-filter="#employeeCardGrid" data-auto-search="true">
+    <input type="search" name="q" placeholder="Search employees..." value="{{ search_q }}" data-local-search class="filter-search">
+    {{ sort_controls(sort_by|default('name'), sort_dir|default('asc'), [('name', 'Name'), ('role', 'Role'), ('department', 'Department'), ('status', 'Status'), ('date', 'Joined')]) }}
+    <button type="button" class="btn btn-ghost btn-sm filter-advanced-toggle" data-advanced-toggle>{{ icon('sliders-horizontal', 14) }} Advanced</button>
+    <div class="filter-toolbar-actions">
+        <button type="button" class="btn btn-ghost btn-sm" data-clear-filters>Clear All</button>
         <button type="submit" class="btn btn-primary btn-sm">Apply</button>
-        </div>
-    </form>
+    </div>
+    <div class="filter-advanced-panel" data-advanced-panel style="width:100%">
+      <div class="filter-advanced-grid">
+        <label>Status<select name="status"><option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option><option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option><option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option><option value="archived" {% if status_filter == 'archived' %}selected{% endif %}>Archived</option></select></label>
+        <label>Department<select name="department"><option value="">All</option>{% for d in departments %}<option value="{{ d }}" {% if department == d %}selected{% endif %}>{{ d }}</option>{% endfor %}</select></label>
+        <label>Role<select name="role"><option value="">All</option>{% for r in roles if r != 'Super Admin' %}<option value="{{ r }}" {% if role == r %}selected{% endif %}>{{ r }}</option>{% endfor %}</select></label>
+        <label>Shift<input type="text" name="shift" value="{{ shift or '' }}"></label>
+        <label>Joined from<input type="date" name="from" value="{{ date_from or '' }}"></label>
+        <label>Joined to<input type="date" name="to" value="{{ date_to or '' }}"></label>
+      </div>
+    </div>
+</form>
+{{ filter_meta(list_showing|default(employees|length), list_total|default(employees|length)) }}
+{{ filter_empty() }}
+</div>
 
 {% if employees %}
 <div class="bulk-bar">

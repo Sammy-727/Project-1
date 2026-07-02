@@ -1,0 +1,138 @@
+/* Advanced list filters */
+.list-filter-shell { margin-bottom: 16px; }
+
+.filter-toolbar-basic {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.filter-toolbar-basic .filter-search {
+  flex: 1;
+  min-width: 180px;
+}
+
+.filter-sort-group {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.filter-sort-group select {
+  height: 36px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  font-size: 13px;
+}
+
+.filter-advanced-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.filter-advanced-panel {
+  display: none;
+  padding: 14px;
+  margin-bottom: 10px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--bg-subtle);
+}
+
+.filter-advanced-panel.open { display: block; }
+
+.filter-advanced-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.filter-advanced-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.filter-advanced-grid input,
+.filter-advanced-grid select {
+  height: 36px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  font-size: 13px;
+  text-transform: none;
+  font-weight: 400;
+  letter-spacing: normal;
+}
+
+.filter-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--primary-light);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.filter-chip button {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: inherit;
+  padding: 0;
+  line-height: 1;
+  font-size: 14px;
+}
+
+.filter-result-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.filter-empty-results {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+}
+
+.filter-empty-results h3 {
+  font-size: 16px;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.list-filter-shell.is-loading {
+  opacity: 0.6;
+  pointer-events: none;
+}

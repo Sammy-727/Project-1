@@ -8,6 +8,12 @@ from datetime import datetime, date, timedelta
 from functools import wraps
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+from list_filters import (
+    bookings_query, customers_query, rooms_query, employees_query,
+    inventory_query, payments_query, invoices_query, housekeeping_query,
+    room_service_query, paginate_rows,
+)
+
 app = Flask(__name__)
 application = app  # WSGI entry for gunicorn / Replit / Render
 app.secret_key = os.environ.get("SECRET_KEY", "hms-v2-secret-key")
@@ -851,25 +857,17 @@ def dashboard():
 
 @app.route("/rooms")
 def rooms():
-    status = request.args.get("status", "")
-    room_type = request.args.get("type", "")
-    search_q = request.args.get("q", "").strip()
-    sql = "SELECT * FROM rooms WHERE 1=1"
-    params = []
-    if status:
-        sql += " AND status=?"
-        params.append(status)
-    if room_type:
-        sql += " AND room_type=?"
-        params.append(room_type)
-    if search_q:
-        sql += " AND (room_no LIKE ? OR room_type LIKE ?)"
-        params.extend([f"%{search_q}%", f"%{search_q}%"])
-    sql += " ORDER BY CAST(room_no AS INTEGER), room_no"
-    room_list = query(sql, params)
+    sql, params, f = rooms_query()
+    all_rooms = query(sql, params)
+    page_rows, total, page, size = paginate_rows(all_rooms, f["page"], f["size"])
     types = query("SELECT DISTINCT room_type FROM rooms ORDER BY room_type")
-    return render_template("rooms.html", rooms=room_list, types=types,
-                           filter_status=status, filter_type=room_type, search_q=search_q)
+    return render_template(
+        "rooms.html", rooms=page_rows, types=types, list_total=total,
+        list_showing=len(page_rows), list_page=page, list_size=size,
+        sort_by=f["sort_by"], sort_dir=f["sort_dir"],
+        filter_status=f["status"], filter_type=f["type"], search_q=f["q"],
+        floor=f["floor"], capacity=f["capacity"], price_min=f["price_min"], price_max=f["price_max"],
+    )
 
 
 @app.route("/rooms/add", methods=["POST"])
@@ -915,20 +913,26 @@ def delete_room(room_id):
 
 @app.route("/customers")
 def customers():
-    search_q = request.args.get("q", "").strip()
-    sql = "SELECT * FROM customers WHERE 1=1"
-    params = []
-    if search_q:
-        sql += " AND (name LIKE ? OR phone LIKE ? OR email LIKE ?)"
-        params.extend([f"%{search_q}%"] * 3)
-    sql += " ORDER BY id DESC"
+    sql, params, f = customers_query()
     customer_list = []
     for c in query(sql, params):
         cd = dict(c)
         cd["guests"] = query("SELECT * FROM guests WHERE customer_id=? AND booking_id IS NULL", (c["id"],))
-        cd["booking_count"] = query("SELECT COUNT(*) c FROM bookings WHERE customer_id=?", (c["id"],), one=True)["c"]
+        bc = query("SELECT COUNT(*) c FROM bookings WHERE customer_id=?", (c["id"],), one=True)["c"]
+        cd["booking_count"] = bc
+        if f["guest_type"] == "new" and bc > 1:
+            continue
+        if f["guest_type"] == "returning" and bc <= 1:
+            continue
         customer_list.append(cd)
-    return render_template("customers.html", customers=customer_list, search_q=search_q)
+    page_rows, total, page, size = paginate_rows(customer_list, f["page"], f["size"])
+    return render_template(
+        "customers.html", customers=page_rows, list_total=total,
+        list_showing=len(page_rows), list_page=page, list_size=size,
+        sort_by=f["sort_by"], sort_dir=f["sort_dir"],
+        search_q=f["q"], guest_type=f["guest_type"], id_proof_type=f["id_proof_type"],
+        city=f["city"], email=f["email"], date_from=f["from"], date_to=f["to"],
+    )
 
 
 @app.route("/customers/add", methods=["POST"])
@@ -1051,30 +1055,16 @@ def api_available_rooms():
 
 @app.route("/api/bookings/list")
 def api_bookings_list():
-    status = request.args.get("status", "")
-    search_q = request.args.get("q", "").strip()
-    date_from = request.args.get("from", "")
-    date_to = request.args.get("to", "")
-    sql = """
-        SELECT b.*, c.name customer_name, c.phone, r.room_no, r.room_type, r.price
-        FROM bookings b JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id WHERE 1=1
-    """
-    params = []
-    if status:
-        sql += " AND b.status=?"
-        params.append(status)
-    if search_q:
-        sql += " AND (c.name LIKE ? OR r.room_no LIKE ? OR CAST(b.id AS TEXT) LIKE ?)"
-        params.extend([f"%{search_q}%"] * 3)
-    if date_from:
-        sql += " AND b.checkin >= ?"
-        params.append(date_from)
-    if date_to:
-        sql += " AND b.checkout <= ?"
-        params.append(date_to)
-    sql += " ORDER BY b.id DESC"
+    sql, params, f = bookings_query()
     rows = query(sql, params)
-    return api_ok(bookings=[booking_row_to_dict(r) for r in rows])
+    page_rows, total, page, size = paginate_rows(rows, f["page"], f["size"])
+    return api_ok(
+        bookings=[booking_row_to_dict(r) for r in page_rows],
+        total=total,
+        page=page,
+        size=size,
+        showing=len(page_rows),
+    )
 
 
 @app.route("/api/bookings", methods=["POST"])
@@ -1183,35 +1173,23 @@ def api_create_booking():
 
 @app.route("/bookings")
 def bookings():
-    status = request.args.get("status", "")
-    search_q = request.args.get("q", "").strip()
-    date_from = request.args.get("from", "")
-    date_to = request.args.get("to", "")
-    sql = """
-        SELECT b.*, c.name customer_name, c.phone, r.room_no, r.room_type, r.price
-        FROM bookings b JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id WHERE 1=1
-    """
-    params = []
-    if status:
-        sql += " AND b.status=?"
-        params.append(status)
-    if search_q:
-        sql += " AND (c.name LIKE ? OR r.room_no LIKE ? OR CAST(b.id AS TEXT) LIKE ?)"
-        params.extend([f"%{search_q}%"] * 3)
-    if date_from:
-        sql += " AND b.checkin >= ?"
-        params.append(date_from)
-    if date_to:
-        sql += " AND b.checkout <= ?"
-        params.append(date_to)
-    sql += " ORDER BY b.id DESC"
-    booking_list = query(sql, params)
+    sql, params, f = bookings_query()
+    all_bookings = query(sql, params)
+    page_rows, total, page, size = paginate_rows(all_bookings, f["page"], f["size"])
     all_customers = query("SELECT id, name, phone FROM customers ORDER BY name")
     all_rooms = query("SELECT * FROM rooms ORDER BY room_no")
     new_customer = request.args.get("new_customer", type=int)
-    return render_template("bookings.html", bookings=booking_list, customers=all_customers,
-                           rooms=all_rooms, filter_status=status, search_q=search_q,
-                           date_from=date_from, date_to=date_to, new_customer=new_customer)
+    return render_template(
+        "bookings.html", bookings=page_rows, customers=all_customers, rooms=all_rooms,
+        list_total=total, list_showing=len(page_rows), list_page=page, list_size=size,
+        sort_by=f["sort_by"], sort_dir=f["sort_dir"],
+        filter_status=f["status"], search_q=f["q"], date_from=f["from"], date_to=f["to"],
+        payment_status=f["payment_status"], phone=f["phone"], room_no=f["room_no"],
+        booking_source=f["booking_source"], checkin_from=f["checkin_from"], checkin_to=f["checkin_to"],
+        checkout_from=f["checkout_from"], checkout_to=f["checkout_to"],
+        amount_min=f["amount_min"], amount_max=f["amount_max"],
+        new_customer=new_customer,
+    )
 
 
 @app.route("/bookings/add", methods=["POST"])
@@ -1382,18 +1360,9 @@ def checkout(booking_id):
 
 @app.route("/payments")
 def payments():
-    search_q = request.args.get("q", "").strip()
-    sql = """
-        SELECT p.*, c.name customer_name, r.room_no, b.checkin, b.checkout, b.total_amount
-        FROM payments p JOIN bookings b ON p.booking_id=b.id
-        JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id WHERE 1=1
-    """
-    params = []
-    if search_q:
-        sql += " AND (p.receipt_number LIKE ? OR c.name LIKE ? OR r.room_no LIKE ?)"
-        params.extend([f"%{search_q}%"] * 3)
-    sql += " ORDER BY p.id DESC"
-    payment_list = query(sql, params)
+    sql, params, f = payments_query()
+    all_payments = query(sql, params)
+    page_rows, total, page, size = paginate_rows(all_payments, f["page"], f["size"])
     pending_bookings = query("""
         SELECT b.id, c.name, r.room_no, b.total_amount, b.payment_status, b.checkin, b.checkout
         FROM bookings b JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
@@ -1407,8 +1376,14 @@ def payments():
         pd["balance"] = max(float(pb["total_amount"] or 0) - pd["paid"], 0)
         pending.append(pd)
     total_revenue = query("SELECT COALESCE(SUM(amount),0) t FROM payments", one=True)["t"]
-    return render_template("payments.html", payments=payment_list, pending_bookings=pending,
-                           total_revenue=total_revenue, search_q=search_q)
+    return render_template(
+        "payments.html", payments=page_rows, pending_bookings=pending,
+        total_revenue=total_revenue, list_total=total, list_showing=len(page_rows),
+        list_page=page, list_size=size, sort_by=f["sort_by"], sort_dir=f["sort_dir"],
+        search_q=f["q"], payment_mode=f["payment_mode"], booking_id=f["booking_id"],
+        payment_status=f["payment_status"], date_from=f["from"], date_to=f["to"],
+        amount_min=f["amount_min"], amount_max=f["amount_max"],
+    )
 
 
 @app.route("/payments/add", methods=["POST"])
@@ -1444,47 +1419,21 @@ def receipt(payment_id):
 # ─── Employees ───────────────────────────────────────────────────────────────
 
 def _employee_list_query():
-    search_q = request.args.get("q", "").strip()
-    status_filter = request.args.get("status", "all")
-    department = request.args.get("department", "")
-    role = request.args.get("role", "")
-
-    sql = "SELECT * FROM employees WHERE 1=1"
-    params = []
-
-    if status_filter == "archived":
-        sql += " AND status='Archived'"
-    elif status_filter == "active":
-        sql += " AND status='Active'"
-    elif status_filter == "inactive":
-        sql += " AND status='Inactive'"
-    elif status_filter == "all":
-        sql += " AND status != 'Archived'"
-
-    if department:
-        sql += " AND department=?"
-        params.append(department)
-    if role:
-        sql += " AND role=?"
-        params.append(role)
-    if search_q:
-        sql += " AND (name LIKE ? OR email LIKE ? OR phone LIKE ? OR department LIKE ?)"
-        params.extend([f"%{search_q}%"] * 4)
-
-    sql += " ORDER BY id DESC"
-    return query(sql, params), {
-        "search_q": search_q,
-        "status_filter": status_filter,
-        "department": department,
-        "role": role,
-    }
+    sql, params, f = employees_query()
+    return query(sql, params), f
 
 
 @app.route("/employees")
 @role_required(*admin_roles())
 def employees():
-    employee_list, filters = _employee_list_query()
-    return render_template("employees.html", employees=employee_list, **filters)
+    employee_list, f = _employee_list_query()
+    page_rows, total, page, size = paginate_rows(employee_list, f["page"], f["size"])
+    return render_template(
+        "employees.html", employees=page_rows, list_total=total, list_showing=len(page_rows),
+        list_page=page, list_size=size, sort_by=f["sort_by"], sort_dir=f["sort_dir"],
+        search_q=f["q"], status_filter=f["status"], department=f["department"],
+        role=f["role"], shift=f["shift"], date_from=f["from"], date_to=f["to"],
+    )
 
 
 @app.route("/employees/add", methods=["POST"])
@@ -1603,22 +1552,18 @@ def employees_bulk():
 
 @app.route("/housekeeping")
 def housekeeping():
-    status = request.args.get("status", "")
-    sql = """
-        SELECT h.*, r.room_no, r.room_type, e.name staff_name
-        FROM housekeeping_tasks h JOIN rooms r ON h.room_id=r.id
-        LEFT JOIN employees e ON h.assigned_to=e.id WHERE 1=1
-    """
-    params = []
-    if status:
-        sql += " AND h.status=?"
-        params.append(status)
-    sql += " ORDER BY CASE h.priority WHEN 'High' THEN 1 WHEN 'Medium' THEN 2 ELSE 3 END, h.id DESC"
-    tasks = query(sql, params)
+    sql, params, f = housekeeping_query()
+    all_tasks = query(sql, params)
+    page_rows, total, page, size = paginate_rows(all_tasks, f["page"], f["size"])
     hk_staff = query("SELECT id, name FROM employees WHERE department='Housekeeping' AND status='Active'")
     cleaning_rooms = query("SELECT id, room_no FROM rooms WHERE status IN ('Cleaning','Occupied') ORDER BY room_no")
-    return render_template("housekeeping.html", tasks=tasks, hk_staff=hk_staff,
-                           cleaning_rooms=cleaning_rooms, filter_status=status)
+    return render_template(
+        "housekeeping.html", tasks=page_rows, hk_staff=hk_staff,
+        cleaning_rooms=cleaning_rooms, list_total=total, list_showing=len(page_rows),
+        list_page=page, list_size=size, sort_by=f["sort_by"], sort_dir=f["sort_dir"],
+        filter_status=f["status"], priority=f["priority"], room_no=f["room_no"],
+        assigned_to=f["assigned_to"], date_from=f["from"], date_to=f["to"], search_q=f["q"],
+    )
 
 
 @app.route("/housekeeping/add", methods=["POST"])
@@ -1652,26 +1597,23 @@ def update_housekeeping(task_id):
 
 @app.route("/room-service")
 def room_service():
-    status = request.args.get("status", "")
-    sql = """
-        SELECT rs.*, r.room_no, c.name customer_name, b.id booking_ref
-        FROM room_service_requests rs JOIN rooms r ON rs.room_id=r.id
-        LEFT JOIN bookings b ON rs.booking_id=b.id
-        LEFT JOIN customers c ON b.customer_id=c.id WHERE 1=1
-    """
-    params = []
-    if status:
-        sql += " AND rs.status=?"
-        params.append(status)
-    sql += " ORDER BY rs.id DESC"
-    requests_list = query(sql, params)
+    sql, params, f = room_service_query()
+    all_requests = query(sql, params)
+    page_rows, total, page, size = paginate_rows(all_requests, f["page"], f["size"])
     active_bookings = query("""
         SELECT b.id, c.name, r.room_no, r.id room_id
         FROM bookings b JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
         WHERE b.status='Checked-in' ORDER BY r.room_no
     """)
-    return render_template("room_service.html", requests=requests_list,
-                           active_bookings=active_bookings, filter_status=status)
+    maint_sql, maint_params, _ = room_service_query(maintenance_only=True)
+    maintenance = query(maint_sql, maint_params)
+    return render_template(
+        "room_service.html", requests=page_rows, maintenance=maintenance,
+        active_bookings=active_bookings, list_total=total, list_showing=len(page_rows),
+        list_page=page, list_size=size, sort_by=f["sort_by"], sort_dir=f["sort_dir"],
+        filter_status=f["status"], request_type=f["request_type"], room_no=f["room_no"],
+        date_from=f["from"], date_to=f["to"], search_q=f["q"],
+    )
 
 
 @app.route("/room-service/add", methods=["POST"])
@@ -1708,18 +1650,18 @@ def update_room_service(req_id):
 
 @app.route("/inventory")
 def inventory():
-    search_q = request.args.get("q", "").strip()
-    low_only = request.args.get("low", "")
-    sql = "SELECT * FROM inventory WHERE 1=1"
-    params = []
-    if search_q:
-        sql += " AND (item_name LIKE ? OR category LIKE ? OR supplier_name LIKE ?)"
-        params.extend([f"%{search_q}%"] * 3)
-    if low_only:
-        sql += " AND quantity <= reorder_level"
-    sql += " ORDER BY item_name"
-    items = query(sql, params)
-    return render_template("inventory.html", items=items, search_q=search_q, low_only=low_only)
+    sql, params, f = inventory_query()
+    all_items = query(sql, params)
+    page_rows, total, page, size = paginate_rows(all_items, f["page"], f["size"])
+    categories = query("SELECT DISTINCT category FROM inventory WHERE category IS NOT NULL ORDER BY category")
+    return render_template(
+        "inventory.html", items=page_rows, categories=categories,
+        list_total=total, list_showing=len(page_rows), list_page=page, list_size=size,
+        sort_by=f["sort_by"], sort_dir=f["sort_dir"],
+        search_q=f["q"], low_only=(f["stock_status"] == "low"),
+        stock_status=f["stock_status"], category=f["category"], supplier=f["supplier"],
+        date_from=f["from"], date_to=f["to"],
+    )
 
 
 @app.route("/inventory/add", methods=["POST"])
@@ -1934,6 +1876,19 @@ def users_bulk():
 
 # ─── Invoice & Reports ───────────────────────────────────────────────────────
 
+@app.route("/invoices")
+def invoices_list():
+    sql, params, f = invoices_query()
+    all_invoices = query(sql, params)
+    page_rows, total, page, size = paginate_rows(all_invoices, f["page"], f["size"])
+    return render_template(
+        "invoices.html", invoices=page_rows, list_total=total, list_showing=len(page_rows),
+        list_page=page, list_size=size, sort_by=f["sort_by"], sort_dir=f["sort_dir"],
+        search_q=f["q"], payment_status=f["payment_status"], booking_id=f["booking_id"],
+        date_from=f["from"], date_to=f["to"], amount_min=f["amount_min"], amount_max=f["amount_max"],
+    )
+
+
 @app.route("/invoice/<int:booking_id>")
 def invoice(booking_id):
     bill = query("""
@@ -1980,14 +1935,43 @@ def invoice(booking_id):
 @role_required(*admin_roles())
 def reports_page():
     stats = dashboard_stats()
-    monthly_revenue = list(reversed(query("""
+    date_from = request.args.get("from", "")
+    date_to = request.args.get("to", "")
+    payment_sql = """
+        SELECT p.id, p.receipt_number, c.name customer_name, r.room_no, p.amount, p.payment_mode, p.payment_date
+        FROM payments p JOIN bookings b ON p.booking_id=b.id
+        JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id WHERE 1=1
+    """
+    params = []
+    if date_from:
+        payment_sql += " AND date(p.payment_date) >= ?"
+        params.append(date_from)
+    if date_to:
+        payment_sql += " AND date(p.payment_date) <= ?"
+        params.append(date_to)
+    payment_sql += " ORDER BY p.id DESC LIMIT 100"
+    payment_rows = query(payment_sql, params)
+    monthly_sql = """
         SELECT strftime('%Y-%m', payment_date) month, SUM(amount) total
-        FROM payments GROUP BY month ORDER BY month DESC LIMIT 12
-    """)))
+        FROM payments WHERE 1=1
+    """
+    mparams = []
+    if date_from:
+        monthly_sql += " AND date(payment_date) >= ?"
+        mparams.append(date_from)
+    if date_to:
+        monthly_sql += " AND date(payment_date) <= ?"
+        mparams.append(date_to)
+    monthly_sql += " GROUP BY month ORDER BY month DESC LIMIT 12"
+    monthly_revenue = list(reversed(query(monthly_sql, mparams)))
     booking_status = query("SELECT status, COUNT(*) c FROM bookings GROUP BY status")
     room_types = query("SELECT room_type, COUNT(*) c FROM rooms GROUP BY room_type")
-    return render_template("reports.html", stats=stats, monthly_revenue=monthly_revenue,
-                           booking_status=booking_status, room_types=room_types)
+    return render_template(
+        "reports.html", stats=stats, monthly_revenue=monthly_revenue,
+        booking_status=booking_status, room_types=room_types,
+        payment_rows=payment_rows, date_from=date_from, date_to=date_to,
+        list_total=len(payment_rows), list_showing=len(payment_rows),
+    )
 
 
 @app.route("/settings")
@@ -1998,12 +1982,22 @@ def settings_page():
 
 @app.route("/reports/export")
 def export_reports():
-    rows = query("""
+    date_from = request.args.get("from", "")
+    date_to = request.args.get("to", "")
+    sql = """
         SELECT p.id, p.receipt_number, c.name, r.room_no, p.amount, p.payment_mode, p.payment_date
         FROM payments p JOIN bookings b ON p.booking_id=b.id
-        JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
-        ORDER BY p.id DESC
-    """)
+        JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id WHERE 1=1
+    """
+    params = []
+    if date_from:
+        sql += " AND date(p.payment_date) >= ?"
+        params.append(date_from)
+    if date_to:
+        sql += " AND date(p.payment_date) <= ?"
+        params.append(date_to)
+    sql += " ORDER BY p.id DESC"
+    rows = query(sql, params)
     output = StringIO()
     writer = csv.writer(output)
     writer.writerow(["Receipt", "Customer", "Room", "Amount", "Mode", "Date"])
