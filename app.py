@@ -42,6 +42,16 @@ RS_STATUSES = ["Pending", "In Progress", "Completed", "Cancelled"]
 ID_PROOF_TYPES = ["Aadhar", "Passport", "Driving License", "Voter ID", "PAN Card", "Other"]
 BOOKING_SOURCES = ["Walk-in", "Phone", "Website", "OTA", "Corporate", "Travel Agent", "Other"]
 UNAVAILABLE_ROOM_STATUSES = {"Maintenance", "Cleaning"}
+NOTIFICATION_TYPES = ("RED", "YELLOW", "GREEN", "BLUE")
+NOTIFICATION_CATEGORIES = (
+    "PENDING_PAYMENTS",
+    "LOW_INVENTORY",
+    "UPCOMING_CHECKINS",
+    "UPCOMING_CHECKOUTS",
+    "MAINTENANCE",
+    "HOUSEKEEPING",
+)
+DEFAULT_HOTEL_ID = 1
 
 
 def get_db():
@@ -219,6 +229,265 @@ def api_error(message, status=400):
 
 def api_ok(**payload):
     return jsonify({"ok": True, **payload})
+
+
+def get_current_hotel_id():
+    if "hotel_id" not in session:
+        session["hotel_id"] = DEFAULT_HOTEL_ID
+    return int(session.get("hotel_id", DEFAULT_HOTEL_ID))
+
+
+def notification_to_dict(row):
+    if not row:
+        return None
+    return {
+        "id": row["id"],
+        "hotelId": row["hotel_id"],
+        "title": row["title"],
+        "message": row["message"],
+        "type": row["type"],
+        "category": row["category"],
+        "isRead": bool(row["is_read"]),
+        "createdAt": row["created_at"],
+        "actionUrl": row["action_url"] or "",
+    }
+
+
+def upsert_notification(hotel_id, title, message, ntype, category, action_url, source_key, is_demo=0):
+    existing = query(
+        "SELECT id FROM notifications WHERE hotel_id=? AND source_key=?",
+        (hotel_id, source_key),
+        one=True,
+    )
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    if existing:
+        query(
+            """UPDATE notifications SET title=?, message=?, type=?, category=?, action_url=?, created_at=?
+               WHERE id=? AND hotel_id=?""",
+            (title, message, ntype, category, action_url, now, existing["id"], hotel_id),
+            commit=True,
+        )
+        return existing["id"]
+    return query(
+        """INSERT INTO notifications(hotel_id,title,message,type,category,is_read,created_at,action_url,source_key,is_demo)
+           VALUES(?,?,?,?,?,0,?,?,?,?)""",
+        (hotel_id, title, message, ntype, category, now, action_url, source_key, is_demo),
+        commit=True,
+    )
+
+
+def has_demo_notification(hotel_id, source_key):
+    return bool(
+        query(
+            "SELECT id FROM notifications WHERE hotel_id=? AND source_key=? AND is_demo=1",
+            (hotel_id, source_key),
+            one=True,
+        )
+    )
+
+
+def resolve_demo_conflicts(hotel_id):
+    if has_demo_notification(hotel_id, "demo_pay_15"):
+        query(
+            "DELETE FROM notifications WHERE hotel_id=? AND source_key=? AND is_demo=0",
+            (hotel_id, "pay_15"),
+            commit=True,
+        )
+    if has_demo_notification(hotel_id, "demo_checkin_ishita"):
+        ishita_bookings = query(
+            """
+            SELECT b.id FROM bookings b
+            JOIN customers c ON b.customer_id=c.id
+            WHERE c.name='Ishita Arora'
+            """
+        )
+        for row in ishita_bookings:
+            query(
+                "DELETE FROM notifications WHERE hotel_id=? AND source_key=? AND is_demo=0",
+                (hotel_id, f"checkin_{row['id']}"),
+                commit=True,
+            )
+
+
+def sync_notifications_from_data(hotel_id=None):
+    hotel_id = hotel_id or DEFAULT_HOTEL_ID
+    today = date.today()
+    horizon = today + timedelta(days=7)
+    active_keys = set()
+
+    low_items = query(
+        "SELECT id, item_name, quantity, reorder_level FROM inventory WHERE quantity <= reorder_level"
+    )
+    for item in low_items:
+        key = f"low_inv_{item['id']}"
+        active_keys.add(key)
+        name = item["item_name"]
+        upsert_notification(
+            hotel_id,
+            "Low Inventory",
+            f"{name} stock is below minimum level ({item['quantity']} / {item['reorder_level']}).",
+            "RED",
+            "LOW_INVENTORY",
+            f"/inventory?q={name}",
+            key,
+        )
+
+    pending_bookings = query("""
+        SELECT b.id, c.name, b.total_amount, b.payment_status
+        FROM bookings b JOIN customers c ON b.customer_id=c.id
+        WHERE b.payment_status IN ('Pending','Partial')
+          AND b.status IN ('Reserved','Checked-in')
+    """)
+    for b in pending_bookings:
+        paid = booking_paid_amount(b["id"])
+        balance = max(float(b["total_amount"] or 0) - paid, 0)
+        if balance <= 0:
+            continue
+        if b["id"] == 15 and has_demo_notification(hotel_id, "demo_pay_15"):
+            continue
+        key = f"pay_{b['id']}"
+        active_keys.add(key)
+        upsert_notification(
+            hotel_id,
+            "Payment Pending",
+            f"Booking #{b['id']} has ₹{balance:,.0f} pending.",
+            "RED",
+            "PENDING_PAYMENTS",
+            f"/payments?booking_id={b['id']}",
+            key,
+        )
+
+    checkins = query("""
+        SELECT b.id, c.name, r.room_no, b.checkin
+        FROM bookings b
+        JOIN customers c ON b.customer_id=c.id
+        JOIN rooms r ON b.room_id=r.id
+        WHERE b.status IN ('Reserved','Checked-in')
+          AND date(b.checkin) BETWEEN date(?) AND date(?)
+    """, (str(today), str(horizon)))
+    for b in checkins:
+        if has_demo_notification(hotel_id, "demo_checkin_ishita") and b["name"] == "Ishita Arora":
+            continue
+        key = f"checkin_{b['id']}"
+        active_keys.add(key)
+        ci = datetime.strptime(b["checkin"], "%Y-%m-%d").date()
+        when = "today" if ci == today else f"on {b['checkin']}"
+        upsert_notification(
+            hotel_id,
+            "Upcoming Check-in",
+            f"{b['name']} arriving {when} for Room {b['room_no']}.",
+            "YELLOW" if ci > today else "YELLOW",
+            "UPCOMING_CHECKINS",
+            f"/bookings?q={b['id']}",
+            key,
+        )
+
+    checkouts = query("""
+        SELECT b.id, c.name, r.room_no, b.checkout
+        FROM bookings b
+        JOIN customers c ON b.customer_id=c.id
+        JOIN rooms r ON b.room_id=r.id
+        WHERE b.status='Checked-in'
+          AND date(b.checkout) BETWEEN date(?) AND date(?)
+    """, (str(today), str(horizon)))
+    for b in checkouts:
+        key = f"checkout_{b['id']}"
+        active_keys.add(key)
+        co = datetime.strptime(b["checkout"], "%Y-%m-%d").date()
+        when = "today" if co == today else f"on {b['checkout']}"
+        upsert_notification(
+            hotel_id,
+            "Upcoming Check-out",
+            f"{b['name']} checking out {when} from Room {b['room_no']}.",
+            "YELLOW",
+            "UPCOMING_CHECKOUTS",
+            f"/invoice/{b['id']}",
+            key,
+        )
+
+    hk_tasks = query("""
+        SELECT h.id, r.room_no, h.priority
+        FROM housekeeping_tasks h
+        JOIN rooms r ON h.room_id=r.id
+        WHERE h.status IN ('Pending','In Progress')
+    """)
+    for t in hk_tasks:
+        key = f"hk_{t['id']}"
+        active_keys.add(key)
+        upsert_notification(
+            hotel_id,
+            "Housekeeping Task",
+            f"Room {t['room_no']} — {t['priority']} priority cleaning pending.",
+            "BLUE",
+            "HOUSEKEEPING",
+            "/housekeeping",
+            key,
+        )
+
+    maint_rooms = query("SELECT id, room_no FROM rooms WHERE status='Maintenance'")
+    for r in maint_rooms:
+        key = f"maint_{r['id']}"
+        active_keys.add(key)
+        upsert_notification(
+            hotel_id,
+            "Maintenance Required",
+            f"Room {r['room_no']} is under maintenance.",
+            "RED",
+            "MAINTENANCE",
+            "/rooms?q=" + r["room_no"],
+            key,
+        )
+
+    auto_rows = query(
+        "SELECT id, source_key FROM notifications WHERE hotel_id=? AND is_demo=0 AND source_key IS NOT NULL",
+        (hotel_id,),
+    )
+    for row in auto_rows:
+        if row["source_key"] not in active_keys:
+            query("DELETE FROM notifications WHERE id=?", (row["id"],), commit=True)
+
+
+def seed_demo_notifications(hotel_id=DEFAULT_HOTEL_ID):
+    demos = [
+        (
+            "demo_pay_15",
+            "Payment Pending",
+            "Booking #15 has ₹8,000 pending.",
+            "RED",
+            "PENDING_PAYMENTS",
+            "/payments?booking_id=15",
+        ),
+        (
+            "demo_low_towels",
+            "Low Inventory",
+            "Towels stock is below minimum level.",
+            "RED",
+            "LOW_INVENTORY",
+            "/inventory?q=Towel",
+        ),
+        (
+            "demo_checkin_ishita",
+            "Upcoming Check-in",
+            "Ishita Arora arriving today for Room 403.",
+            "YELLOW",
+            "UPCOMING_CHECKINS",
+            "/bookings?q=Ishita",
+        ),
+    ]
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    for source_key, title, message, ntype, category, action_url in demos:
+        if query(
+            "SELECT id FROM notifications WHERE hotel_id=? AND source_key=?",
+            (hotel_id, source_key),
+            one=True,
+        ):
+            continue
+        query(
+            """INSERT INTO notifications(hotel_id,title,message,type,category,is_read,created_at,action_url,source_key,is_demo)
+               VALUES(?,?,?,?,?,0,?,?,?,1)""",
+            (hotel_id, title, message, ntype, category, now, action_url, source_key),
+            commit=True,
+        )
 
 
 def sync_room_status_from_bookings(room_id):
@@ -400,6 +669,21 @@ def init_db():
         total REAL,
         payment_status TEXT,
         bill_date TEXT
+    )""")
+
+    c.execute("""CREATE TABLE IF NOT EXISTS notifications(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        hotel_id INTEGER NOT NULL DEFAULT 1,
+        title TEXT NOT NULL,
+        message TEXT NOT NULL,
+        type TEXT NOT NULL,
+        category TEXT NOT NULL,
+        is_read INTEGER DEFAULT 0,
+        created_at TEXT NOT NULL,
+        action_url TEXT,
+        source_key TEXT,
+        is_demo INTEGER DEFAULT 0,
+        UNIQUE(hotel_id, source_key)
     )""")
 
     conn.commit()
@@ -633,6 +917,9 @@ def seed_db():
                      VALUES(?,?,?,?,?,?,?,?)""",
                   (b["id"], b["room_id"], types[i], f"Guest request for {types[i].lower()}", "Pending", 250 * (i + 1), 1, now), commit=True)
 
+    seed_demo_notifications(DEFAULT_HOTEL_ID)
+    sync_notifications_from_data(DEFAULT_HOTEL_ID)
+
 
 def is_logged_in():
     return "user_id" in session
@@ -737,6 +1024,7 @@ def login():
             session["username"] = user["username"]
             session["full_name"] = user["full_name"] or user["username"]
             session["role"] = user["role"]
+            session["hotel_id"] = DEFAULT_HOTEL_ID
             return redirect(url_for("dashboard"))
         if user and not can_login(user["status"]):
             flash("Your account is inactive. Contact your administrator.", "danger")
@@ -1148,6 +1436,8 @@ def api_create_booking():
 
     query("UPDATE rooms SET status='Reserved' WHERE id=?", (room_id,), commit=True)
 
+    sync_notifications_from_data(get_current_hotel_id())
+
     booking = query(
         """
         SELECT b.*, c.name customer_name, c.phone, r.room_no, r.room_type, r.price
@@ -1228,6 +1518,7 @@ def add_booking():
                   (customer_id, bid, gn.strip()), commit=True)
 
     query("UPDATE rooms SET status='Reserved' WHERE id=?", (room_id,), commit=True)
+    sync_notifications_from_data(get_current_hotel_id())
     flash("Booking created successfully.", "success")
     return redirect(url_for("bookings"))
 
@@ -1298,6 +1589,7 @@ def checkin(booking_id):
     query("UPDATE bookings SET status='Checked-in' WHERE id=?", (booking_id,), commit=True)
     query("UPDATE rooms SET status='Occupied' WHERE id=?", (booking["room_id"],), commit=True)
     update_booking_payment_status(booking_id)
+    sync_notifications_from_data(get_current_hotel_id())
     flash("Guest checked in successfully.", "success")
     return redirect(url_for("checkin_out"))
 
@@ -1352,6 +1644,7 @@ def checkout(booking_id):
           (booking["room_id"], hk_staff["id"] if hk_staff else None, "Pending", "High",
            "Post checkout cleaning", datetime.now().strftime("%Y-%m-%d %H:%M")), commit=True)
 
+    sync_notifications_from_data(get_current_hotel_id())
     flash("Checkout completed.", "success")
     return redirect(url_for("invoice", booking_id=booking_id))
 
@@ -1398,6 +1691,7 @@ def add_payment():
           (booking_id, amount, request.form["payment_mode"], receipt_number(),
            datetime.now().strftime("%Y-%m-%d %H:%M"), request.form.get("notes", "")), commit=True)
     update_booking_payment_status(booking_id)
+    sync_notifications_from_data(get_current_hotel_id())
     flash("Payment recorded.", "success")
     return redirect(url_for("payments"))
 
@@ -1674,6 +1968,7 @@ def add_inventory():
                request.form["unit"], float(request.form.get("price") or 0),
                int(request.form.get("reorder_level") or 10), request.form.get("supplier_name", ""),
                today_str), commit=True)
+        sync_notifications_from_data(get_current_hotel_id())
         flash("Inventory item added.", "success")
     except Exception as e:
         flash(f"Error: {e}", "danger")
@@ -1689,6 +1984,7 @@ def update_inventory(item_id):
            request.form["unit"], float(request.form.get("price") or 0),
            int(request.form.get("reorder_level") or 10), request.form.get("supplier_name", ""),
            today_str, item_id), commit=True)
+    sync_notifications_from_data(get_current_hotel_id())
     flash("Item updated.", "success")
     return redirect(url_for("inventory"))
 
@@ -1706,6 +2002,7 @@ def restock_inventory(item_id):
     today_str = datetime.now().strftime("%Y-%m-%d")
     query("UPDATE inventory SET quantity=quantity+?, last_updated=? WHERE id=?",
           (qty, today_str, item_id), commit=True)
+    sync_notifications_from_data(get_current_hotel_id())
     flash("Stock updated.", "success")
     return redirect(url_for("inventory"))
 
@@ -2007,6 +2304,93 @@ def export_reports():
     mem.write(output.getvalue().encode("utf-8"))
     mem.seek(0)
     return send_file(mem, mimetype="text/csv", as_attachment=True, download_name="hms_payments_report.csv")
+
+
+# ─── Notifications API ───────────────────────────────────────────────────────
+
+@app.route("/api/notifications", methods=["GET"])
+def api_notifications_list():
+    hotel_id = get_current_hotel_id()
+    seed_demo_notifications(hotel_id)
+    sync_notifications_from_data(hotel_id)
+    resolve_demo_conflicts(hotel_id)
+    rows = query(
+        "SELECT * FROM notifications WHERE hotel_id=? ORDER BY datetime(created_at) DESC, id DESC",
+        (hotel_id,),
+    )
+    notifications = [notification_to_dict(r) for r in rows]
+    unread = sum(1 for n in notifications if not n["isRead"])
+    return api_ok(notifications=notifications, unreadCount=unread)
+
+
+@app.route("/api/notifications", methods=["POST"])
+def api_notifications_create():
+    hotel_id = get_current_hotel_id()
+    data = request.get_json(silent=True) or {}
+    title = (data.get("title") or "").strip()
+    message = (data.get("message") or "").strip()
+    ntype = (data.get("type") or "BLUE").upper()
+    category = (data.get("category") or "HOUSEKEEPING").upper()
+    action_url = (data.get("actionUrl") or data.get("action_url") or "").strip()
+
+    if not title or not message:
+        return api_error("Title and message are required.")
+    if ntype not in NOTIFICATION_TYPES:
+        return api_error(f"Invalid type. Use one of: {', '.join(NOTIFICATION_TYPES)}")
+    if category not in NOTIFICATION_CATEGORIES:
+        return api_error(f"Invalid category. Use one of: {', '.join(NOTIFICATION_CATEGORIES)}")
+
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    nid = query(
+        """INSERT INTO notifications(hotel_id,title,message,type,category,is_read,created_at,action_url,source_key,is_demo)
+           VALUES(?,?,?,?,?,0,?,?,NULL,0)""",
+        (hotel_id, title, message, ntype, category, now, action_url or None),
+        commit=True,
+    )
+    row = query("SELECT * FROM notifications WHERE id=? AND hotel_id=?", (nid, hotel_id), one=True)
+    return api_ok(notification=notification_to_dict(row)), 201
+
+
+@app.route("/api/notifications/read-all", methods=["PATCH"])
+def api_notifications_read_all():
+    hotel_id = get_current_hotel_id()
+    query("UPDATE notifications SET is_read=1 WHERE hotel_id=? AND is_read=0", (hotel_id,), commit=True)
+    return api_ok()
+
+
+@app.route("/api/notifications/<int:notification_id>/read", methods=["PATCH"])
+def api_notifications_mark_read(notification_id):
+    hotel_id = get_current_hotel_id()
+    row = query(
+        "SELECT id FROM notifications WHERE id=? AND hotel_id=?",
+        (notification_id, hotel_id),
+        one=True,
+    )
+    if not row:
+        return api_error("Notification not found.", 404)
+    query("UPDATE notifications SET is_read=1 WHERE id=? AND hotel_id=?", (notification_id, hotel_id), commit=True)
+    return api_ok()
+
+
+@app.route("/api/notifications/clear-all", methods=["DELETE"])
+def api_notifications_clear_all():
+    hotel_id = get_current_hotel_id()
+    query("DELETE FROM notifications WHERE hotel_id=?", (hotel_id,), commit=True)
+    return api_ok()
+
+
+@app.route("/api/notifications/<int:notification_id>", methods=["DELETE"])
+def api_notifications_delete(notification_id):
+    hotel_id = get_current_hotel_id()
+    row = query(
+        "SELECT id FROM notifications WHERE id=? AND hotel_id=?",
+        (notification_id, hotel_id),
+        one=True,
+    )
+    if not row:
+        return api_error("Notification not found.", 404)
+    query("DELETE FROM notifications WHERE id=? AND hotel_id=?", (notification_id, hotel_id), commit=True)
+    return api_ok()
 
 
 # Legacy redirects

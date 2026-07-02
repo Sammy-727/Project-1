@@ -121,7 +121,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const drawer = new BookingDrawer(drawerEl, {
     bookingSources,
     paymentModes,
-    onSuccess: refreshBookingsView,
+    onSuccess: () => {
+      refreshBookingsView();
+      window.refreshNotifications?.();
+    },
   });
 
   document.getElementById('newBookingBtn')?.addEventListener('click', () => drawer.open());

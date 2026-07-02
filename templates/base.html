@@ -10,6 +10,7 @@
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/cards.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/filters.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/notifications.css') }}" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
 </head>
 <body class="{% if current_user.get('user_id') %}app-body{% else %}auth-body{% endif %}">
@@ -123,9 +124,10 @@
                     </div>
                 </div>
 
-                <button class="icon-btn-round notification-btn" title="Notifications" aria-label="Notifications">
+                <button class="icon-btn-round notification-btn" id="notificationBellBtn" type="button" title="Notifications & Alerts" aria-label="Notifications and alerts" aria-expanded="false">
                     <i data-lucide="bell" class="icon"></i>
-                    <span class="notification-dot"></span>
+                    <span class="notification-dot" aria-hidden="true"></span>
+                    <span class="notification-count-badge" data-notification-count hidden>0</span>
                 </button>
 
                 <button class="icon-btn-round" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">
@@ -185,13 +187,38 @@
 
 <div class="toast-container" id="toastContainer"></div>
 <div class="drawer-backdrop" id="drawerBackdrop"></div>
+
+<aside class="notification-drawer" id="notificationDrawer" aria-label="Notifications and alerts" aria-hidden="true">
+    <header class="notification-drawer-head">
+        <h2><i data-lucide="bell-ring" class="icon"></i> Notifications &amp; Alerts</h2>
+        <div class="notification-drawer-actions">
+            <button type="button" class="btn btn-sm btn-ghost" data-notification-mark-all title="Mark all as read">Mark all read</button>
+            <button type="button" class="btn btn-sm btn-ghost danger" data-notification-clear title="Clear all">Clear all</button>
+            <button type="button" class="icon-btn-round" data-notification-close aria-label="Close notifications">
+                <i data-lucide="x" class="icon"></i>
+            </button>
+        </div>
+    </header>
+    <div class="notification-drawer-body">
+        <div class="notification-empty" data-notification-empty hidden>
+            <i data-lucide="bell-off" class="icon" style="width:40px;height:40px;margin-bottom:12px;opacity:0.4"></i>
+            <p>No notifications right now.</p>
+        </div>
+        <div class="notification-list" data-notification-list></div>
+    </div>
+</aside>
+<div class="notification-drawer-backdrop" id="notificationDrawerBackdrop"></div>
 {% endif %}
 
 {% block scripts %}{% endblock %}
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/axios@1.7.9/dist/axios.min.js"></script>
 <script src="{{ url_for('static', filename='js/cards.js') }}"></script>
 <script src="{{ url_for('static', filename='js/filters.js') }}"></script>
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% if current_user.get("user_id") %}
+<script type="module" src="{{ url_for('static', filename='js/notifications/index.js') }}"></script>
+{% endif %}
 
 </body>
 </html>
