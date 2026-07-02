@@ -1,3 +1,7 @@
+{% macro icon(name, size=18, class='') %}
+<i data-lucide="{{ name }}" class="icon {{ class }}" style="width:{{ size }}px;height:{{ size }}px" aria-hidden="true"></i>
+{% endmacro %}
+
 {% macro breadcrumb(items) %}
 <nav class="breadcrumb" aria-label="Breadcrumb">
   {% for item in items %}
@@ -20,13 +24,27 @@
 </div>
 {% endmacro %}
 
-{% macro empty_state(icon, title, message, action_label='', action_target='') %}
+{% macro kpi_card(label, value, icon_name, tone='indigo', suffix='') %}
+<div class="kpi-card kpi-{{ tone }}">
+  <div class="kpi-top">
+    <div class="kpi-icon-wrap kpi-icon-{{ tone }}">{{ icon(icon_name, 20) }}</div>
+  </div>
+  <div class="kpi-label">{{ label }}</div>
+  <div class="kpi-value">{{ value }}{% if suffix %}<span class="kpi-suffix">{{ suffix }}</span>{% endif %}</div>
+</div>
+{% endmacro %}
+
+{% macro empty_state(icon_name, title, message, action_label='', action_target='', action_id='') %}
 <div class="empty-state saas-empty">
-  <div class="empty-illustration">{{ icon }}</div>
+  <div class="empty-illustration">{{ icon(icon_name, 40) }}</div>
   <h3>{{ title }}</h3>
   <p>{{ message }}</p>
-  {% if action_label and action_target %}
-  <button type="button" class="btn btn-primary modal-trigger" data-target="{{ action_target }}">{{ action_label }}</button>
+  {% if action_label %}
+    {% if action_id %}
+    <button type="button" class="btn btn-primary" id="{{ action_id }}">{{ action_label }}</button>
+    {% elif action_target %}
+    <button type="button" class="btn btn-primary modal-trigger" data-target="{{ action_target }}">{{ action_label }}</button>
+    {% endif %}
   {% endif %}
 </div>
 {% endmacro %}
@@ -35,16 +53,117 @@
 <span class="badge badge-status badge-{{ status|css_class }}">{{ status }}</span>
 {% endmacro %}
 
-{% macro table_toolbar(search_placeholder='Search...', export_url='') %}
-<div class="table-toolbar">
-  <div class="table-search-wrap">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-    <input type="search" class="table-search" placeholder="{{ search_placeholder }}" data-table-search>
+{% macro filter_toolbar(form_id='', method='get', action='') %}
+<form class="filter-toolbar" {% if form_id %}id="{{ form_id }}"{% endif %} method="{{ method }}" {% if action %}action="{{ action }}"{% endif %}>
+  {{ caller() }}
+  <div class="filter-toolbar-actions">
+    <button type="reset" class="btn btn-ghost btn-sm">Reset</button>
+    <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+  </div>
+</form>
+{% endmacro %}
+
+{% macro saas_panel(title='', subtitle='', actions='', body_class='') %}
+<div class="panel saas-panel {{ body_class }}">
+  {% if title %}
+  <div class="panel-head">
+    <div>
+      <h3>{{ title }}</h3>
+      {% if subtitle %}<span>{{ subtitle }}</span>{% endif %}
+    </div>
+    {% if actions %}<div class="panel-actions">{{ actions }}</div>{% endif %}
+  </div>
+  {% endif %}
+  {{ caller() }}
+</div>
+{% endmacro %}
+
+{% macro table_toolbar(search_placeholder='Search...', show_export=true, table_id='') %}
+<div class="table-toolbar" {% if table_id %}data-table-id="{{ table_id }}"{% endif %}>
+  <div class="table-toolbar-left">
+    <label class="table-check-all" title="Select all">
+      <input type="checkbox" class="table-select-all" aria-label="Select all rows">
+    </label>
+    <div class="table-search-wrap">
+      {{ icon('search', 16) }}
+      <input type="search" class="table-search" placeholder="{{ search_placeholder }}" data-table-search>
+    </div>
+    <div class="bulk-actions" hidden>
+      <span class="bulk-count">0 selected</span>
+      <button type="button" class="btn btn-ghost btn-sm" disabled>Bulk actions</button>
+    </div>
   </div>
   <div class="table-toolbar-actions">
-    {% if export_url %}
-    <a href="{{ export_url }}" class="btn btn-outline btn-sm" title="Export CSV">Export</a>
+    {% if show_export %}
+    <button type="button" class="btn btn-outline btn-sm" data-export-csv title="Export CSV">
+      {{ icon('download', 14) }} Export
+    </button>
     {% endif %}
   </div>
+</div>
+{% endmacro %}
+
+{% macro row_actions(items) %}
+<div class="actions-dropdown">
+  <button type="button" class="btn-icon-round actions-toggle" aria-label="Row actions">
+    {{ icon('more-vertical', 16) }}
+  </button>
+  <div class="actions-menu">
+    {% for item in items %}
+      {% if item.type == 'link' %}
+      <a href="{{ item.url }}" class="actions-item {% if item.danger %}danger{% endif %}">
+        {% if item.icon %}{{ icon(item.icon, 14) }}{% endif %}{{ item.label }}
+      </a>
+      {% elif item.type == 'button' %}
+      <button type="button" class="actions-item {% if item.danger %}danger{% endif %} {{ item.class or '' }}"
+              {% if item.target %}data-target="{{ item.target }}"{% endif %}
+              {% if item.drawer %}data-drawer="{{ item.drawer }}"{% endif %}>
+        {% if item.icon %}{{ icon(item.icon, 14) }}{% endif %}{{ item.label }}
+      </button>
+      {% elif item.type == 'form' %}
+      <form method="post" action="{{ item.url }}" {% if item.confirm %}data-confirm="{{ item.confirm }}"{% endif %}>
+        <button type="submit" class="actions-item {% if item.danger %}danger{% endif %}">
+          {% if item.icon %}{{ icon(item.icon, 14) }}{% endif %}{{ item.label }}
+        </button>
+      </form>
+      {% endif %}
+    {% endfor %}
+  </div>
+</div>
+{% endmacro %}
+
+{% macro view_toggle(page_key) %}
+<div class="view-toggle" data-view-toggle="{{ page_key }}">
+  <button type="button" data-view="cards" title="Card view">{{ icon('layout-grid', 16) }}</button>
+  <button type="button" data-view="grid" title="Grid view">{{ icon('grid-3x3', 16) }}</button>
+  <button type="button" data-view="table" title="Table view">{{ icon('table', 16) }}</button>
+</div>
+{% endmacro %}
+
+{% macro card_menu(items) %}
+<div class="actions-dropdown" onclick="event.stopPropagation()">
+  <button type="button" class="btn-icon-round actions-toggle" aria-label="Actions">{{ icon('more-vertical', 16) }}</button>
+  <div class="actions-menu">
+    {% for item in items %}
+      {% if item.type == 'link' %}
+      <a href="{{ item.url }}" class="actions-item">{% if item.icon %}{{ icon(item.icon, 14) }}{% endif %}{{ item.label }}</a>
+      {% elif item.type == 'button' %}
+      <button type="button" class="actions-item {% if item.target %}modal-trigger{% endif %} {{ item.class or '' }}" {% if item.target %}data-target="{{ item.target }}"{% endif %} {% if item.drawer %}data-drawer="{{ item.drawer }}"{% endif %}>{% if item.icon %}{{ icon(item.icon, 14) }}{% endif %}{{ item.label }}</button>
+      {% elif item.type == 'form' %}
+      <form method="post" action="{{ item.url }}" {% if item.confirm %}data-confirm="{{ item.confirm }}"{% endif %}>
+        <button type="submit" class="actions-item {% if item.danger %}danger{% endif %}">{% if item.icon %}{{ icon(item.icon, 14) }}{% endif %}{{ item.label }}</button>
+      </form>
+      {% endif %}
+    {% endfor %}
+  </div>
+</div>
+{% endmacro %}
+
+{% macro float_field(name, label, type='text', required=false, value='', field_id='') %}
+{% set fid = field_id or ('field_' ~ name) %}
+<div class="float-field">
+  <input class="float-input" type="{{ type }}" name="{{ name }}" id="{{ fid }}"
+         placeholder=" " value="{{ value }}" {% if required %}required{% endif %}>
+  <label for="{{ fid }}">{{ label }}{% if required %} <span class="required">*</span>{% endif %}</label>
 </div>
 {% endmacro %}

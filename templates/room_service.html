@@ -1,45 +1,91 @@
 {% extends "base.html" %}
+{% from "macros/ui.html" import breadcrumb, page_header, empty_state, status_badge, card_menu, icon %}
 {% set title = "Room Service" %}
 {% block content %}
 
-<div class="page-actions">
-    <form class="filter-bar" method="get">
-        <select name="status" onchange="this.form.submit()">
-            <option value="">All Status</option>
-            {% for s in rs_statuses %}
-            <option value="{{ s }}" {% if filter_status == s %}selected{% endif %}>{{ s }}</option>
-            {% endfor %}
-        </select>
-    </form>
-    <button class="btn btn-primary modal-trigger" data-target="#addRSModal">+ New Request</button>
+{{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Operations"}, {"label": "Services"}]) }}
+{{ page_header("Services & Requests", "Hotel services and guest requests") }}
+
+<div class="page-header-actions" style="margin:-8px 0 16px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
+  <form class="filter-toolbar" method="get" style="margin:0;flex:1" data-card-filter="#serviceRequestGrid">
+    <select name="status">
+      <option value="">All Status</option>
+      {% for s in rs_statuses %}
+      <option value="{{ s }}" {% if filter_status == s %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+  </form>
+  <button class="btn btn-primary modal-trigger" data-target="#addRSModal">{{ icon('plus', 16) }} New Request</button>
 </div>
 
-<div class="panel">
-    {% if requests %}
-    <table class="data-table">
-        <thead><tr><th>Room</th><th>Guest</th><th>Type</th><th>Description</th><th>Charges</th><th>Bill</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
-        <tbody>
-        {% for r in requests %}
-        <tr>
-            <td><strong>{{ r.room_no }}</strong></td>
-            <td>{{ r.customer_name or '—' }}</td>
-            <td>{{ r.request_type }}</td>
-            <td>{{ r.description or '—' }}</td>
-            <td>₹{{ "{:,.0f}".format(r.charges or 0) }}</td>
-            <td>{{ 'Yes' if r.add_to_bill else 'No' }}</td>
-            <td><span class="badge badge-{{ r.status }}">{{ r.status }}</span></td>
-            <td>{{ r.created_at }}</td>
-            <td>
-                <button class="btn btn-secondary btn-sm modal-trigger" data-target="#editRS{{ r.id }}">Update</button>
-            </td>
-        </tr>
-        {% endfor %}
-        </tbody>
-    </table>
-    {% else %}
-    <div class="empty-state"><div class="empty-icon">🛎️</div><p>No room service requests.</p></div>
-    {% endif %}
+<h3 class="page-title" style="font-size:14px;margin-bottom:10px">Available Services</h3>
+<div class="entity-grid service-grid" style="margin-bottom:20px">
+  {% set services = [
+    ('concierge-bell', 'Room Service', 'From ₹120', 'Food'),
+    ('shirt', 'Laundry', 'From ₹250', 'Laundry'),
+    ('sparkles', 'Extra Cleaning', 'From ₹150', 'Cleaning'),
+    ('wrench', 'Maintenance', 'On request', 'Maintenance'),
+    ('coffee', 'Minibar Refill', 'From ₹70', 'Food'),
+    ('wifi', 'WiFi Support', 'Complimentary', 'Other'),
+  ] %}
+  {% for icon_name, name, price, cat in services %}
+  <article class="entity-card service-card">
+    <div class="service-icon">{{ icon(icon_name, 22) }}</div>
+    <div class="entity-card-title" style="font-size:15px">{{ name }}</div>
+    <div class="entity-card-sub">{{ cat }}</div>
+    <div class="booking-card-amount" style="font-size:14px;margin-top:8px">{{ price }}</div>
+    <button type="button" class="btn btn-outline btn-sm modal-trigger" data-target="#addRSModal" style="margin-top:10px;width:100%">Request</button>
+  </article>
+  {% endfor %}
 </div>
+
+<h3 class="page-title" style="font-size:14px;margin-bottom:10px">Active Requests</h3>
+{% if requests %}
+<div class="entity-grid wide" id="serviceRequestGrid">
+  {% for r in requests %}
+  <article class="entity-card {% if r.request_type == 'Maintenance' %}status-Maintenance{% endif %}" data-searchable
+           data-status="{{ r.status }}" data-search="room {{ r.room_no }} {{ r.request_type }} {{ r.customer_name or '' }}">
+    <div class="entity-card-header">
+      <div>
+        <div class="entity-card-sub">Room {{ r.room_no }}</div>
+        <div class="entity-card-title">{{ r.request_type }}</div>
+        <div class="entity-card-sub">{{ r.customer_name or 'Walk-in guest' }}</div>
+      </div>
+      {{ card_menu([{'type': 'button', 'label': 'Update', 'icon': 'pencil', 'target': '#editRS' ~ r.id}]) }}
+    </div>
+    <div class="entity-card-body">
+      <p class="muted">{{ r.description or 'No description' }}</p>
+      <div class="entity-card-stats">
+        <div class="entity-stat">Charges<strong>₹{{ "{:,.0f}".format(r.charges or 0) }}</strong></div>
+        <div class="entity-stat">Bill<strong>{{ 'Yes' if r.add_to_bill else 'No' }}</strong></div>
+      </div>
+    </div>
+    <div class="entity-card-footer">
+      {{ status_badge(r.status) }}
+      <span class="muted">{{ r.created_at }}</span>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+
+{% set maintenance = requests|selectattr('request_type', 'equalto', 'Maintenance')|list %}
+{% if maintenance %}
+<h3 class="page-title" style="font-size:14px;margin:20px 0 10px">Maintenance Issues</h3>
+<div class="entity-grid wide">
+  {% for r in maintenance %}
+  <article class="entity-card status-Maintenance priority-{{ 'High' if r.charges and r.charges > 500 else 'Medium' }}">
+    <div class="entity-card-title">Room {{ r.room_no }} — {{ r.description or 'Maintenance' }}</div>
+    <div class="entity-card-sub">Reported {{ r.created_at }}</div>
+    <div style="margin-top:8px">{{ status_badge(r.status) }}</div>
+  </article>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% else %}
+{{ empty_state("concierge-bell", "No service requests", "Create a request for a checked-in guest.", "New Request", "#addRSModal") }}
+{% endif %}
 
 <div class="modal" id="addRSModal">
     <div class="modal-overlay"></div>
@@ -54,9 +100,7 @@
                     <option value="{{ b.id }}">#{{ b.id }} — {{ b.name }} — Room {{ b.room_no }}</option>
                     {% endfor %}
                 </select>
-                <select name="request_type" required>
-                    {% for t in rs_types %}<option>{{ t }}</option>{% endfor %}
-                </select>
+                <select name="request_type" required>{% for t in rs_types %}<option>{{ t }}</option>{% endfor %}</select>
                 <input name="charges" type="number" placeholder="Charges ₹" value="0" min="0">
                 <label style="display:flex;align-items:center;gap:6px;font-size:13px">
                     <input type="checkbox" name="add_to_bill" value="1" checked> Add to booking bill
@@ -76,11 +120,7 @@
         <h3>Update Request — Room {{ r.room_no }}</h3>
         <form method="post" action="{{ url_for('update_room_service', req_id=r.id) }}">
             <div class="form-grid">
-                <select name="status">
-                    {% for s in rs_statuses %}
-                    <option {% if r.status == s %}selected{% endif %}>{{ s }}</option>
-                    {% endfor %}
-                </select>
+                <select name="status">{% for s in rs_statuses %}<option {% if r.status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select>
                 <input name="charges" type="number" value="{{ r.charges or 0 }}" min="0">
             </div>
             <textarea name="description" style="margin-top:12px">{{ r.description or '' }}</textarea>

@@ -1,45 +1,80 @@
-/* GrandStay HMS — SaaS UI Engine */
+/* GrandStay HMS — Enterprise SaaS UI */
 document.addEventListener('DOMContentLoaded', function () {
+  initLucide();
   initTheme();
   initSidebar();
   initModals();
   initDropdowns();
+  initHotelSwitcher();
   initCommandPalette();
   initToasts();
   initTables();
   initDrawers();
   initSettingsTabs();
   initCharts();
+  initPageAnimations();
 });
+
+function initLucide() {
+  if (typeof lucide !== 'undefined') {
+    lucide.createIcons();
+  }
+}
+
+function refreshIcons(root) {
+  if (typeof lucide !== 'undefined') {
+    lucide.createIcons({ attrs: { 'stroke-width': 2 }, nameAttr: 'data-lucide', root: root || document });
+  }
+}
 
 function initTheme() {
   const saved = localStorage.getItem('hms-theme') || 'light';
   document.documentElement.setAttribute('data-theme', saved);
+  updateThemeIcons(saved);
   const btn = document.getElementById('themeToggle');
   if (btn) {
-    btn.textContent = saved === 'dark' ? '☀️' : '🌙';
     btn.addEventListener('click', () => {
       const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', next);
       localStorage.setItem('hms-theme', next);
-      btn.textContent = next === 'dark' ? '☀️' : '🌙';
+      updateThemeIcons(next);
     });
   }
+}
+
+function updateThemeIcons(theme) {
+  document.querySelector('.theme-icon-dark')?.toggleAttribute('hidden', theme === 'dark');
+  document.querySelector('.theme-icon-light')?.toggleAttribute('hidden', theme !== 'dark');
+  refreshIcons();
 }
 
 function initSidebar() {
   const sidebar = document.getElementById('sidebar');
   const toggle = document.getElementById('menuToggle');
   const collapse = document.getElementById('sidebarCollapse');
+  const saved = localStorage.getItem('hms-sidebar-collapsed') === '1';
+  if (sidebar && saved) sidebar.classList.add('collapsed');
   if (toggle && sidebar) {
     toggle.addEventListener('click', () => sidebar.classList.toggle('mobile-open'));
   }
   if (collapse && sidebar) {
     collapse.addEventListener('click', () => {
       sidebar.classList.toggle('collapsed');
-      collapse.textContent = sidebar.classList.contains('collapsed') ? '›' : '‹';
+      localStorage.setItem('hms-sidebar-collapsed', sidebar.classList.contains('collapsed') ? '1' : '0');
+      refreshIcons();
     });
   }
+}
+
+function initHotelSwitcher() {
+  const btn = document.getElementById('hotelSwitcher');
+  const menu = document.getElementById('hotelSwitcherMenu');
+  if (!btn || !menu) return;
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    menu.classList.toggle('show');
+    document.getElementById('profileMenu')?.classList.remove('show');
+  });
 }
 
 function initModals() {
@@ -83,6 +118,7 @@ function initDropdowns() {
   document.addEventListener('click', () => {
     document.querySelectorAll('.actions-dropdown.open').forEach((d) => d.classList.remove('open'));
     document.getElementById('profileMenu')?.classList.remove('show');
+    document.getElementById('hotelSwitcherMenu')?.classList.remove('show');
   });
   const selectAllEmp = document.getElementById('selectAllEmployees');
   if (selectAllEmp) {
@@ -99,20 +135,20 @@ function initDropdowns() {
 }
 
 const COMMANDS = [
-  { label: 'Dashboard', url: '/dashboard', icon: '📊' },
-  { label: 'Rooms', url: '/rooms', icon: '🛏️' },
-  { label: 'Bookings', url: '/bookings', icon: '📅' },
-  { label: 'Guests', url: '/customers', icon: '👥' },
-  { label: 'Check In / Out', url: '/checkin-out', icon: '🔑' },
-  { label: 'Housekeeping', url: '/housekeeping', icon: '🧹' },
-  { label: 'Room Service', url: '/room-service', icon: '🛎️' },
-  { label: 'Inventory', url: '/inventory', icon: '📦' },
-  { label: 'Employees', url: '/employees', icon: '👔' },
-  { label: 'Users', url: '/admin', icon: '🔐' },
-  { label: 'Billing', url: '/payments', icon: '💳' },
-  { label: 'Reports', url: '/reports', icon: '📈' },
-  { label: 'Settings', url: '/settings', icon: '⚙️' },
-  { label: 'Global Search', url: '/search', icon: '🔍' },
+  { label: 'Dashboard', url: '/dashboard', icon: 'layout-dashboard' },
+  { label: 'Rooms', url: '/rooms', icon: 'bed-double' },
+  { label: 'Bookings', url: '/bookings', icon: 'calendar-days' },
+  { label: 'Guests', url: '/customers', icon: 'users' },
+  { label: 'Check In / Out', url: '/checkin-out', icon: 'key-round' },
+  { label: 'Housekeeping', url: '/housekeeping', icon: 'sparkles' },
+  { label: 'Room Service', url: '/room-service', icon: 'concierge-bell' },
+  { label: 'Inventory', url: '/inventory', icon: 'package' },
+  { label: 'Employees', url: '/employees', icon: 'briefcase' },
+  { label: 'Users', url: '/admin', icon: 'shield' },
+  { label: 'Billing', url: '/payments', icon: 'credit-card' },
+  { label: 'Reports', url: '/reports', icon: 'bar-chart-3' },
+  { label: 'Settings', url: '/settings', icon: 'settings' },
+  { label: 'Global Search', url: '/search', icon: 'search' },
 ];
 
 function initCommandPalette() {
@@ -125,8 +161,9 @@ function initCommandPalette() {
   function render(q) {
     const filtered = COMMANDS.filter((c) => c.label.toLowerCase().includes((q || '').toLowerCase()));
     list.innerHTML = filtered.map((c, i) =>
-      `<a href="${c.url}" class="command-item ${i === 0 ? 'active' : ''}"><span>${c.icon}</span>${c.label}</a>`
+      `<a href="${c.url}" class="command-item ${i === 0 ? 'active' : ''}"><i data-lucide="${c.icon}" class="icon"></i>${c.label}</a>`
     ).join('') || '<div class="command-item">No results</div>';
+    refreshIcons(list);
   }
 
   function open() {
@@ -173,8 +210,10 @@ function showToast(message, type) {
 }
 
 function initTables() {
-  document.querySelectorAll('[data-table-search]').forEach((input) => {
-    const table = input.closest('.table-wrap')?.querySelector('.data-table') ||
+  document.querySelectorAll('.table-search, [data-table-search]').forEach((input) => {
+    const toolbar = input.closest('.table-toolbar');
+    const table = toolbar?.closest('.saas-table-wrap, .panel')?.querySelector('.data-table') ||
+                  input.closest('.table-wrap')?.querySelector('.data-table') ||
                   input.closest('.panel')?.querySelector('.data-table');
     if (!table) return;
     input.addEventListener('input', () => {
@@ -185,7 +224,30 @@ function initTables() {
     });
   });
 
-  document.querySelectorAll('.data-table th[data-sort]').forEach((th) => {
+  document.querySelectorAll('.table-select-all').forEach((master) => {
+    const wrap = master.closest('.saas-table-wrap, .panel');
+    const table = wrap?.querySelector('.data-table');
+    const bulk = wrap?.querySelector('.bulk-actions');
+    if (!table) return;
+    const rowChecks = () => table.querySelectorAll('.row-check');
+    master.addEventListener('change', () => {
+      rowChecks().forEach((cb) => { cb.checked = master.checked; });
+      updateBulkState(table, bulk);
+    });
+    table.addEventListener('change', (e) => {
+      if (e.target.classList.contains('row-check')) updateBulkState(table, bulk);
+    });
+  });
+
+  document.querySelectorAll('[data-export-csv]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const table = btn.closest('.saas-table-wrap, .panel')?.querySelector('.data-table');
+      if (table) exportTableCsv(table);
+    });
+  });
+
+  document.querySelectorAll('.data-table th[data-sort], .data-table th.sortable').forEach((th) => {
+    th.setAttribute('data-sort', th.dataset.sort || '');
     th.addEventListener('click', () => {
       const table = th.closest('.data-table');
       const idx = Array.from(th.parentNode.children).indexOf(th);
@@ -193,6 +255,8 @@ function initTables() {
       const rows = Array.from(tbody.querySelectorAll('tr'));
       const asc = th.dataset.sort !== 'asc';
       th.dataset.sort = asc ? 'asc' : 'desc';
+      table.querySelectorAll('th').forEach((h) => h.classList.remove('sort-asc', 'sort-desc'));
+      th.classList.add(asc ? 'sort-asc' : 'sort-desc');
       rows.sort((a, b) => {
         const av = a.children[idx]?.textContent.trim() || '';
         const bv = b.children[idx]?.textContent.trim() || '';
@@ -333,6 +397,52 @@ function initCharts() {
       },
     });
   }
+
+  const occupancyEl = document.getElementById('occupancyChart');
+  if (occupancyEl && occupancyEl.dataset.labels) {
+    const c = chartColors();
+    new Chart(occupancyEl, {
+      type: 'doughnut',
+      data: {
+        labels: JSON.parse(occupancyEl.dataset.labels),
+        datasets: [{
+          data: JSON.parse(occupancyEl.dataset.values),
+          backgroundColor: [c.emerald, c.primary, c.amber, c.purple, c.accent || '#ef4444'],
+        }],
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: c.text, boxWidth: 12 } } } },
+    });
+  }
+}
+
+function updateBulkState(table, bulkEl) {
+  if (!bulkEl) return;
+  const checked = table.querySelectorAll('.row-check:checked').length;
+  bulkEl.hidden = checked === 0;
+  bulkEl.querySelector('.bulk-count').textContent = `${checked} selected`;
+}
+
+function exportTableCsv(table) {
+  const rows = [...table.querySelectorAll('tr')].map((tr) =>
+    [...tr.querySelectorAll('th, td')].map((cell) => {
+      const text = cell.textContent.replace(/\s+/g, ' ').trim().replace(/"/g, '""');
+      return `"${text}"`;
+    }).join(',')
+  );
+  const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `export-${Date.now()}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('Table exported to CSV', 'success');
+}
+
+function initPageAnimations() {
+  document.querySelectorAll('.kpi-card, .panel, .saas-panel').forEach((el, i) => {
+    el.style.animationDelay = `${Math.min(i * 0.03, 0.3)}s`;
+    el.classList.add('animate-in');
+  });
 }
 
 function addGuestRow(containerId) {
@@ -350,3 +460,4 @@ function addGuestRow(containerId) {
 }
 
 window.showToast = showToast;
+window.refreshIcons = refreshIcons;

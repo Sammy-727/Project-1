@@ -1,0 +1,402 @@
+/* Entity card system */
+.entity-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.entity-grid.wide { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+
+.entity-grid.compact {
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.entity-grid.compact .entity-card-header { padding: 10px 12px 6px; }
+.entity-grid.compact .entity-card-title { font-size: 15px; }
+
+.entity-grid.is-loading {
+  position: relative;
+  min-height: 120px;
+}
+
+.entity-grid.is-loading::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, var(--bg-subtle) 25%, var(--bg-elevated) 50%, var(--bg-subtle) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.2s infinite;
+  border-radius: var(--radius);
+  opacity: 0.7;
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.entity-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
+  cursor: pointer;
+  position: relative;
+}
+
+.entity-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+
+.entity-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 14px 8px;
+}
+
+.entity-card-header.gradient {
+  background: linear-gradient(135deg, var(--primary-light), transparent);
+}
+
+.entity-card-body { padding: 0 14px 12px; }
+
+.entity-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border-light);
+  background: var(--bg-subtle);
+}
+
+.entity-card-title { font-size: 18px; font-weight: 700; line-height: 1.2; }
+.entity-card-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+.entity-card-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.entity-stat { font-size: 11px; color: var(--text-muted); }
+.entity-stat strong { display: block; font-size: 13px; color: var(--text); font-weight: 600; margin-top: 2px; }
+
+.entity-card.status-Available { border-left: 4px solid #22c55e; }
+.entity-card.status-Occupied { border-left: 4px solid #6366f1; }
+.entity-card.status-Reserved { border-left: 4px solid #3b82f6; }
+.entity-card.status-Cleaning, .entity-card.status-Dirty { border-left: 4px solid #f59e0b; }
+.entity-card.status-Maintenance { border-left: 4px solid #ef4444; }
+
+.entity-card.low-stock { border-color: #fecaca; background: #fffbfb; }
+.entity-card.low-stock::before {
+  content: 'Low Stock';
+  position: absolute;
+  top: 10px; right: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #dc2626;
+  background: #fef2f2;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.room-card-image {
+  height: 72px;
+  background: linear-gradient(135deg, #e0e7ff, #f8fafc);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+  margin: 0 14px 8px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.room-card-image img { width: 100%; height: 100%; object-fit: cover; }
+
+.amenity-icons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.amenity-chip {
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.guest-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.guest-card-top { display: flex; gap: 12px; align-items: center; }
+
+.booking-card-amount {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.view-toggle {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--bg-subtle);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light);
+}
+
+.view-toggle button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 30px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all var(--transition);
+}
+
+.view-toggle button.active {
+  background: var(--bg-elevated);
+  color: var(--primary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Kanban */
+.kanban-board {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.kanban-column {
+  background: var(--bg-subtle);
+  border-radius: var(--radius);
+  min-height: 200px;
+  border: 1px solid var(--border-light);
+}
+
+.kanban-column-head {
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  justify-content: space-between;
+}
+
+.kanban-column-body {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 120px;
+}
+
+.kanban-column-body.drag-over { background: var(--primary-light); }
+
+.kanban-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  box-shadow: var(--shadow-sm);
+  cursor: grab;
+}
+
+.kanban-card.dragging { opacity: 0.5; }
+
+.kanban-card.priority-High { border-left: 3px solid #ef4444; }
+.kanban-card.priority-Medium { border-left: 3px solid #f59e0b; }
+.kanban-card.priority-Low { border-left: 3px solid #22c55e; }
+
+.service-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+
+.service-card {
+  text-align: center;
+  padding: 16px 12px;
+}
+
+.service-card .service-icon {
+  width: 44px;
+  height: 44px;
+  margin: 0 auto 10px;
+  border-radius: 12px;
+  background: var(--primary-light);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-quick-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.muted { color: var(--text-muted); font-size: 12px; }
+
+.detail-drawer .drawer-section {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.detail-drawer h3 { font-size: 18px; margin-bottom: 4px; }
+.detail-drawer .timeline { font-size: 13px; color: var(--text-muted); }
+
+@media (max-width: 1024px) {
+  .entity-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+  .kanban-board { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .entity-grid { grid-template-columns: 1fr; }
+}
+
+/* Dashboard mini cards */
+.dash-stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.dash-stat-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  box-shadow: var(--shadow-sm);
+}
+
+.dash-stat-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.dash-stat-card > strong {
+  font-size: 24px;
+  font-weight: 700;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.dash-stat-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.dash-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 12px 12px;
+}
+
+.dash-mini-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  text-decoration: none;
+  color: inherit;
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+
+.dash-mini-card:not(.static):hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.dash-mini-card.static { cursor: default; }
+
+.dash-mini-card-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--primary-light);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dash-mini-card-icon.payment { background: #ecfdf5; color: #059669; }
+.dash-mini-card-icon.checkin { background: #ede9fe; color: #7c3aed; }
+.dash-mini-card-icon.checkout { background: #fffbeb; color: #d97706; }
+
+.dash-mini-card-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dash-mini-card-body strong {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-timeline {
+  padding: 8px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dash-timeline-item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  font-size: 13px;
+}
+
+.dash-timeline-item strong { display: block; margin-bottom: 2px; }
+
+.dash-timeline-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-top: 5px;
+  flex-shrink: 0;
+  background: var(--primary);
+}
+
+.dash-timeline-dot.payment { background: #059669; }
+.dash-timeline-dot.booking { background: #6366f1; }

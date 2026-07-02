@@ -1,54 +1,113 @@
 {% extends "base.html" %}
-{% set title = "Customers" %}
+{% from "macros/ui.html" import breadcrumb, page_header, status_badge, empty_state, view_toggle, card_menu, icon %}
+{% set title = "Guests" %}
 {% block content %}
 
-<div class="page-actions">
-    <form class="filter-bar" method="get">
-        <input type="search" name="q" placeholder="Search by name, phone, email..." value="{{ search_q }}" style="width:240px">
-        <button type="submit" class="btn btn-secondary btn-sm">Search</button>
-    </form>
-    <button class="btn btn-primary modal-trigger" data-target="#addCustomerModal">+ Add Customer</button>
+{{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Front Desk"}, {"label": "Guests"}]) }}
+<div class="page-header">
+  <div class="page-header-text">
+    <h1 class="page-title">Guests</h1>
+    <p class="page-description">Guest profiles and booking history</p>
+  </div>
+  <div class="page-header-actions">
+    {{ view_toggle('guests') }}
+    <button class="btn btn-primary modal-trigger" data-target="#addCustomerModal">{{ icon('user-plus', 16) }} Add Guest</button>
+  </div>
 </div>
 
-<div class="panel">
-    {% if customers %}
-    <table class="data-table">
-        <thead>
-            <tr><th>Name</th><th>Phone</th><th>Email</th><th>Gender</th><th>Age</th><th>ID Proof</th><th>Guests</th><th>Bookings</th><th>Actions</th></tr>
-        </thead>
-        <tbody>
-        {% for c in customers %}
-        <tr>
-            <td><strong>{{ c.name }}</strong><br><small>{{ c.address or '' }}</small></td>
-            <td>{{ c.phone }}</td>
-            <td>{{ c.email or '—' }}</td>
-            <td>{{ c.gender or '—' }}</td>
-            <td>{{ c.age or '—' }}</td>
-            <td>{{ c.id_proof_type or '' }} {{ c.id_proof_number or '' }}</td>
-            <td>{{ c.guests|length }}</td>
-            <td>{{ c.booking_count }}</td>
-            <td>
-                <button class="btn btn-secondary btn-sm modal-trigger" data-target="#editCustomer{{ c.id }}">Edit</button>
-                <a href="{{ url_for('bookings', new_customer=c.id) }}" class="btn btn-success btn-sm">Book</a>
-                <form class="inline-form" method="post" action="{{ url_for('delete_customer', customer_id=c.id) }}" data-confirm="Delete customer {{ c.name }}?">
-                    <button type="submit" class="btn btn-danger btn-sm">Delete</button>
-                </form>
-            </td>
-        </tr>
-        {% endfor %}
-        </tbody>
+<form class="filter-toolbar" method="get" data-card-filter="#guestCardGrid">
+  <div class="table-search-wrap filter-search">
+    {{ icon('search', 16) }}
+    <input type="search" name="q" placeholder="Search name, phone, email..." value="{{ search_q }}" data-local-search>
+  </div>
+  <div class="filter-toolbar-actions">
+    <button type="submit" class="btn btn-primary btn-sm">Search</button>
+  </div>
+</form>
+
+{% if customers %}
+<div class="entity-grid wide" id="guestCardGrid" data-view-panel="cards" data-page="guests">
+  {% for c in customers %}
+  {% set loyalty = 'Gold' if c.booking_count >= 5 else ('Silver' if c.booking_count >= 2 else 'New') %}
+  <article class="entity-card data-searchable" data-search="{{ c.name }} {{ c.phone }} {{ c.email or '' }}"
+           data-card-drawer="#drawerGuest{{ c.id }}">
+    <div class="entity-card-header gradient">
+      <div class="guest-card-top">
+        <div class="guest-avatar">{{ c.name[0]|upper }}</div>
+        <div>
+          <div class="entity-card-title">{{ c.name }}</div>
+          <div class="entity-card-sub">{{ loyalty }} Guest · {{ c.booking_count }} stay{{ 's' if c.booking_count != 1 else '' }}</div>
+        </div>
+      </div>
+      {{ card_menu([
+        {'type': 'button', 'label': 'View Profile', 'icon': 'user', 'drawer': '#drawerGuest' ~ c.id},
+        {'type': 'link', 'label': 'New Booking', 'icon': 'calendar-plus', 'url': url_for('bookings', new_customer=c.id)},
+        {'type': 'button', 'label': 'Edit', 'icon': 'pencil', 'target': '#editCustomer' ~ c.id},
+        {'type': 'link', 'label': 'Call', 'icon': 'phone', 'url': 'tel:' ~ c.phone},
+      ] + ([{'type': 'form', 'label': 'Delete', 'icon': 'trash-2', 'url': url_for('delete_customer', customer_id=c.id), 'danger': true, 'confirm': 'Delete ' ~ c.name ~ '?'}] if c.booking_count == 0 else [])) }}
+    </div>
+    <div class="entity-card-body">
+      <div class="entity-card-stats">
+        <div class="entity-stat">Phone<strong>{{ c.phone }}</strong></div>
+        <div class="entity-stat">Email<strong>{{ c.email or '—' }}</strong></div>
+        <div class="entity-stat">Guest type<strong>{{ 'Returning' if c.booking_count > 1 else 'New' }}</strong></div>
+        <div class="entity-stat">Group size<strong>{{ c.guests|length + 1 }}</strong></div>
+      </div>
+    </div>
+    <div class="entity-card-footer">
+      <span class="badge badge-Reserved">{{ loyalty }}</span>
+      <a href="mailto:{{ c.email }}" class="btn btn-ghost btn-sm" {% if not c.email %}style="pointer-events:none;opacity:.4"{% endif %}>{{ icon('mail', 14) }}</a>
+    </div>
+  </article>
+
+  <aside class="drawer detail-drawer" id="drawerGuest{{ c.id }}">
+    <button class="modal-close drawer-close" type="button">{{ icon('x', 18) }}</button>
+    <div style="text-align:center;margin:16px 0">
+      <div class="guest-avatar" style="width:64px;height:64px;font-size:24px;margin:0 auto 10px">{{ c.name[0]|upper }}</div>
+      <h3>{{ c.name }}</h3>
+      <p class="muted">{{ c.phone }} · {{ c.email or 'No email' }}</p>
+    </div>
+    <div class="drawer-section detail-grid">
+      <div><span>Address</span><strong>{{ c.address or '—' }}</strong></div>
+      <div><span>ID Proof</span><strong>{{ c.id_proof_type or '' }} {{ c.id_proof_number or '' }}</strong></div>
+      <div><span>Total Bookings</span><strong>{{ c.booking_count }}</strong></div>
+      <div><span>Loyalty</span><strong>{{ loyalty }}</strong></div>
+    </div>
+    <div class="card-quick-actions">
+      <button type="button" class="btn btn-secondary btn-sm modal-trigger" data-target="#editCustomer{{ c.id }}">Edit</button>
+      <a href="{{ url_for('bookings', new_customer=c.id) }}" class="btn btn-primary btn-sm">New Booking</a>
+    </div>
+  </aside>
+  {% endfor %}
+</div>
+
+<div class="saas-table-wrap" data-view-panel="table" data-page="guests" hidden>
+  <div class="table-wrap">
+    <table class="data-table" data-paginate>
+      <thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Bookings</th><th></th></tr></thead>
+      <tbody>
+      {% for c in customers %}
+      <tr>
+        <td><strong>{{ c.name }}</strong></td>
+        <td>{{ c.phone }}</td>
+        <td>{{ c.email or '—' }}</td>
+        <td>{{ c.booking_count }}</td>
+        <td><a href="{{ url_for('bookings', new_customer=c.id) }}" class="btn btn-primary btn-sm">Book</a></td>
+      </tr>
+      {% endfor %}
+      </tbody>
     </table>
-    {% else %}
-    <div class="empty-state"><div class="empty-icon">👥</div><p>No customers found.</p></div>
-    {% endif %}
+  </div>
 </div>
+{% else %}
+{{ empty_state("users", "No guests found", "Add your first guest to start taking bookings.", "Add Guest", "#addCustomerModal") }}
+{% endif %}
 
-<!-- Add Customer Modal -->
 <div class="modal" id="addCustomerModal">
     <div class="modal-overlay"></div>
     <div class="modal-content">
         <button class="modal-close">✕</button>
-        <h3>Add Customer</h3>
+        <h3>Add Guest</h3>
         <form method="post" action="{{ url_for('add_customer') }}">
             <div class="form-grid">
                 <input name="name" placeholder="Full Name" required>
@@ -60,20 +119,9 @@
                 <select name="id_proof_type"><option value="">ID Type</option>{% for t in id_proof_types %}<option>{{ t }}</option>{% endfor %}</select>
                 <input name="id_proof_number" placeholder="ID Number">
             </div>
-            <div class="guest-section">
-                <h4>Additional Guests (Family/Group)</h4>
-                <div id="guestRows">
-                    <div class="guest-row form-row">
-                        <input name="guest_name" placeholder="Guest name">
-                        <input name="guest_age" type="number" placeholder="Age">
-                        <select name="guest_gender"><option value="">Gender</option><option>Male</option><option>Female</option><option>Other</option></select>
-                    </div>
-                </div>
-                <button type="button" class="btn btn-secondary btn-sm" onclick="addGuestRow('guestRows')">+ Add Guest</button>
-            </div>
             <div style="margin-top:16px;display:flex;gap:10px">
-                <button type="submit" class="btn btn-primary">Save Customer</button>
-                <button type="submit" name="redirect_to" value="bookings" class="btn btn-success">Save & Create Booking</button>
+                <button type="submit" class="btn btn-primary">Save Guest</button>
+                <button type="submit" name="redirect_to" value="bookings" class="btn btn-secondary">Save & Book</button>
             </div>
         </form>
     </div>
@@ -84,7 +132,7 @@
     <div class="modal-overlay"></div>
     <div class="modal-content">
         <button class="modal-close">✕</button>
-        <h3>Edit Customer</h3>
+        <h3>Edit Guest</h3>
         <form method="post" action="{{ url_for('update_customer', customer_id=c.id) }}">
             <div class="form-grid">
                 <input name="name" value="{{ c.name }}" required>
@@ -95,17 +143,6 @@
                 <input name="age" type="number" value="{{ c.age or '' }}">
                 <select name="id_proof_type"><option value="">ID Type</option>{% for t in id_proof_types %}<option {% if c.id_proof_type == t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select>
                 <input name="id_proof_number" value="{{ c.id_proof_number or '' }}">
-            </div>
-            <div class="guest-section">
-                <h4>Additional Guests</h4>
-                <div id="guestRows{{ c.id }}">
-                    {% for g in c.guests %}
-                    <div class="guest-row form-row"><input name="guest_name" value="{{ g.name }}"></div>
-                    {% else %}
-                    <div class="guest-row form-row"><input name="guest_name" placeholder="Guest name"></div>
-                    {% endfor %}
-                </div>
-                <button type="button" class="btn btn-secondary btn-sm" onclick="addGuestRow('guestRows{{ c.id }}')">+ Add Guest</button>
             </div>
             <button type="submit" class="btn btn-primary" style="margin-top:16px">Save Changes</button>
         </form>
