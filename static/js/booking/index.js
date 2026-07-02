@@ -75,11 +75,13 @@ async function refreshBookingsView() {
   const tablePanel = document.querySelector('[data-view-panel="table"][data-page="bookings"]');
   const cardViewActive = cardGrid && (!tablePanel || tablePanel.hidden);
 
+  if (!cardViewActive) {
+    await refreshBookingsTable();
+  }
+  window.refreshAlerts?.().catch(() => {});
   if (cardViewActive) {
     window.location.reload();
-    return;
   }
-  await refreshBookingsTable();
 }
 
 async function refreshBookingsTable() {

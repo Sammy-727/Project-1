@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/cards.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/alerts.css') }}" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
 </head>
 <body class="{% if current_user.get('user_id') %}app-body{% else %}auth-body{% endif %}">
@@ -120,9 +121,10 @@
                     </div>
                 </div>
 
-                <button class="icon-btn-round notification-btn" title="Notifications" aria-label="Notifications">
+                <button class="icon-btn-round notification-btn" id="alertBellBtn" type="button" title="Alerts & Notifications" aria-label="Alerts and notifications">
                     <i data-lucide="bell" class="icon"></i>
-                    <span class="notification-dot"></span>
+                    <span class="notification-dot" hidden></span>
+                    <span class="alert-count-badge" data-alert-count hidden>0</span>
                 </button>
 
                 <button class="icon-btn-round" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">
@@ -182,12 +184,27 @@
 
 <div class="toast-container" id="toastContainer"></div>
 <div class="drawer-backdrop" id="drawerBackdrop"></div>
+
+<aside class="alert-panel" id="alertPanel" aria-label="Alerts and notifications">
+    <header class="alert-panel-head">
+        <h2><i data-lucide="bell" class="icon"></i> Alerts & Notifications</h2>
+        <button type="button" class="icon-btn-round" data-alert-close aria-label="Close alerts">
+            <i data-lucide="x" class="icon"></i>
+        </button>
+    </header>
+    <div class="alert-panel-body" data-alert-body></div>
+</aside>
+<div class="alert-panel-backdrop" id="alertPanelBackdrop"></div>
 {% endif %}
 
 {% block scripts %}{% endblock %}
+<script src="https://cdn.jsdelivr.net/npm/axios@1.7.9/dist/axios.min.js"></script>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <script src="{{ url_for('static', filename='js/cards.js') }}"></script>
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% if current_user.get("user_id") %}
+<script type="module" src="{{ url_for('static', filename='js/alerts/index.js') }}"></script>
+{% endif %}
 
 </body>
 </html>

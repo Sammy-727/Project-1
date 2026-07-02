@@ -145,6 +145,101 @@ def update_booking_payment_status(booking_id):
           (total, status, booking_id), commit=True)
 
 
+def get_current_hotel_id():
+    """Single-tenant default; session hotel scopes alerts when multi-property is enabled."""
+    return session.get("hotel_id", 1)
+
+
+def fetch_alerts_summary(hotel_id=None):
+    hotel_id = hotel_id or get_current_hotel_id()
+    today = date.today()
+    end = today + timedelta(days=7)
+    today_str = today.isoformat()
+    end_str = end.isoformat()
+
+    low_inventory = query(
+        "SELECT id, item_name, category, quantity, reorder_level, unit "
+        "FROM inventory WHERE quantity <= reorder_level ORDER BY quantity ASC"
+    )
+    low_inventory_alerts = [{
+        "id": row["id"],
+        "itemName": row["item_name"],
+        "currentStock": row["quantity"],
+        "minimumStock": row["reorder_level"],
+        "category": row["category"] or "General",
+        "unit": row["unit"] or "units",
+    } for row in low_inventory]
+
+    pending_rows = query("""
+        SELECT b.id, c.name guest_name, r.room_no, b.total_amount, b.payment_status, b.status
+        FROM bookings b JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
+        WHERE b.payment_status IN ('Pending','Partial') AND b.status IN ('Reserved','Checked-in')
+        ORDER BY b.id DESC
+    """)
+    pending_payment_alerts = []
+    for pb in pending_rows:
+        balance = max(float(pb["total_amount"] or 0) - booking_paid_amount(pb["id"]), 0)
+        if balance > 0:
+            pending_payment_alerts.append({
+                "bookingId": pb["id"],
+                "guestName": pb["guest_name"],
+                "roomNo": pb["room_no"],
+                "amountPending": round(balance, 2),
+                "paymentStatus": pb["payment_status"],
+                "bookingStatus": pb["status"],
+            })
+
+    checkins = query("""
+        SELECT b.id, c.name guest_name, r.room_no, r.id room_id, b.checkin, b.status
+        FROM bookings b JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
+        WHERE b.checkin >= ? AND b.checkin <= ? AND b.status IN ('Reserved','Checked-in')
+        ORDER BY b.checkin ASC, b.id ASC
+    """, (today_str, end_str))
+
+    checkouts = query("""
+        SELECT b.id, c.name guest_name, r.room_no, r.id room_id, b.checkout, b.status, b.payment_status
+        FROM bookings b JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
+        WHERE b.checkout >= ? AND b.checkout <= ? AND b.status = 'Checked-in'
+        ORDER BY b.checkout ASC, b.id ASC
+    """, (today_str, end_str))
+
+    upcoming_check_ins = [{
+        "bookingId": row["id"],
+        "guestName": row["guest_name"],
+        "roomNo": row["room_no"],
+        "roomId": row["room_id"],
+        "date": row["checkin"],
+        "checkInTime": "14:00",
+        "status": row["status"],
+        "type": "checkin",
+    } for row in checkins]
+
+    upcoming_check_outs = [{
+        "bookingId": row["id"],
+        "guestName": row["guest_name"],
+        "roomNo": row["room_no"],
+        "roomId": row["room_id"],
+        "date": row["checkout"],
+        "paymentStatus": row["payment_status"],
+        "status": row["status"],
+        "type": "checkout",
+    } for row in checkouts]
+
+    unread_count = (
+        len(pending_payment_alerts) + len(low_inventory_alerts)
+        + len(upcoming_check_ins) + len(upcoming_check_outs)
+    )
+
+    return {
+        "hotelId": hotel_id,
+        "lowInventoryAlerts": low_inventory_alerts,
+        "pendingPaymentAlerts": pending_payment_alerts,
+        "upcomingCheckIns": upcoming_check_ins,
+        "upcomingCheckOuts": upcoming_check_outs,
+        "unreadCount": unread_count,
+    }
+
+
 def customer_to_dict(row):
     if not row:
         return None
@@ -731,6 +826,7 @@ def login():
             session["username"] = user["username"]
             session["full_name"] = user["full_name"] or user["username"]
             session["role"] = user["role"]
+            session.setdefault("hotel_id", 1)
             return redirect(url_for("dashboard"))
         if user and not can_login(user["status"]):
             flash("Your account is inactive. Contact your administrator.", "danger")
@@ -1075,6 +1171,14 @@ def api_bookings_list():
     sql += " ORDER BY b.id DESC"
     rows = query(sql, params)
     return api_ok(bookings=[booking_row_to_dict(r) for r in rows])
+
+
+@app.route("/api/alerts/summary")
+def api_alerts_summary():
+    if not is_logged_in():
+        return api_error("Authentication required.", 401)
+    summary = fetch_alerts_summary(get_current_hotel_id())
+    return api_ok(**summary)
 
 
 @app.route("/api/bookings", methods=["POST"])
