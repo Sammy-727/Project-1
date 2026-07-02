@@ -420,6 +420,77 @@ body {
 .badge-Cancelled, .badge-Inactive { background: #f1f5f9; color: #64748b; }
 .badge-Checked-out { background: #eff6ff; color: #1e40af; }
 
+/* Employee / User status badges */
+.badge-status.badge-Active { background: #ecfdf5; color: #065f46; }
+.badge-status.badge-Inactive { background: #f1f5f9; color: #64748b; }
+.badge-status.badge-On-Leave { background: #eff6ff; color: #1e40af; }
+.badge-status.badge-Suspended { background: #fef2f2; color: #991b1b; }
+.badge-status.badge-Resigned { background: #fffbeb; color: #92400e; }
+.badge-status.badge-Terminated { background: #fef2f2; color: #7f1d1d; }
+.badge-status.badge-Archived { background: #f5f3ff; color: #5b21b6; }
+
+/* Actions dropdown */
+.actions-dropdown { position: relative; display: inline-block; }
+.actions-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 100%;
+    min-width: 180px;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow-lg);
+    z-index: 60;
+    padding: 6px;
+    margin-top: 4px;
+}
+.actions-dropdown.open .actions-menu { display: block; }
+.actions-menu form { margin: 0; }
+.actions-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 8px 12px;
+    border: none;
+    background: none;
+    font-size: 13px;
+    cursor: pointer;
+    border-radius: 8px;
+    font-family: inherit;
+    color: var(--dark);
+}
+.actions-item:hover { background: #f8fafc; }
+.actions-item.danger { color: var(--red); }
+
+.bulk-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+    padding: 12px 16px;
+    background: white;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+}
+.bulk-select-all { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+
+.detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+.detail-grid div span {
+    display: block;
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 2px;
+}
+.detail-grid div strong { font-size: 14px; }
+
 /* ─── Forms ─── */
 .page-actions {
     display: flex;

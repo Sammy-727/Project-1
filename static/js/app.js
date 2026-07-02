@@ -29,6 +29,41 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         });
     });
+
+    document.querySelectorAll('.actions-toggle').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            const parent = btn.closest('.actions-dropdown');
+            document.querySelectorAll('.actions-dropdown.open').forEach(function (d) {
+                if (d !== parent) d.classList.remove('open');
+            });
+            parent.classList.toggle('open');
+        });
+    });
+
+    document.addEventListener('click', function () {
+        document.querySelectorAll('.actions-dropdown.open').forEach(function (d) {
+            d.classList.remove('open');
+        });
+    });
+
+    const selectAllEmp = document.getElementById('selectAllEmployees');
+    if (selectAllEmp) {
+        selectAllEmp.addEventListener('change', function () {
+            document.querySelectorAll('.emp-check').forEach(function (cb) {
+                cb.checked = selectAllEmp.checked;
+            });
+        });
+    }
+
+    const selectAllUsers = document.getElementById('selectAllUsers');
+    if (selectAllUsers) {
+        selectAllUsers.addEventListener('change', function () {
+            document.querySelectorAll('.user-check').forEach(function (cb) {
+                cb.checked = selectAllUsers.checked;
+            });
+        });
+    }
 });
 
 function addGuestRow(containerId) {

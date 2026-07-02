@@ -3,26 +3,104 @@
 {% block content %}
 
 <div class="page-actions">
+    <form class="filter-bar" method="get">
+        <input type="search" name="q" placeholder="Search users..." value="{{ search_q }}">
+        <select name="status" onchange="this.form.submit()">
+            <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Users</option>
+            <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+            <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+            <option value="archived" {% if status_filter == 'archived' %}selected{% endif %}>Archived Users</option>
+        </select>
+        <select name="role" onchange="this.form.submit()">
+            <option value="">All Roles</option>
+            {% for r in roles %}
+            <option value="{{ r }}" {% if role == r %}selected{% endif %}>{{ r }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
+    </form>
     <button class="btn btn-primary modal-trigger" data-target="#addUserModal">+ Add User</button>
 </div>
+
+{% if users %}
+<div class="bulk-bar">
+    <label class="bulk-select-all"><input type="checkbox" id="selectAllUsers"> Select all</label>
+    <form class="inline-form" method="post" action="{{ url_for('users_bulk', **request.args) }}" id="userBulkForm">
+        <button type="submit" name="action" value="activate" class="btn btn-success btn-sm">Activate Selected</button>
+        <button type="submit" name="action" value="deactivate" class="btn btn-secondary btn-sm" data-confirm="Deactivate selected users?">Deactivate Selected</button>
+        <button type="submit" name="action" value="archive" class="btn btn-secondary btn-sm" data-confirm="Archive selected users?">Archive Selected</button>
+        {% if current_user.role == 'Super Admin' %}
+        <button type="submit" name="action" value="delete" class="btn btn-danger btn-sm" data-confirm="Permanently delete selected users? This cannot be undone.">Delete Selected</button>
+        {% endif %}
+    </form>
+</div>
+{% endif %}
 
 <div class="panel">
     {% if users %}
     <table class="data-table">
-        <thead><tr><th>Username</th><th>Full Name</th><th>Role</th><th>Status</th></tr></thead>
+        <thead>
+            <tr>
+                <th style="width:36px"></th>
+                <th>Username</th>
+                <th>Full Name</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Last Login</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
         <tbody>
         {% for u in users %}
         <tr>
+            <td>
+                {% if u.role != 'Super Admin' %}
+                <input type="checkbox" class="user-check" form="userBulkForm" name="ids" value="{{ u.id }}">
+                {% endif %}
+            </td>
             <td><strong>{{ u.username }}</strong></td>
             <td>{{ u.full_name or u.username }}</td>
             <td>{{ u.role }}</td>
-            <td><span class="badge badge-{{ u.status }}">{{ u.status }}</span></td>
+            <td><span class="badge badge-status badge-{{ u.status|css_class }}">{{ u.status }}</span></td>
+            <td>{{ u.last_login or '—' }}</td>
+            <td>
+                <div class="actions-dropdown">
+                    <button type="button" class="btn btn-secondary btn-sm actions-toggle">Actions ▾</button>
+                    <div class="actions-menu">
+                        <button type="button" class="actions-item modal-trigger" data-target="#viewUser{{ u.id }}">View Details</button>
+                        <button type="button" class="actions-item modal-trigger" data-target="#editUser{{ u.id }}">Edit</button>
+                        {% if u.role != 'Super Admin' and u.status != 'Inactive' and u.status != 'Archived' %}
+                        <form method="post" action="{{ url_for('deactivate_user', user_id=u.id, **request.args) }}" data-confirm="Deactivate {{ u.username }}? They will not be able to log in.">
+                            <button type="submit" class="actions-item">Deactivate</button>
+                        </form>
+                        {% endif %}
+                        {% if u.role != 'Super Admin' and (u.status == 'Inactive' or u.status in ['On Leave', 'Suspended', 'Resigned', 'Terminated']) %}
+                        <form method="post" action="{{ url_for('activate_user', user_id=u.id, **request.args) }}">
+                            <button type="submit" class="actions-item">Activate</button>
+                        </form>
+                        {% endif %}
+                        {% if u.role != 'Super Admin' and u.status != 'Archived' %}
+                        <form method="post" action="{{ url_for('archive_user', user_id=u.id, **request.args) }}" data-confirm="Archive {{ u.username }}?">
+                            <button type="submit" class="actions-item">Archive</button>
+                        </form>
+                        {% endif %}
+                        {% if current_user.role == 'Super Admin' and u.role != 'Super Admin' %}
+                        <form method="post" action="{{ url_for('delete_user', user_id=u.id, **request.args) }}" data-confirm="Permanently delete {{ u.username }}? This action cannot be undone.">
+                            <button type="submit" class="actions-item danger">Delete Permanently</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </td>
         </tr>
         {% endfor %}
         </tbody>
     </table>
     {% else %}
-    <div class="empty-state"><div class="empty-icon">🔐</div><p>No users found.</p></div>
+    <div class="empty-state">
+        <div class="empty-icon">🔐</div>
+        <p>No users found. Click <strong>'Add User'</strong> to create staff accounts.</p>
+    </div>
     {% endif %}
 </div>
 
@@ -37,13 +115,59 @@
                 <input name="password" type="password" placeholder="Password" required>
                 <input name="full_name" placeholder="Full Name">
                 <select name="role">
-                    {% for r in roles %}<option>{{ r }}</option>{% endfor %}
+                    {% for r in roles if r != 'Super Admin' %}<option>{{ r }}</option>{% endfor %}
                 </select>
-                <select name="status"><option>Active</option><option>Inactive</option></select>
+                <select name="status">
+                    {% for s in user_statuses %}<option {% if s == 'Active' %}selected{% endif %}>{{ s }}</option>{% endfor %}
+                </select>
             </div>
             <button type="submit" class="btn btn-primary" style="margin-top:16px">Add User</button>
         </form>
     </div>
 </div>
+
+{% for u in users %}
+<div class="modal" id="viewUser{{ u.id }}">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <button class="modal-close">✕</button>
+        <h3>User Details</h3>
+        <div class="detail-grid">
+            <div><span>Username</span><strong>{{ u.username }}</strong></div>
+            <div><span>Full Name</span><strong>{{ u.full_name or u.username }}</strong></div>
+            <div><span>Role</span><strong>{{ u.role }}</strong></div>
+            <div><span>Status</span><strong>{{ u.status }}</strong></div>
+            <div><span>Last Login</span><strong>{{ u.last_login or '—' }}</strong></div>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="editUser{{ u.id }}">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <button class="modal-close">✕</button>
+        <h3>Edit User</h3>
+        <form method="post" action="{{ url_for('update_user', user_id=u.id, **request.args) }}">
+            <div class="form-grid">
+                <input name="full_name" value="{{ u.full_name or '' }}" placeholder="Full Name">
+                <select name="role" {% if u.role == 'Super Admin' %}disabled{% endif %}>
+                    {% for r in roles %}
+                    <option {% if u.role == r %}selected{% endif %}>{{ r }}</option>
+                    {% endfor %}
+                </select>
+                {% if u.role == 'Super Admin' %}<input type="hidden" name="role" value="Super Admin">{% endif %}
+                <input name="password" type="password" placeholder="New password (optional)">
+                <select name="status" {% if u.role == 'Super Admin' %}disabled{% endif %}>
+                    {% for s in user_statuses %}
+                    <option {% if u.status == s %}selected{% endif %}>{{ s }}</option>
+                    {% endfor %}
+                </select>
+                {% if u.role == 'Super Admin' %}<input type="hidden" name="status" value="Active">{% endif %}
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top:16px">Save Changes</button>
+        </form>
+    </div>
+</div>
+{% endfor %}
 
 {% endblock %}

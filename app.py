@@ -20,6 +20,10 @@ DB_PATH = os.path.join(BASE_DIR, "instance", "hotel_v2.db")
 _db_ready = False
 
 ROLES = ["Super Admin", "Admin", "Manager", "Receptionist", "Housekeeping", "Staff"]
+EMPLOYEE_STATUSES = ["Active", "Inactive", "On Leave", "Suspended", "Resigned", "Terminated", "Archived"]
+USER_STATUSES = EMPLOYEE_STATUSES
+LOGIN_ALLOWED_STATUSES = {"Active"}
+ACTIVE_EMPLOYEE_STATUSES = ("Active",)
 ROOM_STATUSES = ["Available", "Occupied", "Maintenance", "Cleaning", "Reserved"]
 BOOKING_STATUSES = ["Reserved", "Checked-in", "Checked-out", "Cancelled"]
 PAYMENT_STATUSES = ["Pending", "Partial", "Paid"]
@@ -356,6 +360,11 @@ def migrate_db():
     add_column_if_missing("employees", "role", "TEXT")
     add_column_if_missing("employees", "department", "TEXT")
     add_column_if_missing("employees", "joining_date", "TEXT")
+    add_column_if_missing("employees", "last_login", "TEXT")
+    add_column_if_missing("employees", "user_id", "INTEGER")
+    add_column_if_missing("employees", "archived_at", "TEXT")
+    add_column_if_missing("users", "last_login", "TEXT")
+    add_column_if_missing("users", "archived_at", "TEXT")
 
     # Normalize legacy booking statuses
     query("UPDATE bookings SET status='Reserved' WHERE status='Active'", commit=True)
@@ -366,178 +375,13 @@ def migrate_db():
 
 
 def seed_db():
+    """Only create the platform Super Admin on first run — no demo hotel data."""
     if query("SELECT COUNT(*) c FROM users", one=True)["c"] == 0:
-        users = [
-            ("superadmin", "admin123", "Super Admin User", "Super Admin", "Active"),
-            ("admin", "admin123", "Hotel Admin", "Admin", "Active"),
-            ("manager", "manager123", "Operations Manager", "Manager", "Active"),
-            ("reception", "rec123", "Front Desk Reception", "Receptionist", "Active"),
-            ("housekeeping", "hk123", "Housekeeping Lead", "Housekeeping", "Active"),
-            ("staff", "staff123", "General Staff", "Staff", "Active"),
-        ]
-        for u in users:
-            query("INSERT INTO users(username,password,full_name,role,status) VALUES(?,?,?,?,?)", u, commit=True)
-    else:
-        extra_users = [
-            ("superadmin", "admin123", "Super Admin User", "Super Admin", "Active"),
-            ("housekeeping", "hk123", "Housekeeping Lead", "Housekeeping", "Active"),
-            ("staff", "staff123", "General Staff", "Staff", "Active"),
-        ]
-        for u in extra_users:
-            if not query("SELECT id FROM users WHERE username=?", (u[0],), one=True):
-                query("INSERT INTO users(username,password,full_name,role,status) VALUES(?,?,?,?,?)", u, commit=True)
-        query("UPDATE users SET full_name=username WHERE full_name IS NULL OR full_name=''", commit=True)
-
-    if query("SELECT COUNT(*) c FROM rooms", one=True)["c"] == 0:
-        rooms = []
-        amenities_map = {
-            "Standard": "WiFi, TV, AC",
-            "Deluxe": "WiFi, TV, AC, Mini Bar",
-            "Super Deluxe": "WiFi, Smart TV, AC, Mini Bar, Balcony",
-            "Luxury": "WiFi, Smart TV, AC, Mini Bar, Jacuzzi",
-            "Presidential Suite": "WiFi, Smart TV, AC, Mini Bar, Jacuzzi, Butler",
-        }
-        prices = {"Standard": 1500, "Deluxe": 3000, "Super Deluxe": 5000, "Luxury": 8000, "Presidential Suite": 15000}
-        caps = {"Standard": 2, "Deluxe": 2, "Super Deluxe": 3, "Luxury": 4, "Presidential Suite": 6}
-
-        for i in range(101, 111):
-            rooms.append((str(i), "Standard", "Standard", 1, prices["Standard"], caps["Standard"], "Available", amenities_map["Standard"]))
-        for i in range(201, 211):
-            rooms.append((str(i), "Deluxe", "Deluxe", 2, prices["Deluxe"], caps["Deluxe"], "Available", amenities_map["Deluxe"]))
-        for i in range(301, 309):
-            rooms.append((str(i), "Super Deluxe", "Super Deluxe", 3, prices["Super Deluxe"], caps["Super Deluxe"], "Available", amenities_map["Super Deluxe"]))
-        for i in range(401, 407):
-            rooms.append((str(i), "Luxury", "Luxury", 4, prices["Luxury"], caps["Luxury"], "Available", amenities_map["Luxury"]))
-        for i in range(501, 504):
-            rooms.append((str(i), "Presidential Suite", "Presidential Suite", 5, prices["Presidential Suite"], caps["Presidential Suite"], "Available", amenities_map["Presidential Suite"]))
-
-        for r in rooms:
-            query("""INSERT INTO rooms(room_no,room_type,category,floor,price,capacity,status,amenities)
-                     VALUES(?,?,?,?,?,?,?,?)""", r, commit=True)
-
-    if query("SELECT COUNT(*) c FROM customers", one=True)["c"] < 15:
-        if query("SELECT COUNT(*) c FROM customers", one=True)["c"] == 0:
-            customers = [
-                ("Ayush Sharma", "9876543210", "ayush@example.com", "Dehradun", "Aadhar", "AADHAR-1001", "Male", 28),
-                ("Priya Mehta", "9876543211", "priya@example.com", "Delhi", "Passport", "PASS-1002", "Female", 32),
-                ("Rohan Verma", "9876543212", "rohan@example.com", "Jaipur", "Aadhar", "AADHAR-1003", "Male", 35),
-                ("Sneha Kapoor", "9876543213", "sneha@example.com", "Mumbai", "PAN Card", "PAN-1004", "Female", 29),
-                ("Karan Singh", "9876543214", "karan@example.com", "Lucknow", "Aadhar", "AADHAR-1005", "Male", 41),
-                ("Neha Joshi", "9876543215", "neha@example.com", "Pune", "Driving License", "DL-1006", "Female", 27),
-                ("Rahul Gupta", "9876543216", "rahul@example.com", "Noida", "Aadhar", "AADHAR-1007", "Male", 33),
-                ("Aditi Sharma", "9876543217", "aditi@example.com", "Chandigarh", "Voter ID", "VID-1008", "Female", 30),
-                ("Vivek Kumar", "9876543218", "vivek@example.com", "Patna", "Aadhar", "AADHAR-1009", "Male", 38),
-                ("Anjali Jain", "9876543219", "anjali@example.com", "Indore", "Passport", "PASS-1010", "Female", 26),
-                ("Mohit Agarwal", "9876543220", "mohit@example.com", "Bhopal", "Aadhar", "AADHAR-1011", "Male", 34),
-                ("Pooja Singh", "9876543221", "pooja@example.com", "Kanpur", "Aadhar", "AADHAR-1012", "Female", 31),
-                ("Arjun Malhotra", "9876543222", "arjun@example.com", "Gurgaon", "PAN Card", "PAN-1013", "Male", 36),
-                ("Ishita Arora", "9876543223", "ishita@example.com", "Faridabad", "Aadhar", "AADHAR-1014", "Female", 24),
-                ("Yash Raj", "9876543224", "yash@example.com", "Ranchi", "Driving License", "DL-1015", "Male", 29),
-                ("Deepak Nair", "9876543225", "deepak@example.com", "Kochi", "Passport", "PASS-1016", "Male", 42),
-                ("Kavita Reddy", "9876543226", "kavita@example.com", "Hyderabad", "Aadhar", "AADHAR-1017", "Female", 28),
-                ("Sanjay Patel", "9876543227", "sanjay@example.com", "Ahmedabad", "Aadhar", "AADHAR-1018", "Male", 45),
-                ("Meera Iyer", "9876543228", "meera@example.com", "Chennai", "Voter ID", "VID-1019", "Female", 33),
-                ("Amit Bose", "9876543229", "amit@example.com", "Kolkata", "Aadhar", "AADHAR-1020", "Male", 37),
-            ]
-            for c in customers:
-                query("""INSERT INTO customers(name,phone,email,address,id_proof_type,id_proof_number,gender,age,id_proof)
-                         VALUES(?,?,?,?,?,?,?,?,?)""",
-                      (*c, f"{c[4]}-{c[5]}"), commit=True)
-
-    if query("SELECT COUNT(*) c FROM bookings", one=True)["c"] == 0:
-        today = date.today()
-        bookings_data = [
-            (1, 1, "2026-06-25", "2026-06-30", 2, "Checked-in", "Partial"),
-            (2, 2, "2026-06-26", "2026-07-01", 1, "Checked-in", "Paid"),
-            (3, 3, "2026-06-20", "2026-06-24", 2, "Checked-out", "Paid"),
-            (4, 4, "2026-06-28", "2026-07-03", 3, "Reserved", "Pending"),
-            (5, 5, "2026-06-27", "2026-06-29", 2, "Checked-in", "Pending"),
-            (6, 6, "2026-06-15", "2026-06-18", 1, "Checked-out", "Paid"),
-            (7, 11, "2026-06-29", "2026-07-02", 2, "Reserved", "Pending"),
-            (8, 12, "2026-06-30", "2026-07-04", 2, "Reserved", "Pending"),
-            (9, 13, "2026-06-28", "2026-07-01", 1, "Checked-in", "Partial"),
-            (10, 14, "2026-06-26", "2026-07-02", 2, "Checked-in", "Paid"),
-            (11, 21, "2026-06-18", "2026-06-22", 2, "Checked-out", "Paid"),
-            (12, 22, "2026-06-30", "2026-07-05", 3, "Reserved", "Pending"),
-            (13, 23, "2026-06-27", "2026-06-30", 2, "Checked-in", "Partial"),
-            (14, 31, "2026-06-29", "2026-07-04", 2, "Reserved", "Pending"),
-            (15, 32, str(today), str(today + timedelta(days=3)), 4, "Checked-in", "Pending"),
-        ]
-        for b in bookings_data:
-            room = query("SELECT price FROM rooms WHERE id=?", (b[1],), one=True)
-            total = calc_room_charges(room["price"], b[2], b[3]) if room else 0
-            bid = query("""INSERT INTO bookings(customer_id,room_id,checkin,checkout,num_guests,status,payment_status,total_amount)
-                           VALUES(?,?,?,?,?,?,?,?)""", (*b, total), commit=True)
-            if b[5] == "Checked-in":
-                query("UPDATE rooms SET status='Occupied' WHERE id=?", (b[1],), commit=True)
-            elif b[5] == "Reserved":
-                query("UPDATE rooms SET status='Reserved' WHERE id=?", (b[1],), commit=True)
-            elif b[5] == "Checked-out":
-                query("UPDATE rooms SET status='Cleaning' WHERE id=?", (b[1],), commit=True)
-
-    if query("SELECT COUNT(*) c FROM payments", one=True)["c"] == 0:
-        paid_bookings = query("SELECT id, total_amount, payment_status FROM bookings WHERE payment_status IN ('Paid','Partial')")
-        for b in paid_bookings:
-            amt = b["total_amount"] if b["payment_status"] == "Paid" else b["total_amount"] * 0.5
-            query("""INSERT INTO payments(booking_id,amount,payment_mode,receipt_number,payment_date)
-                     VALUES(?,?,?,?,?)""",
-                  (b["id"], amt, "UPI", receipt_number(), datetime.now().strftime("%Y-%m-%d %H:%M")), commit=True)
-
-    if query("SELECT COUNT(*) c FROM inventory", one=True)["c"] == 0:
-        today_str = datetime.now().strftime("%Y-%m-%d")
-        items = [
-            ("Water Bottle", "Beverages", 100, "pcs", 30, 20, "Aqua Supplies", today_str),
-            ("Soap", "Toiletries", 8, "pcs", 15, 20, "CleanCo", today_str),
-            ("Shampoo", "Toiletries", 45, "pcs", 20, 20, "CleanCo", today_str),
-            ("Towel", "Linens", 60, "pcs", 150, 10, "Linen World", today_str),
-            ("Bedsheet", "Linens", 5, "pcs", 350, 10, "Linen World", today_str),
-            ("Tea Kit", "Room Service", 100, "pcs", 50, 20, "FoodMart", today_str),
-            ("Coffee Kit", "Room Service", 100, "pcs", 70, 20, "FoodMart", today_str),
-            ("Sandwich", "Food", 50, "pcs", 120, 10, "Kitchen Pro", today_str),
-            ("Dinner Thali", "Food", 50, "plate", 350, 10, "Kitchen Pro", today_str),
-            ("Laundry Detergent", "Housekeeping", 12, "L", 250, 15, "CleanCo", today_str),
-            ("Toilet Paper", "Toiletries", 6, "rolls", 40, 15, "CleanCo", today_str),
-            ("Light Bulbs", "Maintenance", 30, "pcs", 80, 10, "ElectroHub", today_str),
-        ]
-        for i in items:
-            query("""INSERT INTO inventory(item_name,category,quantity,unit,price,reorder_level,supplier_name,last_updated)
-                     VALUES(?,?,?,?,?,?,?,?)""", i, commit=True)
-
-    if query("SELECT COUNT(*) c FROM employees", one=True)["c"] < 6:
-        if query("SELECT COUNT(*) c FROM employees", one=True)["c"] == 0:
-            employees = [
-                ("Rohit Sharma", "9876543210", "rohit@hotel.com", "Manager", "Management", 55000, "Morning", "2023-01-15", "Active"),
-                ("Anita Verma", "9876500001", "anita@hotel.com", "Receptionist", "Front Desk", 28000, "Morning", "2023-03-20", "Active"),
-                ("Rahul Meena", "9876500002", "rahul@hotel.com", "Housekeeping", "Housekeeping", 20000, "Evening", "2023-05-10", "Active"),
-                ("Pooja Singh", "9876500003", "pooja@hotel.com", "Chef", "Kitchen", 35000, "Night", "2022-11-01", "Active"),
-                ("Suresh Kumar", "9876500004", "suresh@hotel.com", "Maintenance", "Maintenance", 22000, "Day", "2024-02-14", "Active"),
-                ("Neha Kapoor", "9876500005", "neha@hotel.com", "Receptionist", "Front Desk", 26000, "Evening", "2024-06-01", "Active"),
-                ("Vikram Das", "9876500006", "vikram@hotel.com", "Housekeeping", "Housekeeping", 19000, "Morning", "2024-08-15", "Active"),
-            ]
-            for e in employees:
-                query("""INSERT INTO employees(name,phone,email,role,designation,department,salary,shift,joining_date,status)
-                         VALUES(?,?,?,?,?,?,?,?,?,?)""",
-                      (e[0], e[1], e[2], e[3], e[3], e[4], e[5], e[6], e[7], e[8]), commit=True)
-
-    if query("SELECT COUNT(*) c FROM housekeeping_tasks", one=True)["c"] == 0:
-        cleaning_rooms = query("SELECT id FROM rooms WHERE status='Cleaning' LIMIT 3")
-        hk_staff = query("SELECT id FROM employees WHERE department='Housekeeping' LIMIT 1", one=True)
-        staff_id = hk_staff["id"] if hk_staff else None
-        now = datetime.now().strftime("%Y-%m-%d %H:%M")
-        for i, room in enumerate(cleaning_rooms):
-            query("""INSERT INTO housekeeping_tasks(room_id,assigned_to,status,priority,notes,created_at)
-                     VALUES(?,?,?,?,?,?)""",
-                  (room["id"], staff_id, "Pending" if i == 0 else "In Progress", "High" if i == 0 else "Medium",
-                   "Post checkout cleaning", now), commit=True)
-
-    if query("SELECT COUNT(*) c FROM room_service_requests", one=True)["c"] == 0:
-        active = query("SELECT b.id, b.room_id FROM bookings b WHERE b.status='Checked-in' LIMIT 3")
-        now = datetime.now().strftime("%Y-%m-%d %H:%M")
-        types = ["Food", "Laundry", "Maintenance"]
-        for i, b in enumerate(active):
-            query("""INSERT INTO room_service_requests(booking_id,room_id,request_type,description,status,charges,add_to_bill,created_at)
-                     VALUES(?,?,?,?,?,?,?,?)""",
-                  (b["id"], b["room_id"], types[i], f"Guest request for {types[i].lower()}", "Pending", 250 * (i + 1), 1, now), commit=True)
+        query(
+            "INSERT INTO users(username,password,full_name,role,status) VALUES(?,?,?,?,?)",
+            ("superadmin", "admin123", "Super Admin", "Super Admin", "Active"),
+            commit=True,
+        )
 
 
 def is_logged_in():
@@ -558,6 +402,31 @@ def role_required(*roles):
 
 def admin_roles():
     return ["Super Admin", "Admin", "Manager"]
+
+
+def is_super_admin():
+    return session.get("role") == "Super Admin"
+
+
+def can_login(status):
+    return status in LOGIN_ALLOWED_STATUSES
+
+
+def employee_has_dependencies(emp_id):
+    hk = query("SELECT COUNT(*) c FROM housekeeping_tasks WHERE assigned_to=?", (emp_id,), one=True)["c"]
+    return hk > 0
+
+
+def sync_employee_user_status(emp_id, status):
+    emp = query("SELECT user_id FROM employees WHERE id=?", (emp_id,), one=True)
+    if emp and emp["user_id"]:
+        user_status = "Active" if status == "Active" else status
+        query("UPDATE users SET status=? WHERE id=?", (user_status, emp["user_id"]), commit=True)
+
+
+def user_has_dependencies(user_id):
+    emp = query("SELECT COUNT(*) c FROM employees WHERE user_id=?", (user_id,), one=True)["c"]
+    return emp > 0
 
 
 @app.template_filter("css_class")
@@ -586,6 +455,8 @@ def inject_globals():
         hk_priorities=HK_PRIORITIES,
         rs_types=RS_TYPES,
         rs_statuses=RS_STATUSES,
+        employee_statuses=EMPLOYEE_STATUSES,
+        user_statuses=USER_STATUSES,
         id_proof_types=ID_PROOF_TYPES,
     )
 
@@ -604,16 +475,22 @@ def login():
         return redirect(url_for("dashboard"))
     if request.method == "POST":
         user = query(
-            "SELECT * FROM users WHERE username=? AND password=? AND status='Active'",
+            "SELECT * FROM users WHERE username=? AND password=?",
             (request.form["username"], request.form["password"]), one=True
         )
-        if user:
+        if user and can_login(user["status"]):
+            now = datetime.now().strftime("%Y-%m-%d %H:%M")
+            query("UPDATE users SET last_login=? WHERE id=?", (now, user["id"]), commit=True)
+            query("UPDATE employees SET last_login=? WHERE user_id=?", (now, user["id"]), commit=True)
             session["user_id"] = user["id"]
             session["username"] = user["username"]
             session["full_name"] = user["full_name"] or user["username"]
             session["role"] = user["role"]
             return redirect(url_for("dashboard"))
-        flash("Invalid username or password.", "danger")
+        if user and not can_login(user["status"]):
+            flash("Your account is inactive. Contact your administrator.", "danger")
+        else:
+            flash("Invalid username or password.", "danger")
     return render_template("login.html")
 
 
@@ -1096,51 +973,160 @@ def receipt(payment_id):
 
 # ─── Employees ───────────────────────────────────────────────────────────────
 
+def _employee_list_query():
+    search_q = request.args.get("q", "").strip()
+    status_filter = request.args.get("status", "all")
+    department = request.args.get("department", "")
+    role = request.args.get("role", "")
+
+    sql = "SELECT * FROM employees WHERE 1=1"
+    params = []
+
+    if status_filter == "archived":
+        sql += " AND status='Archived'"
+    elif status_filter == "active":
+        sql += " AND status='Active'"
+    elif status_filter == "inactive":
+        sql += " AND status='Inactive'"
+    elif status_filter == "all":
+        sql += " AND status != 'Archived'"
+
+    if department:
+        sql += " AND department=?"
+        params.append(department)
+    if role:
+        sql += " AND role=?"
+        params.append(role)
+    if search_q:
+        sql += " AND (name LIKE ? OR email LIKE ? OR phone LIKE ? OR department LIKE ?)"
+        params.extend([f"%{search_q}%"] * 4)
+
+    sql += " ORDER BY id DESC"
+    return query(sql, params), {
+        "search_q": search_q,
+        "status_filter": status_filter,
+        "department": department,
+        "role": role,
+    }
+
+
 @app.route("/employees")
 @role_required(*admin_roles())
 def employees():
-    search_q = request.args.get("q", "").strip()
-    sql = "SELECT * FROM employees WHERE 1=1"
-    params = []
-    if search_q:
-        sql += " AND (name LIKE ? OR email LIKE ? OR department LIKE ?)"
-        params.extend([f"%{search_q}%"] * 3)
-    sql += " ORDER BY id DESC"
-    return render_template("employees.html", employees=query(sql, params), search_q=search_q)
+    employee_list, filters = _employee_list_query()
+    return render_template("employees.html", employees=employee_list, **filters)
 
 
 @app.route("/employees/add", methods=["POST"])
 @role_required(*admin_roles())
 def add_employee():
+    status = request.form.get("status", "Active")
+    if status not in EMPLOYEE_STATUSES:
+        status = "Active"
     query("""INSERT INTO employees(name,phone,email,role,designation,department,salary,shift,joining_date,status)
              VALUES(?,?,?,?,?,?,?,?,?,?)""",
           (request.form["name"], request.form.get("phone"), request.form.get("email"),
            request.form["role"], request.form["role"], request.form.get("department"),
            float(request.form.get("salary") or 0), request.form.get("shift"),
-           request.form.get("joining_date"), request.form.get("status", "Active")), commit=True)
-    flash("Employee added.", "success")
+           request.form.get("joining_date"), status), commit=True)
+    flash("Employee added successfully.", "success")
     return redirect(url_for("employees"))
 
 
 @app.route("/employees/update/<int:emp_id>", methods=["POST"])
 @role_required(*admin_roles())
 def update_employee(emp_id):
+    status = request.form.get("status", "Active")
+    if status not in EMPLOYEE_STATUSES:
+        status = "Active"
+    archived_at = datetime.now().strftime("%Y-%m-%d %H:%M") if status == "Archived" else None
     query("""UPDATE employees SET name=?, phone=?, email=?, role=?, designation=?, department=?,
-             salary=?, shift=?, joining_date=?, status=? WHERE id=?""",
+             salary=?, shift=?, joining_date=?, status=?, archived_at=? WHERE id=?""",
           (request.form["name"], request.form.get("phone"), request.form.get("email"),
            request.form["role"], request.form["role"], request.form.get("department"),
            float(request.form.get("salary") or 0), request.form.get("shift"),
-           request.form.get("joining_date"), request.form.get("status"), emp_id), commit=True)
-    flash("Employee updated.", "success")
-    return redirect(url_for("employees"))
+           request.form.get("joining_date"), status, archived_at, emp_id), commit=True)
+    sync_employee_user_status(emp_id, status)
+    flash("Employee updated successfully.", "success")
+    return redirect(url_for("employees", **request.args))
+
+
+@app.route("/employees/deactivate/<int:emp_id>", methods=["POST"])
+@role_required(*admin_roles())
+def deactivate_employee(emp_id):
+    query("UPDATE employees SET status='Inactive' WHERE id=?", (emp_id,), commit=True)
+    sync_employee_user_status(emp_id, "Inactive")
+    flash("Employee deactivated.", "success")
+    return redirect(url_for("employees", **request.args))
+
+
+@app.route("/employees/activate/<int:emp_id>", methods=["POST"])
+@role_required(*admin_roles())
+def activate_employee(emp_id):
+    query("UPDATE employees SET status='Active', archived_at=NULL WHERE id=?", (emp_id,), commit=True)
+    sync_employee_user_status(emp_id, "Active")
+    flash("Employee activated.", "success")
+    return redirect(url_for("employees", **request.args))
+
+
+@app.route("/employees/archive/<int:emp_id>", methods=["POST"])
+@role_required(*admin_roles())
+def archive_employee(emp_id):
+    now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    query("UPDATE employees SET status='Archived', archived_at=? WHERE id=?", (now, emp_id), commit=True)
+    sync_employee_user_status(emp_id, "Archived")
+    flash("Employee archived.", "success")
+    return redirect(url_for("employees", **request.args))
 
 
 @app.route("/employees/delete/<int:emp_id>", methods=["POST"])
-@role_required(*admin_roles())
+@role_required("Super Admin")
 def delete_employee(emp_id):
+    if employee_has_dependencies(emp_id):
+        flash("Cannot delete: employee has assigned housekeeping tasks. Archive instead.", "danger")
+        return redirect(url_for("employees", **request.args))
     query("DELETE FROM employees WHERE id=?", (emp_id,), commit=True)
-    flash("Employee deleted.", "success")
-    return redirect(url_for("employees"))
+    flash("Employee permanently deleted.", "success")
+    return redirect(url_for("employees", **request.args))
+
+
+@app.route("/employees/bulk", methods=["POST"])
+@role_required(*admin_roles())
+def employees_bulk():
+    ids = request.form.getlist("ids")
+    action = request.form.get("action", "")
+    if not ids:
+        flash("No employees selected.", "danger")
+        return redirect(url_for("employees", **request.args))
+
+    if action == "delete" and not is_super_admin():
+        flash("Only Super Admin can permanently delete employees.", "danger")
+        return redirect(url_for("employees", **request.args))
+
+    count = 0
+    for emp_id in ids:
+        emp_id = int(emp_id)
+        if action == "activate":
+            query("UPDATE employees SET status='Active', archived_at=NULL WHERE id=?", (emp_id,), commit=True)
+            sync_employee_user_status(emp_id, "Active")
+            count += 1
+        elif action == "deactivate":
+            query("UPDATE employees SET status='Inactive' WHERE id=?", (emp_id,), commit=True)
+            sync_employee_user_status(emp_id, "Inactive")
+            count += 1
+        elif action == "archive":
+            now = datetime.now().strftime("%Y-%m-%d %H:%M")
+            query("UPDATE employees SET status='Archived', archived_at=? WHERE id=?", (now, emp_id), commit=True)
+            sync_employee_user_status(emp_id, "Archived")
+            count += 1
+        elif action == "delete" and is_super_admin():
+            if not employee_has_dependencies(emp_id):
+                query("DELETE FROM employees WHERE id=?", (emp_id,), commit=True)
+                count += 1
+
+    labels = {"activate": "activated", "deactivate": "deactivated", "archive": "archived", "delete": "deleted"}
+    flash(f"{count} employee(s) {labels.get(action, 'updated')}.", "success")
+    return redirect(url_for("employees", **request.args))
 
 
 # ─── Housekeeping ────────────────────────────────────────────────────────────
@@ -1314,25 +1300,166 @@ def restock_inventory(item_id):
 
 # ─── Admin / Users ───────────────────────────────────────────────────────────
 
+def _user_list_query():
+    status_filter = request.args.get("status", "all")
+    role = request.args.get("role", "")
+    search_q = request.args.get("q", "").strip()
+
+    sql = "SELECT id, username, full_name, role, status, last_login, archived_at FROM users WHERE 1=1"
+    params = []
+
+    if status_filter == "archived":
+        sql += " AND status='Archived'"
+    elif status_filter == "active":
+        sql += " AND status='Active'"
+    elif status_filter == "inactive":
+        sql += " AND status='Inactive'"
+    elif status_filter == "all":
+        sql += " AND status != 'Archived'"
+
+    if role:
+        sql += " AND role=?"
+        params.append(role)
+    if search_q:
+        sql += " AND (username LIKE ? OR full_name LIKE ?)"
+        params.extend([f"%{search_q}%", f"%{search_q}%"])
+
+    sql += " ORDER BY id"
+    return query(sql, params), {
+        "search_q": search_q,
+        "status_filter": status_filter,
+        "role": role,
+    }
+
+
 @app.route("/admin")
 @role_required(*admin_roles())
 def admin():
-    users = query("SELECT id, username, full_name, role, status FROM users ORDER BY id")
-    return render_template("admin.html", users=users)
+    users, filters = _user_list_query()
+    return render_template("admin.html", users=users, **filters)
 
 
 @app.route("/users/add", methods=["POST"])
 @role_required(*admin_roles())
 def add_user():
     try:
+        status = request.form.get("status", "Active")
+        if status not in USER_STATUSES:
+            status = "Active"
         query("INSERT INTO users(username,password,full_name,role,status) VALUES(?,?,?,?,?)",
               (request.form["username"], request.form["password"],
                request.form.get("full_name", request.form["username"]),
-               request.form["role"], request.form.get("status", "Active")), commit=True)
-        flash("User added.", "success")
+               request.form["role"], status), commit=True)
+        flash("User added successfully.", "success")
     except Exception as e:
         flash(f"Error: {e}", "danger")
     return redirect(url_for("admin"))
+
+
+@app.route("/users/update/<int:user_id>", methods=["POST"])
+@role_required(*admin_roles())
+def update_user(user_id):
+    status = request.form.get("status", "Active")
+    if status not in USER_STATUSES:
+        status = "Active"
+    archived_at = datetime.now().strftime("%Y-%m-%d %H:%M") if status == "Archived" else None
+    params = [request.form.get("full_name"), request.form["role"], status, archived_at]
+    sql = "UPDATE users SET full_name=?, role=?, status=?, archived_at=?"
+    if request.form.get("password"):
+        sql += ", password=?"
+        params.append(request.form["password"])
+    sql += " WHERE id=?"
+    params.append(user_id)
+    query(sql, tuple(params), commit=True)
+    flash("User updated successfully.", "success")
+    return redirect(url_for("admin", **request.args))
+
+
+@app.route("/users/deactivate/<int:user_id>", methods=["POST"])
+@role_required(*admin_roles())
+def deactivate_user(user_id):
+    if query("SELECT role FROM users WHERE id=?", (user_id,), one=True)["role"] == "Super Admin":
+        flash("Cannot deactivate the Super Admin account.", "danger")
+        return redirect(url_for("admin", **request.args))
+    query("UPDATE users SET status='Inactive' WHERE id=?", (user_id,), commit=True)
+    flash("User deactivated.", "success")
+    return redirect(url_for("admin", **request.args))
+
+
+@app.route("/users/activate/<int:user_id>", methods=["POST"])
+@role_required(*admin_roles())
+def activate_user(user_id):
+    query("UPDATE users SET status='Active', archived_at=NULL WHERE id=?", (user_id,), commit=True)
+    flash("User activated.", "success")
+    return redirect(url_for("admin", **request.args))
+
+
+@app.route("/users/archive/<int:user_id>", methods=["POST"])
+@role_required(*admin_roles())
+def archive_user(user_id):
+    if query("SELECT role FROM users WHERE id=?", (user_id,), one=True)["role"] == "Super Admin":
+        flash("Cannot archive the Super Admin account.", "danger")
+        return redirect(url_for("admin", **request.args))
+    now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    query("UPDATE users SET status='Archived', archived_at=? WHERE id=?", (now, user_id), commit=True)
+    flash("User archived.", "success")
+    return redirect(url_for("admin", **request.args))
+
+
+@app.route("/users/delete/<int:user_id>", methods=["POST"])
+@role_required("Super Admin")
+def delete_user(user_id):
+    user = query("SELECT role FROM users WHERE id=?", (user_id,), one=True)
+    if not user:
+        flash("User not found.", "danger")
+        return redirect(url_for("admin", **request.args))
+    if user["role"] == "Super Admin":
+        flash("Cannot delete the Super Admin account.", "danger")
+        return redirect(url_for("admin", **request.args))
+    if user_has_dependencies(user_id):
+        flash("Cannot delete: user is linked to an employee record. Archive instead.", "danger")
+        return redirect(url_for("admin", **request.args))
+    query("DELETE FROM users WHERE id=?", (user_id,), commit=True)
+    flash("User permanently deleted.", "success")
+    return redirect(url_for("admin", **request.args))
+
+
+@app.route("/users/bulk", methods=["POST"])
+@role_required(*admin_roles())
+def users_bulk():
+    ids = request.form.getlist("ids")
+    action = request.form.get("action", "")
+    if not ids:
+        flash("No users selected.", "danger")
+        return redirect(url_for("admin", **request.args))
+
+    if action == "delete" and not is_super_admin():
+        flash("Only Super Admin can permanently delete users.", "danger")
+        return redirect(url_for("admin", **request.args))
+
+    count = 0
+    for user_id in ids:
+        user_id = int(user_id)
+        user = query("SELECT role FROM users WHERE id=?", (user_id,), one=True)
+        if not user or user["role"] == "Super Admin":
+            continue
+        if action == "activate":
+            query("UPDATE users SET status='Active', archived_at=NULL WHERE id=?", (user_id,), commit=True)
+            count += 1
+        elif action == "deactivate":
+            query("UPDATE users SET status='Inactive' WHERE id=?", (user_id,), commit=True)
+            count += 1
+        elif action == "archive":
+            now = datetime.now().strftime("%Y-%m-%d %H:%M")
+            query("UPDATE users SET status='Archived', archived_at=? WHERE id=?", (now, user_id), commit=True)
+            count += 1
+        elif action == "delete" and is_super_admin() and not user_has_dependencies(user_id):
+            query("DELETE FROM users WHERE id=?", (user_id,), commit=True)
+            count += 1
+
+    labels = {"activate": "activated", "deactivate": "deactivated", "archive": "archived", "delete": "deleted"}
+    flash(f"{count} user(s) {labels.get(action, 'updated')}.", "success")
+    return redirect(url_for("admin", **request.args))
 
 
 # ─── Invoice & Reports ───────────────────────────────────────────────────────

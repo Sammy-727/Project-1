@@ -3,40 +3,112 @@
 {% block content %}
 
 <div class="page-actions">
-    <form class="filter-bar" method="get">
+    <form class="filter-bar" method="get" id="filterForm">
         <input type="search" name="q" placeholder="Search employees..." value="{{ search_q }}">
-        <button type="submit" class="btn btn-secondary btn-sm">Search</button>
+        <select name="status" onchange="this.form.submit()">
+            <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Employees</option>
+            <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+            <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+            <option value="archived" {% if status_filter == 'archived' %}selected{% endif %}>Archived Employees</option>
+        </select>
+        <select name="department" onchange="this.form.submit()">
+            <option value="">All Departments</option>
+            {% for d in departments %}
+            <option value="{{ d }}" {% if department == d %}selected{% endif %}>{{ d }}</option>
+            {% endfor %}
+        </select>
+        <select name="role" onchange="this.form.submit()">
+            <option value="">All Roles</option>
+            {% for r in roles if r != 'Super Admin' %}
+            <option value="{{ r }}" {% if role == r %}selected{% endif %}>{{ r }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
     </form>
     <button class="btn btn-primary modal-trigger" data-target="#addEmployeeModal">+ Add Employee</button>
 </div>
 
+{% if employees %}
+<div class="bulk-bar">
+    <label class="bulk-select-all"><input type="checkbox" id="selectAllEmployees"> Select all</label>
+    <form class="inline-form" method="post" action="{{ url_for('employees_bulk', **request.args) }}" id="employeeBulkForm">
+        <button type="submit" name="action" value="activate" class="btn btn-success btn-sm">Activate Selected</button>
+        <button type="submit" name="action" value="deactivate" class="btn btn-secondary btn-sm" data-confirm="Deactivate selected employees?">Deactivate Selected</button>
+        <button type="submit" name="action" value="archive" class="btn btn-secondary btn-sm" data-confirm="Archive selected employees?">Archive Selected</button>
+        {% if current_user.role == 'Super Admin' %}
+        <button type="submit" name="action" value="delete" class="btn btn-danger btn-sm" data-confirm="Permanently delete selected employees? This cannot be undone.">Delete Selected</button>
+        {% endif %}
+    </form>
+</div>
+{% endif %}
+
 <div class="panel">
     {% if employees %}
     <table class="data-table">
-        <thead><tr><th>Name</th><th>Role</th><th>Department</th><th>Phone</th><th>Email</th><th>Salary</th><th>Joined</th><th>Status</th><th>Actions</th></tr></thead>
+        <thead>
+            <tr>
+                <th style="width:36px"></th>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Department</th>
+                <th>Phone</th>
+                <th>Email</th>
+                <th>Status</th>
+                <th>Joined Date</th>
+                <th>Last Login</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
         <tbody>
         {% for e in employees %}
         <tr>
+            <td><input type="checkbox" class="emp-check" form="employeeBulkForm" name="ids" value="{{ e.id }}"></td>
             <td><strong>{{ e.name }}</strong></td>
             <td>{{ e.role or e.designation }}</td>
             <td>{{ e.department or '—' }}</td>
             <td>{{ e.phone or '—' }}</td>
             <td>{{ e.email or '—' }}</td>
-            <td>₹{{ "{:,.0f}".format(e.salary or 0) }}</td>
+            <td><span class="badge badge-status badge-{{ e.status|css_class }}">{{ e.status }}</span></td>
             <td>{{ e.joining_date or '—' }}</td>
-            <td><span class="badge badge-{{ e.status }}">{{ e.status }}</span></td>
+            <td>{{ e.last_login or '—' }}</td>
             <td>
-                <button class="btn btn-secondary btn-sm modal-trigger" data-target="#editEmp{{ e.id }}">Edit</button>
-                <form class="inline-form" method="post" action="{{ url_for('delete_employee', emp_id=e.id) }}" data-confirm="Delete {{ e.name }}?">
-                    <button type="submit" class="btn btn-danger btn-sm">Delete</button>
-                </form>
+                <div class="actions-dropdown">
+                    <button type="button" class="btn btn-secondary btn-sm actions-toggle">Actions ▾</button>
+                    <div class="actions-menu">
+                        <button type="button" class="actions-item modal-trigger" data-target="#viewEmp{{ e.id }}">View Details</button>
+                        <button type="button" class="actions-item modal-trigger" data-target="#editEmp{{ e.id }}">Edit</button>
+                        {% if e.status != 'Inactive' and e.status != 'Archived' %}
+                        <form method="post" action="{{ url_for('deactivate_employee', emp_id=e.id, **request.args) }}" data-confirm="Deactivate {{ e.name }}? They will not be able to log in.">
+                            <button type="submit" class="actions-item">Deactivate</button>
+                        </form>
+                        {% endif %}
+                        {% if e.status == 'Inactive' or e.status in ['On Leave', 'Suspended', 'Resigned', 'Terminated'] %}
+                        <form method="post" action="{{ url_for('activate_employee', emp_id=e.id, **request.args) }}">
+                            <button type="submit" class="actions-item">Activate</button>
+                        </form>
+                        {% endif %}
+                        {% if e.status != 'Archived' %}
+                        <form method="post" action="{{ url_for('archive_employee', emp_id=e.id, **request.args) }}" data-confirm="Archive {{ e.name }}?">
+                            <button type="submit" class="actions-item">Archive</button>
+                        </form>
+                        {% endif %}
+                        {% if current_user.role == 'Super Admin' %}
+                        <form method="post" action="{{ url_for('delete_employee', emp_id=e.id, **request.args) }}" data-confirm="Permanently delete {{ e.name }}? This action cannot be undone.">
+                            <button type="submit" class="actions-item danger">Delete Permanently</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
             </td>
         </tr>
         {% endfor %}
         </tbody>
     </table>
     {% else %}
-    <div class="empty-state"><div class="empty-icon">👔</div><p>No employees found.</p></div>
+    <div class="empty-state">
+        <div class="empty-icon">👔</div>
+        <p>No employees found. Click <strong>'Add Employee'</strong> to create your first employee.</p>
+    </div>
     {% endif %}
 </div>
 
@@ -59,8 +131,10 @@
                 </select>
                 <input name="salary" type="number" placeholder="Salary" min="0">
                 <input name="shift" placeholder="Shift">
-                <input name="joining_date" type="date" placeholder="Joining Date">
-                <select name="status"><option>Active</option><option>Inactive</option></select>
+                <input name="joining_date" type="date">
+                <select name="status">
+                    {% for s in employee_statuses %}<option {% if s == 'Active' %}selected{% endif %}>{{ s }}</option>{% endfor %}
+                </select>
             </div>
             <button type="submit" class="btn btn-primary" style="margin-top:16px">Add Employee</button>
         </form>
@@ -68,12 +142,32 @@
 </div>
 
 {% for e in employees %}
+<div class="modal" id="viewEmp{{ e.id }}">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <button class="modal-close">✕</button>
+        <h3>Employee Details</h3>
+        <div class="detail-grid">
+            <div><span>Name</span><strong>{{ e.name }}</strong></div>
+            <div><span>Role</span><strong>{{ e.role or e.designation }}</strong></div>
+            <div><span>Department</span><strong>{{ e.department or '—' }}</strong></div>
+            <div><span>Phone</span><strong>{{ e.phone or '—' }}</strong></div>
+            <div><span>Email</span><strong>{{ e.email or '—' }}</strong></div>
+            <div><span>Salary</span><strong>₹{{ "{:,.0f}".format(e.salary or 0) }}</strong></div>
+            <div><span>Shift</span><strong>{{ e.shift or '—' }}</strong></div>
+            <div><span>Status</span><strong>{{ e.status }}</strong></div>
+            <div><span>Joined</span><strong>{{ e.joining_date or '—' }}</strong></div>
+            <div><span>Last Login</span><strong>{{ e.last_login or '—' }}</strong></div>
+        </div>
+    </div>
+</div>
+
 <div class="modal" id="editEmp{{ e.id }}">
     <div class="modal-overlay"></div>
     <div class="modal-content">
         <button class="modal-close">✕</button>
         <h3>Edit Employee</h3>
-        <form method="post" action="{{ url_for('update_employee', emp_id=e.id) }}">
+        <form method="post" action="{{ url_for('update_employee', emp_id=e.id, **request.args) }}">
             <div class="form-grid">
                 <input name="name" value="{{ e.name }}" required>
                 <input name="phone" value="{{ e.phone or '' }}">
@@ -93,11 +187,12 @@
                 <input name="shift" value="{{ e.shift or '' }}">
                 <input name="joining_date" type="date" value="{{ e.joining_date or '' }}">
                 <select name="status">
-                    <option {% if e.status == 'Active' %}selected{% endif %}>Active</option>
-                    <option {% if e.status == 'Inactive' %}selected{% endif %}>Inactive</option>
+                    {% for s in employee_statuses %}
+                    <option {% if e.status == s %}selected{% endif %}>{{ s }}</option>
+                    {% endfor %}
                 </select>
             </div>
-            <button type="submit" class="btn btn-primary" style="margin-top:16px">Save</button>
+            <button type="submit" class="btn btn-primary" style="margin-top:16px">Save Changes</button>
         </form>
     </div>
 </div>

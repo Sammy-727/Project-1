@@ -64,10 +64,11 @@ Open: http://127.0.0.1:5000
 
 | Username | Password | Role |
 |----------|----------|------|
-| admin | admin123 | Admin |
-| manager | manager123 | Manager |
-| reception | rec123 | Receptionist |
-| superadmin | admin123 | Super Admin |
+| superadmin | admin123 | Super Admin (platform only) |
+
+Hotel Admin and staff accounts are created manually from **User Management** after setup.
+
+To start with a completely clean database (no demo data), run **`RESET_DATABASE.bat`** then **`START.bat`**.
 
 ---
 
