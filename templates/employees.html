@@ -1,6 +1,19 @@
 {% extends "base.html" %}
+{% from "macros/ui.html" import breadcrumb, page_header, status_badge, empty_state %}
 {% set title = "Employees" %}
 {% block content %}
+
+{{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Staff", "url": "#"}, {"label": "Employees"}]) }}
+
+<div class="page-header">
+  <div class="page-header-text">
+    <h1 class="page-title">Employees</h1>
+    <p class="page-description">Manage your hotel staff, roles, and lifecycle</p>
+  </div>
+  <div class="page-header-actions">
+    <button class="btn btn-primary modal-trigger" data-target="#addEmployeeModal" title="Add new employee">+ Add Employee</button>
+  </div>
+</div>
 
 <div class="page-actions">
     <form class="filter-bar" method="get" id="filterForm">
@@ -23,9 +36,8 @@
             <option value="{{ r }}" {% if role == r %}selected{% endif %}>{{ r }}</option>
             {% endfor %}
         </select>
-        <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
+        <button type="submit" class="btn btn-outline btn-sm">Filter</button>
     </form>
-    <button class="btn btn-primary modal-trigger" data-target="#addEmployeeModal">+ Add Employee</button>
 </div>
 
 {% if employees %}
@@ -42,19 +54,26 @@
 </div>
 {% endif %}
 
-<div class="panel">
+<div class="panel" style="padding:0;overflow:hidden">
     {% if employees %}
-    <table class="data-table">
+    <div class="table-toolbar">
+        <div class="table-search-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="search" placeholder="Search table..." data-table-search>
+        </div>
+    </div>
+    <div class="table-wrap">
+    <table class="data-table" data-paginate>
         <thead>
             <tr>
                 <th style="width:36px"></th>
-                <th>Name</th>
-                <th>Role</th>
-                <th>Department</th>
+                <th data-sort>Name</th>
+                <th data-sort>Role</th>
+                <th data-sort>Department</th>
                 <th>Phone</th>
                 <th>Email</th>
-                <th>Status</th>
-                <th>Joined Date</th>
+                <th data-sort>Status</th>
+                <th data-sort>Joined</th>
                 <th>Last Login</th>
                 <th>Actions</th>
             </tr>
@@ -63,7 +82,12 @@
         {% for e in employees %}
         <tr>
             <td><input type="checkbox" class="emp-check" form="employeeBulkForm" name="ids" value="{{ e.id }}"></td>
-            <td><strong>{{ e.name }}</strong></td>
+            <td>
+                <div style="display:flex;align-items:center;gap:10px">
+                    <div class="profile-avatar" style="width:36px;height:36px;font-size:14px">{{ e.name[0]|upper }}</div>
+                    <strong>{{ e.name }}</strong>
+                </div>
+            </td>
             <td>{{ e.role or e.designation }}</td>
             <td>{{ e.department or '—' }}</td>
             <td>{{ e.phone or '—' }}</td>
@@ -73,9 +97,9 @@
             <td>{{ e.last_login or '—' }}</td>
             <td>
                 <div class="actions-dropdown">
-                    <button type="button" class="btn btn-secondary btn-sm actions-toggle">Actions ▾</button>
+                    <button type="button" class="btn btn-outline btn-sm actions-toggle" title="Actions">⋮</button>
                     <div class="actions-menu">
-                        <button type="button" class="actions-item modal-trigger" data-target="#viewEmp{{ e.id }}">View Details</button>
+                        <button type="button" class="actions-item" data-drawer="#drawerEmp{{ e.id }}">View Details</button>
                         <button type="button" class="actions-item modal-trigger" data-target="#editEmp{{ e.id }}">Edit</button>
                         {% if e.status != 'Inactive' and e.status != 'Archived' %}
                         <form method="post" action="{{ url_for('deactivate_employee', emp_id=e.id, **request.args) }}" data-confirm="Deactivate {{ e.name }}? They will not be able to log in.">
@@ -104,11 +128,9 @@
         {% endfor %}
         </tbody>
     </table>
-    {% else %}
-    <div class="empty-state">
-        <div class="empty-icon">👔</div>
-        <p>No employees found. Click <strong>'Add Employee'</strong> to create your first employee.</p>
     </div>
+    {% else %}
+    {{ empty_state("👔", "No employees yet", "Click 'Add Employee' to create your first employee.", "+ Add Employee", "#addEmployeeModal") }}
     {% endif %}
 </div>
 
@@ -142,25 +164,28 @@
 </div>
 
 {% for e in employees %}
-<div class="modal" id="viewEmp{{ e.id }}">
-    <div class="modal-overlay"></div>
-    <div class="modal-content">
-        <button class="modal-close">✕</button>
-        <h3>Employee Details</h3>
-        <div class="detail-grid">
-            <div><span>Name</span><strong>{{ e.name }}</strong></div>
-            <div><span>Role</span><strong>{{ e.role or e.designation }}</strong></div>
-            <div><span>Department</span><strong>{{ e.department or '—' }}</strong></div>
-            <div><span>Phone</span><strong>{{ e.phone or '—' }}</strong></div>
-            <div><span>Email</span><strong>{{ e.email or '—' }}</strong></div>
-            <div><span>Salary</span><strong>₹{{ "{:,.0f}".format(e.salary or 0) }}</strong></div>
-            <div><span>Shift</span><strong>{{ e.shift or '—' }}</strong></div>
-            <div><span>Status</span><strong>{{ e.status }}</strong></div>
-            <div><span>Joined</span><strong>{{ e.joining_date or '—' }}</strong></div>
-            <div><span>Last Login</span><strong>{{ e.last_login or '—' }}</strong></div>
-        </div>
+<aside class="drawer" id="drawerEmp{{ e.id }}">
+    <button class="modal-close drawer-close" style="position:relative;top:0;right:0;float:right">✕</button>
+    <div style="text-align:center;margin:20px 0 28px">
+        <div class="profile-avatar" style="width:72px;height:72px;font-size:28px;margin:0 auto 12px">{{ e.name[0]|upper }}</div>
+        <h2 style="font-size:20px">{{ e.name }}</h2>
+        <p style="color:var(--text-muted)">{{ e.role or e.designation }} · {{ e.department or '—' }}</p>
+        {{ status_badge(e.status) }}
     </div>
-</div>
+    <div class="detail-grid">
+        <div><span>Phone</span><strong>{{ e.phone or '—' }}</strong></div>
+        <div><span>Email</span><strong>{{ e.email or '—' }}</strong></div>
+        <div><span>Salary</span><strong>₹{{ "{:,.0f}".format(e.salary or 0) }}</strong></div>
+        <div><span>Shift</span><strong>{{ e.shift or '—' }}</strong></div>
+        <div><span>Joined</span><strong>{{ e.joining_date or '—' }}</strong></div>
+        <div><span>Last Login</span><strong>{{ e.last_login or '—' }}</strong></div>
+    </div>
+    <div style="margin-top:24px;display:flex;gap:10px">
+        <button type="button" class="btn btn-outline btn-sm modal-trigger" data-target="#editEmp{{ e.id }}">Edit</button>
+    </div>
+</aside>
+
+<div class="modal" id="viewEmp{{ e.id }}" style="display:none"></div>
 
 <div class="modal" id="editEmp{{ e.id }}">
     <div class="modal-overlay"></div>

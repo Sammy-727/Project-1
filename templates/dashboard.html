@@ -1,127 +1,178 @@
 {% extends "base.html" %}
+{% from "macros/ui.html" import breadcrumb, page_header, empty_state, status_badge %}
 {% set title = "Dashboard" %}
 {% block content %}
 
-<section class="hero">
-    <div>
-        <h2>Welcome back, {{ current_user.full_name or current_user.username }} 👋</h2>
-        <p>Here's your hotel overview for today.</p>
-    </div>
-    <div class="hero-total">
-        <span>Total Revenue</span>
-        <strong>₹{{ "{:,.0f}".format(stats.revenue) }}</strong>
-    </div>
-</section>
+{{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Dashboard"}]) }}
 
-<div class="cards">
-    <div class="stat-card">
-        <div class="stat-icon blue">🛏️</div>
-        <div class="stat-info"><span>Total Rooms</span><h3>{{ stats.total_rooms }}</h3></div>
+{{ page_header("Dashboard", "Real-time overview of your hotel operations") }}
+
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <div class="kpi-top"><div class="kpi-icon indigo">💰</div></div>
+        <div class="kpi-label">Today's Revenue</div>
+        <div class="kpi-value">₹{{ "{:,.0f}".format(stats.today_revenue) }}</div>
     </div>
-    <div class="stat-card">
-        <div class="stat-icon green">✅</div>
-        <div class="stat-info"><span>Available</span><h3>{{ stats.available }}</h3></div>
+    <div class="kpi-card">
+        <div class="kpi-top"><div class="kpi-icon emerald">📊</div></div>
+        <div class="kpi-label">Occupancy Rate</div>
+        <div class="kpi-value">{{ stats.occupancy_rate }}%</div>
     </div>
-    <div class="stat-card">
-        <div class="stat-icon red">🔴</div>
-        <div class="stat-info"><span>Occupied</span><h3>{{ stats.occupied }}</h3></div>
+    <div class="kpi-card">
+        <div class="kpi-top"><div class="kpi-icon emerald">✅</div></div>
+        <div class="kpi-label">Available Rooms</div>
+        <div class="kpi-value">{{ stats.available }}</div>
     </div>
-    <div class="stat-card">
-        <div class="stat-icon purple">📅</div>
-        <div class="stat-info"><span>Active Bookings</span><h3>{{ stats.active_bookings }}</h3></div>
+    <div class="kpi-card">
+        <div class="kpi-top"><div class="kpi-icon red">🔴</div></div>
+        <div class="kpi-label">Occupied Rooms</div>
+        <div class="kpi-value">{{ stats.occupied }}</div>
     </div>
-    <div class="stat-card">
-        <div class="stat-icon orange">👔</div>
-        <div class="stat-info"><span>Employees</span><h3>{{ stats.employees }}</h3></div>
+    <div class="kpi-card">
+        <div class="kpi-top"><div class="kpi-icon blue">📥</div></div>
+        <div class="kpi-label">Today's Check-ins</div>
+        <div class="kpi-value">{{ stats.today_checkins }}</div>
     </div>
-    <div class="stat-card">
-        <div class="stat-icon pink">🧹</div>
-        <div class="stat-info"><span>Cleaning</span><h3>{{ stats.cleaning }}</h3></div>
+    <div class="kpi-card">
+        <div class="kpi-top"><div class="kpi-icon purple">📤</div></div>
+        <div class="kpi-label">Today's Check-outs</div>
+        <div class="kpi-value">{{ stats.today_checkouts }}</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-top"><div class="kpi-icon amber">⏳</div></div>
+        <div class="kpi-label">Pending Payments</div>
+        <div class="kpi-value">{{ stats.pending_payments }}</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-top"><div class="kpi-icon indigo">📅</div></div>
+        <div class="kpi-label">Active Bookings</div>
+        <div class="kpi-value">{{ stats.active_bookings }}</div>
     </div>
 </div>
 
 <div class="grid-3">
     <div class="panel">
-        <div class="panel-head">
-            <h3>Revenue Overview</h3>
-            <span>Last 6 months</span>
-        </div>
+        <div class="panel-head"><h3>Revenue Trend</h3><span>Last 6 months</span></div>
         {% if monthly_revenue %}
-        {% set max_rev = monthly_revenue|map(attribute='total')|max %}
-        <div class="chart-bars">
-            {% for m in monthly_revenue %}
-            <div class="chart-bar-wrap">
-                <span class="chart-value">₹{{ "{:,.0f}".format(m.total) }}</span>
-                <div class="chart-bar" style="height: {{ (m.total / max_rev * 140) if max_rev else 4 }}px"></div>
-                <span class="chart-label">{{ m.month[5:] }}/{{ m.month[:4] }}</span>
-            </div>
-            {% endfor %}
+        <div class="chart-container">
+            <canvas id="revenueChart"
+                data-labels='{{ monthly_revenue|map(attribute="month")|list|tojson }}'
+                data-values='{{ monthly_revenue|map(attribute="total")|list|tojson }}'></canvas>
         </div>
         {% else %}
-        <div class="empty-state"><div class="empty-icon">📊</div><p>No revenue data yet.</p></div>
+        {{ empty_state("📊", "No revenue yet", "Revenue charts will appear after your first payment.") }}
         {% endif %}
     </div>
-
     <div class="panel">
-        <div class="panel-head"><h3>Room Status</h3></div>
-        <div class="status-pills">
-            {% for s in room_summary %}
-            <div class="status-pill">
-                <span class="status-dot {{ s.status|lower }}"></span>
-                <strong>{{ s.c }}</strong> {{ s.status }}
-            </div>
-            {% endfor %}
+        <div class="panel-head"><h3>Room Types</h3></div>
+        {% if room_types %}
+        <div class="chart-container">
+            <canvas id="roomTypeChart"
+                data-labels='{{ room_types|map(attribute="room_type")|list|tojson }}'
+                data-values='{{ room_types|map(attribute="c")|list|tojson }}'></canvas>
         </div>
+        {% else %}
+        {{ empty_state("🛏️", "No rooms yet", "Add rooms to see distribution.", "Add Room", "#addRoomModal") }}
+        {% endif %}
     </div>
 </div>
 
 <div class="grid-2">
     <div class="panel">
         <div class="panel-head">
-            <h3>Recent Bookings</h3>
-            <a href="{{ url_for('bookings') }}" class="btn btn-secondary btn-sm">View All</a>
+            <h3>Upcoming Check-ins</h3>
+            <a href="{{ url_for('bookings') }}" class="btn btn-outline btn-sm">View all</a>
         </div>
-        {% if recent_bookings %}
-        <table class="data-table">
-            <thead><tr><th>ID</th><th>Customer</th><th>Room</th><th>Dates</th><th>Status</th></tr></thead>
-            <tbody>
-            {% for b in recent_bookings %}
-            <tr>
-                <td>#{{ b.id }}</td>
-                <td>{{ b.name }}</td>
-                <td>{{ b.room_no }} <small class="muted">{{ b.room_type }}</small></td>
-                <td>{{ b.checkin }} → {{ b.checkout }}</td>
-                <td><span class="badge badge-{{ b.status }}">{{ b.status }}</span></td>
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
+        {% if upcoming_checkins %}
+        <div class="table-wrap">
+            <table class="data-table" data-paginate>
+                <thead><tr><th>Guest</th><th>Room</th><th>Check-in</th><th>Status</th></tr></thead>
+                <tbody>
+                {% for b in upcoming_checkins %}
+                <tr>
+                    <td><strong>{{ b.name }}</strong></td>
+                    <td>{{ b.room_no }}</td>
+                    <td>{{ b.checkin }}</td>
+                    <td>{{ status_badge(b.status) }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
         {% else %}
-        <div class="empty-state"><div class="empty-icon">📅</div><p>No bookings yet.</p></div>
+        {{ empty_state("📥", "No upcoming check-ins", "New arrivals will appear here.") }}
         {% endif %}
     </div>
 
     <div class="panel">
         <div class="panel-head">
-            <h3>Recent Payments</h3>
-            <a href="{{ url_for('payments') }}" class="btn btn-secondary btn-sm">View All</a>
+            <h3>Upcoming Check-outs</h3>
+            <a href="{{ url_for('checkin_out') }}" class="btn btn-outline btn-sm">View all</a>
         </div>
-        {% if recent_payments %}
-        <table class="data-table">
-            <thead><tr><th>Receipt</th><th>Customer</th><th>Amount</th><th>Mode</th></tr></thead>
-            <tbody>
-            {% for p in recent_payments %}
-            <tr>
-                <td>{{ p.receipt_number }}</td>
-                <td>{{ p.name }}</td>
-                <td><strong>₹{{ "{:,.0f}".format(p.amount) }}</strong></td>
-                <td>{{ p.payment_mode }}</td>
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
+        {% if upcoming_checkouts %}
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead><tr><th>Guest</th><th>Room</th><th>Check-out</th></tr></thead>
+                <tbody>
+                {% for b in upcoming_checkouts %}
+                <tr>
+                    <td><strong>{{ b.name }}</strong></td>
+                    <td>{{ b.room_no }}</td>
+                    <td>{{ b.checkout }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
         {% else %}
-        <div class="empty-state"><div class="empty-icon">💳</div><p>No payments recorded yet.</p></div>
+        {{ empty_state("📤", "No upcoming check-outs", "Departures will appear here.") }}
+        {% endif %}
+    </div>
+</div>
+
+<div class="grid-2">
+    <div class="panel">
+        <div class="panel-head"><h3>Recent Activity</h3></div>
+        {% if recent_bookings %}
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead><tr><th>Booking</th><th>Guest</th><th>Room</th><th>Status</th></tr></thead>
+                <tbody>
+                {% for b in recent_bookings %}
+                <tr>
+                    <td>#{{ b.id }}</td>
+                    <td>{{ b.name }}</td>
+                    <td>{{ b.room_no }}</td>
+                    <td>{{ status_badge(b.status) }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        {{ empty_state("📅", "No recent activity", "Bookings and payments will show here.") }}
+        {% endif %}
+    </div>
+
+    <div class="panel">
+        <div class="panel-head"><h3>Recent Payments</h3></div>
+        {% if recent_payments %}
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead><tr><th>Receipt</th><th>Guest</th><th>Amount</th></tr></thead>
+                <tbody>
+                {% for p in recent_payments %}
+                <tr>
+                    <td>{{ p.receipt_number }}</td>
+                    <td>{{ p.name }}</td>
+                    <td><strong>₹{{ "{:,.0f}".format(p.amount) }}</strong></td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        {{ empty_state("💳", "No payments yet", "Payment activity will appear here.") }}
         {% endif %}
     </div>
 </div>
@@ -129,22 +180,44 @@
 {% if low_stock %}
 <div class="panel">
     <div class="panel-head">
-        <h3>⚠️ Low Stock Alerts</h3>
-        <a href="{{ url_for('inventory', low=1) }}" class="btn btn-secondary btn-sm">View Inventory</a>
+        <h3>⚠️ Low Inventory Alerts</h3>
+        <a href="{{ url_for('inventory', low=1) }}" class="btn btn-outline btn-sm">View inventory</a>
     </div>
-    <table class="data-table">
-        <thead><tr><th>Item</th><th>Category</th><th>Qty</th><th>Reorder Level</th></tr></thead>
-        <tbody>
-        {% for i in low_stock %}
-        <tr class="low-stock">
-            <td>{{ i.item_name }}</td>
-            <td>{{ i.category }}</td>
-            <td class="danger">{{ i.quantity }}</td>
-            <td>{{ i.reorder_level }}</td>
-        </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead><tr><th>Item</th><th>Category</th><th>Qty</th><th>Reorder</th></tr></thead>
+            <tbody>
+            {% for i in low_stock %}
+            <tr>
+                <td>{{ i.item_name }}</td>
+                <td>{{ i.category }}</td>
+                <td><span class="badge badge-danger">{{ i.quantity }}</span></td>
+                <td>{{ i.reorder_level }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% if maintenance_rooms %}
+<div class="panel">
+    <div class="panel-head"><h3>🔧 Maintenance Alerts</h3></div>
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead><tr><th>Room</th><th>Type</th><th>Status</th></tr></thead>
+            <tbody>
+            {% for r in maintenance_rooms %}
+            <tr>
+                <td><strong>{{ r.room_no }}</strong></td>
+                <td>{{ r.room_type }}</td>
+                <td>{{ status_badge(r.status) }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 {% endif %}
 

@@ -1,6 +1,23 @@
 {% extends "base.html" %}
+{% from "macros/ui.html" import breadcrumb, status_badge, empty_state %}
 {% set title = "Rooms" %}
 {% block content %}
+
+{{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Front Desk"}, {"label": "Rooms"}]) }}
+
+<div class="page-header">
+  <div class="page-header-text">
+    <h1 class="page-title">Rooms</h1>
+    <p class="page-description">Manage room inventory, pricing, and availability</p>
+  </div>
+  <div class="page-header-actions">
+    <div class="view-toggle" id="roomViewToggle">
+      <button type="button" data-view="table" class="active">Table</button>
+      <button type="button" data-view="cards">Cards</button>
+    </div>
+    <button class="btn btn-primary modal-trigger" data-target="#addRoomModal">+ Add Room</button>
+  </div>
+</div>
 
 <div class="page-actions">
     <form class="filter-bar" method="get">
@@ -17,14 +34,20 @@
             <option value="{{ t.room_type }}" {% if filter_type == t.room_type %}selected{% endif %}>{{ t.room_type }}</option>
             {% endfor %}
         </select>
-        <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
+        <button type="submit" class="btn btn-outline btn-sm">Filter</button>
     </form>
-    <button class="btn btn-primary modal-trigger" data-target="#addRoomModal">+ Add Room</button>
 </div>
 
-<div class="panel">
+<div class="panel" id="roomTableView" style="padding:0;overflow:hidden">
     {% if rooms %}
-    <table class="data-table">
+    <div class="table-toolbar">
+        <div class="table-search-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/></svg>
+            <input type="search" placeholder="Search rooms..." data-table-search>
+        </div>
+    </div>
+    <div class="table-wrap">
+    <table class="data-table" data-paginate>
         <thead>
             <tr><th>Room</th><th>Type</th><th>Floor</th><th>Price/Night</th><th>Capacity</th><th>Amenities</th><th>Status</th><th>Actions</th></tr>
         </thead>
@@ -37,21 +60,58 @@
             <td>₹{{ "{:,.0f}".format(r.price) }}</td>
             <td>{{ r.capacity or 2 }}</td>
             <td><small>{{ r.amenities or '—' }}</small></td>
-            <td><span class="badge badge-{{ r.status }}">{{ r.status }}</span></td>
+            <td>{{ status_badge(r.status) }}</td>
             <td>
-                <button class="btn btn-secondary btn-sm modal-trigger" data-target="#editRoom{{ r.id }}">Edit</button>
-                <form class="inline-form" method="post" action="{{ url_for('delete_room', room_id=r.id) }}" data-confirm="Delete room {{ r.room_no }}?">
-                    <button type="submit" class="btn btn-danger btn-sm">Delete</button>
-                </form>
+                <div class="actions-dropdown">
+                    <button type="button" class="btn btn-outline btn-sm actions-toggle" title="Actions">⋮</button>
+                    <div class="actions-menu">
+                        <button type="button" class="actions-item modal-trigger" data-target="#editRoom{{ r.id }}">Edit</button>
+                        <form method="post" action="{{ url_for('delete_room', room_id=r.id) }}" data-confirm="Delete room {{ r.room_no }}?">
+                            <button type="submit" class="actions-item danger">Delete</button>
+                        </form>
+                    </div>
+                </div>
             </td>
         </tr>
         {% endfor %}
         </tbody>
     </table>
+    </div>
     {% else %}
-    <div class="empty-state"><div class="empty-icon">🛏️</div><p>No rooms found. Add your first room.</p></div>
+    {{ empty_state("🛏️", "No rooms yet", "Add your first room to start managing availability.", "+ Add Room", "#addRoomModal") }}
     {% endif %}
 </div>
+
+{% if rooms %}
+<div class="room-grid" id="roomCardView" style="display:none">
+    {% for r in rooms %}
+    <div class="room-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+                <div class="room-no">{{ r.room_no }}</div>
+                <div class="room-type">{{ r.room_type or r.category }}</div>
+            </div>
+            {{ status_badge(r.status) }}
+        </div>
+        <p style="margin:12px 0;font-size:20px;font-weight:700">₹{{ "{:,.0f}".format(r.price) }}<span style="font-size:12px;font-weight:500;color:var(--text-muted)">/night</span></p>
+        <p style="font-size:12px;color:var(--text-muted)">Floor {{ r.floor or 1 }} · {{ r.capacity or 2 }} guests</p>
+        <button class="btn btn-outline btn-sm modal-trigger" data-target="#editRoom{{ r.id }}" style="margin-top:12px;width:100%">Manage</button>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<script>
+document.getElementById('roomViewToggle')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-view]');
+  if (!btn) return;
+  document.querySelectorAll('#roomViewToggle button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const cards = btn.dataset.view === 'cards';
+  document.getElementById('roomTableView').style.display = cards ? 'none' : 'block';
+  document.getElementById('roomCardView').style.display = cards ? 'grid' : 'none';
+});
+</script>
 
 <!-- Add Room Modal -->
 <div class="modal" id="addRoomModal">

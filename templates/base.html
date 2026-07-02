@@ -1,104 +1,128 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="utf-8">
-    <title>{{ title or app_name }}</title>
+    <title>{{ title or app_name }} — GrandStay</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Premium Hotel Management System">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
 </head>
 <body>
 
 {% if current_user.get("user_id") %}
-<div class="layout">
-    <aside class="sidebar" id="sidebar">
-        <div class="brand">
-            <div class="brand-icon">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"/></svg>
+<div class="app-layout">
+    <aside class="sidebar" id="sidebar" aria-label="Main navigation">
+        <div class="sidebar-header">
+            <div class="brand-icon">G</div>
+            <div class="brand-text">
+                <h2>GrandStay</h2>
+                <p>Hotel SaaS</p>
             </div>
-            <div>
-                <h2>{{ app_name }}</h2>
-                <p>Hotel Management</p>
-            </div>
-        </div>
-
-        <div class="user-card">
-            <div class="user-avatar">{{ (current_user.full_name or current_user.username)[0]|upper }}</div>
-            <div>
-                <strong>{{ current_user.full_name or current_user.username }}</strong>
-                <span>{{ current_user.role }}</span>
-            </div>
+            <button class="icon-btn btn-icon sidebar-collapse-btn" id="sidebarCollapse" title="Collapse sidebar" aria-label="Collapse sidebar" style="margin-left:auto">‹</button>
         </div>
 
         <nav class="sidebar-nav">
             <p class="nav-section">Overview</p>
-            <a href="{{ url_for('dashboard') }}" class="nav-link {% if active_page == 'dashboard' %}active{% endif %}">
-                <span class="nav-icon">📊</span> Dashboard
+            <a href="{{ url_for('dashboard') }}" class="nav-link {% if active_page == 'dashboard' %}active{% endif %}" title="Dashboard">
+                <span class="nav-icon">📊</span><span class="nav-label">Dashboard</span>
             </a>
 
             <p class="nav-section">Front Desk</p>
             <a href="{{ url_for('rooms') }}" class="nav-link {% if active_page == 'rooms' %}active{% endif %}">
-                <span class="nav-icon">🛏️</span> Rooms
+                <span class="nav-icon">🛏️</span><span class="nav-label">Rooms</span>
             </a>
             <a href="{{ url_for('bookings') }}" class="nav-link {% if active_page == 'bookings' %}active{% endif %}">
-                <span class="nav-icon">📅</span> Bookings
+                <span class="nav-icon">📅</span><span class="nav-label">Bookings</span>
             </a>
             <a href="{{ url_for('customers') }}" class="nav-link {% if active_page == 'customers' %}active{% endif %}">
-                <span class="nav-icon">👥</span> Customers
+                <span class="nav-icon">👥</span><span class="nav-label">Guests</span>
             </a>
             <a href="{{ url_for('checkin_out') }}" class="nav-link {% if active_page == 'checkin_out' %}active{% endif %}">
-                <span class="nav-icon">🔑</span> Check In / Out
+                <span class="nav-icon">🔑</span><span class="nav-label">Check In / Out</span>
             </a>
 
-            <p class="nav-section">Operations</p>
-            <a href="{{ url_for('inventory') }}" class="nav-link {% if active_page == 'inventory' %}active{% endif %}">
-                <span class="nav-icon">📦</span> Inventory
+            <p class="nav-section">Hotel Operations</p>
+            <a href="{{ url_for('housekeeping') }}" class="nav-link {% if active_page == 'housekeeping' %}active{% endif %}">
+                <span class="nav-icon">🧹</span><span class="nav-label">Housekeeping</span>
             </a>
             <a href="{{ url_for('room_service') }}" class="nav-link {% if active_page == 'room_service' %}active{% endif %}">
-                <span class="nav-icon">🛎️</span> Room Service
+                <span class="nav-icon">🛎️</span><span class="nav-label">Room Service</span>
             </a>
-            <a href="{{ url_for('housekeeping') }}" class="nav-link {% if active_page == 'housekeeping' %}active{% endif %}">
-                <span class="nav-icon">🧹</span> Housekeeping
-            </a>
-
-            <p class="nav-section">Finance</p>
-            <a href="{{ url_for('payments') }}" class="nav-link {% if active_page == 'payments' %}active{% endif %}">
-                <span class="nav-icon">💳</span> Payments
+            <a href="{{ url_for('inventory') }}" class="nav-link {% if active_page == 'inventory' %}active{% endif %}">
+                <span class="nav-icon">📦</span><span class="nav-label">Inventory</span>
             </a>
 
-            <p class="nav-section">Management</p>
+            <p class="nav-section">Staff</p>
             {% if current_user.role in ['Super Admin', 'Admin', 'Manager'] %}
             <a href="{{ url_for('employees') }}" class="nav-link {% if active_page == 'employees' %}active{% endif %}">
-                <span class="nav-icon">👔</span> Employees
+                <span class="nav-icon">👔</span><span class="nav-label">Employees</span>
             </a>
             <a href="{{ url_for('admin') }}" class="nav-link {% if active_page == 'admin' %}active{% endif %}">
-                <span class="nav-icon">🔐</span> Users
+                <span class="nav-icon">🔐</span><span class="nav-label">Users</span>
             </a>
             {% endif %}
 
-            <a class="nav-link logout" href="{{ url_for('logout') }}">
-                <span class="nav-icon">🚪</span> Logout
+            <p class="nav-section">Finance</p>
+            <a href="{{ url_for('payments') }}" class="nav-link {% if active_page == 'payments' %}active{% endif %}">
+                <span class="nav-icon">💳</span><span class="nav-label">Billing</span>
             </a>
+
+            <p class="nav-section">Reports</p>
+            {% if current_user.role in ['Super Admin', 'Admin', 'Manager'] %}
+            <a href="{{ url_for('reports_page') }}" class="nav-link {% if active_page == 'reports_page' %}active{% endif %}">
+                <span class="nav-icon">📈</span><span class="nav-label">Reports</span>
+            </a>
+            {% endif %}
+
+            <p class="nav-section">Settings</p>
+            {% if current_user.role in ['Super Admin', 'Admin', 'Manager'] %}
+            <a href="{{ url_for('settings_page') }}" class="nav-link {% if active_page == 'settings_page' %}active{% endif %}">
+                <span class="nav-icon">⚙️</span><span class="nav-label">Settings</span>
+            </a>
+            {% endif %}
         </nav>
+
+        <div class="sidebar-footer">
+            <a class="nav-link logout" href="{{ url_for('logout') }}">
+                <span class="nav-icon">🚪</span><span class="nav-label sidebar-footer-text">Logout</span>
+            </a>
+        </div>
     </aside>
 
     <div class="main-wrap">
         <header class="topbar">
             <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu">☰</button>
-            <div class="topbar-left">
-                <h1>{{ title or "Dashboard" }}</h1>
-                <p class="topbar-sub">Welcome back, {{ current_user.full_name or current_user.username }}</p>
-            </div>
-            <form class="search-bar" action="{{ url_for('search') }}" method="get">
-                <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-                <input type="search" name="q" placeholder="Search rooms, customers, bookings..." value="{{ request.args.get('q','') }}">
-            </form>
-            <div class="topbar-profile">
-                <div class="profile-avatar">{{ (current_user.full_name or current_user.username)[0]|upper }}</div>
-                <div class="profile-info">
-                    <strong>{{ current_user.full_name or current_user.username }}</strong>
-                    <span>{{ current_user.role }}</span>
+
+            <button class="search-trigger" id="searchTrigger" type="button" aria-label="Open command palette">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                Search anything...
+                <kbd>Ctrl K</kbd>
+            </button>
+
+            <div class="topbar-actions">
+                <button class="icon-btn" id="themeToggle" title="Toggle dark mode" aria-label="Toggle theme">🌙</button>
+                <button class="icon-btn notification-btn" title="Notifications" aria-label="Notifications">
+                    🔔<span class="notification-dot"></span>
+                </button>
+
+                <div class="profile-dropdown">
+                    <button class="profile-trigger" id="profileTrigger" type="button" aria-label="User menu">
+                        <div class="profile-avatar">{{ (current_user.full_name or current_user.username)[0]|upper }}</div>
+                        <div class="profile-info">
+                            <strong>{{ current_user.full_name or current_user.username }}</strong>
+                            <span>{{ current_user.role }}</span>
+                        </div>
+                    </button>
+                    <div class="dropdown-menu" id="profileMenu">
+                        <a href="{{ url_for('dashboard') }}" class="dropdown-item">Dashboard</a>
+                        {% if current_user.role in ['Super Admin', 'Admin', 'Manager'] %}
+                        <a href="{{ url_for('settings_page') }}" class="dropdown-item">Settings</a>
+                        {% endif %}
+                        <a href="{{ url_for('logout') }}" class="dropdown-item danger">Logout</a>
+                    </div>
                 </div>
             </div>
         </header>
@@ -110,11 +134,7 @@
 
             {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
-            <div class="flash-wrap">
-            {% for category, msg in messages %}
-            <div class="alert alert-{{ category }}">{{ msg }}</div>
-            {% endfor %}
-            </div>
+            <div class="flash-wrap" id="flashMessages" data-flash='{{ messages|tojson }}'></div>
             {% endif %}
             {% endwith %}
 
@@ -124,9 +144,21 @@
         </main>
     </div>
 </div>
+
+<!-- Command Palette -->
+<div class="command-palette" id="commandPalette" role="dialog" aria-label="Command palette">
+    <div class="command-box">
+        <input type="text" class="command-input" id="commandInput" placeholder="Search pages and actions..." autocomplete="off">
+        <div class="command-list" id="commandList"></div>
+    </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+<div class="drawer-backdrop" id="drawerBackdrop"></div>
+
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 {% else %}
-</main>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
 {% endif %}
 
 </body>

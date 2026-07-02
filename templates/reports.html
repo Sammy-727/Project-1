@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% from "macros/ui.html" import breadcrumb, page_header, empty_state %}
+{% set title = "Reports" %}
+{% block content %}
+
+{{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Reports"}]) }}
+{{ page_header("Reports & Analytics", "Interactive insights across revenue, occupancy, and bookings") }}
+
+<div class="page-header-actions" style="margin-bottom:20px">
+    <a href="{{ url_for('export_reports') }}" class="btn btn-outline btn-sm" title="Export CSV">Export CSV</a>
+</div>
+
+<div class="kpi-grid">
+    <div class="kpi-card"><div class="kpi-label">Total Revenue</div><div class="kpi-value">₹{{ "{:,.0f}".format(stats.revenue) }}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Occupancy</div><div class="kpi-value">{{ stats.occupancy_rate }}%</div></div>
+    <div class="kpi-card"><div class="kpi-label">Active Bookings</div><div class="kpi-value">{{ stats.active_bookings }}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Total Rooms</div><div class="kpi-value">{{ stats.total_rooms }}</div></div>
+</div>
+
+<div class="grid-2">
+    <div class="panel">
+        <div class="panel-head"><h3>Revenue Trend</h3><span>12 months</span></div>
+        {% if monthly_revenue %}
+        <div class="chart-container">
+            <canvas id="revenueChart"
+                data-labels='{{ monthly_revenue|map(attribute="month")|list|tojson }}'
+                data-values='{{ monthly_revenue|map(attribute="total")|list|tojson }}'></canvas>
+        </div>
+        {% else %}
+        {{ empty_state("📊", "No revenue data", "Charts appear after payments are recorded.") }}
+        {% endif %}
+    </div>
+    <div class="panel">
+        <div class="panel-head"><h3>Booking Status</h3></div>
+        {% if booking_status %}
+        <div class="chart-container">
+            <canvas id="bookingStatusChart"
+                data-labels='{{ booking_status|map(attribute="status")|list|tojson }}'
+                data-values='{{ booking_status|map(attribute="c")|list|tojson }}'></canvas>
+        </div>
+        {% else %}
+        {{ empty_state("📅", "No bookings", "Booking analytics will appear here.") }}
+        {% endif %}
+    </div>
+</div>
+
+<div class="panel">
+    <div class="panel-head"><h3>Room Type Distribution</h3></div>
+    {% if room_types %}
+    <div class="chart-container" style="max-width:400px;margin:0 auto">
+        <canvas id="roomTypeChart"
+            data-labels='{{ room_types|map(attribute="room_type")|list|tojson }}'
+            data-values='{{ room_types|map(attribute="c")|list|tojson }}'></canvas>
+    </div>
+    {% else %}
+    {{ empty_state("🛏️", "No room data", "Add rooms to see distribution.") }}
+    {% endif %}
+</div>
+
+{% endblock %}

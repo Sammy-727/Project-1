@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% from "macros/ui.html" import breadcrumb, page_header %}
+{% set title = "Settings" %}
+{% block content %}
+
+{{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Settings"}]) }}
+{{ page_header("Settings", "Configure your hotel profile, branding, and preferences") }}
+
+<div class="settings-tabs">
+    <button class="settings-tab active" data-tab="tab-hotel">Hotel Profile</button>
+    <button class="settings-tab" data-tab="tab-branding">Branding</button>
+    <button class="settings-tab" data-tab="tab-taxes">Taxes</button>
+    <button class="settings-tab" data-tab="tab-currency">Currency</button>
+    <button class="settings-tab" data-tab="tab-payments">Payment Methods</button>
+    <button class="settings-tab" data-tab="tab-permissions">Staff Permissions</button>
+    <button class="settings-tab" data-tab="tab-email">Email Templates</button>
+    <button class="settings-tab" data-tab="tab-plan">Subscription</button>
+</div>
+
+<div class="settings-panel active" id="tab-hotel">
+    <div class="panel">
+        <h3 style="margin-bottom:16px">Hotel Profile</h3>
+        <div class="form-grid">
+            <div class="form-group"><label>Hotel Name</label><input value="GrandStay Hotel" placeholder="Hotel name"></div>
+            <div class="form-group"><label>Email</label><input type="email" placeholder="contact@hotel.com"></div>
+            <div class="form-group"><label>Phone</label><input placeholder="+91 00000 00000"></div>
+            <div class="form-group"><label>Address</label><input placeholder="Full address"></div>
+        </div>
+        <button class="btn btn-primary" style="margin-top:16px" onclick="showToast('Settings saved','success')">Save Changes</button>
+    </div>
+</div>
+
+<div class="settings-panel" id="tab-branding">
+    <div class="panel">
+        <h3 style="margin-bottom:16px">Branding</h3>
+        <div class="form-group"><label>Primary Color</label><input type="color" value="#6366f1"></div>
+        <div class="form-group" style="margin-top:16px"><label>Hotel Logo</label>
+            <div style="border:2px dashed var(--border);border-radius:14px;padding:32px;text-align:center;color:var(--text-muted)">
+                Drag & drop logo here or click to upload
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="settings-panel" id="tab-taxes">
+    <div class="panel">
+        <h3 style="margin-bottom:16px">Tax Configuration</h3>
+        <div class="form-grid">
+            <div class="form-group"><label>GST / Tax Rate (%)</label><input type="number" value="12"></div>
+            <div class="form-group"><label>Service Charge (%)</label><input type="number" value="0"></div>
+        </div>
+    </div>
+</div>
+
+<div class="settings-panel" id="tab-currency">
+    <div class="panel">
+        <div class="form-group"><label>Currency</label>
+            <select><option>INR — Indian Rupee (₹)</option><option>USD — US Dollar ($)</option><option>EUR — Euro (€)</option></select>
+        </div>
+    </div>
+</div>
+
+<div class="settings-panel" id="tab-payments">
+    <div class="panel">
+        <p style="color:var(--text-muted);margin-bottom:12px">Accepted payment methods for billing.</p>
+        <label style="display:flex;gap:8px;margin-bottom:8px"><input type="checkbox" checked> Cash</label>
+        <label style="display:flex;gap:8px;margin-bottom:8px"><input type="checkbox" checked> UPI</label>
+        <label style="display:flex;gap:8px;margin-bottom:8px"><input type="checkbox" checked> Card</label>
+        <label style="display:flex;gap:8px"><input type="checkbox" checked> Bank Transfer</label>
+    </div>
+</div>
+
+<div class="settings-panel" id="tab-permissions">
+    <div class="panel">
+        <p style="color:var(--text-muted)">Manage role-based access from <a href="{{ url_for('admin') }}">User Management</a>.</p>
+    </div>
+</div>
+
+<div class="settings-panel" id="tab-email">
+    <div class="panel">
+        <div class="form-group"><label>Booking Confirmation Template</label><textarea rows="4" placeholder="Email template..."></textarea></div>
+    </div>
+</div>
+
+<div class="settings-panel" id="tab-plan">
+    <div class="panel">
+        <div class="kpi-card" style="max-width:360px">
+            <div class="kpi-label">Current Plan</div>
+            <div class="kpi-value" style="font-size:22px">GrandStay Pro</div>
+            <p style="color:var(--text-muted);font-size:13px;margin-top:8px">Full hotel management features included.</p>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

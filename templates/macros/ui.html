@@ -1,0 +1,50 @@
+{% macro breadcrumb(items) %}
+<nav class="breadcrumb" aria-label="Breadcrumb">
+  {% for item in items %}
+    {% if item.url and not loop.last %}
+    <a href="{{ item.url }}">{{ item.label }}</a><span class="breadcrumb-sep">/</span>
+    {% else %}
+    <span class="breadcrumb-current">{{ item.label }}</span>
+    {% endif %}
+  {% endfor %}
+</nav>
+{% endmacro %}
+
+{% macro page_header(title, description='', actions='') %}
+<div class="page-header">
+  <div class="page-header-text">
+    <h1 class="page-title">{{ title }}</h1>
+    {% if description %}<p class="page-description">{{ description }}</p>{% endif %}
+  </div>
+  {% if actions %}<div class="page-header-actions">{{ actions }}</div>{% endif %}
+</div>
+{% endmacro %}
+
+{% macro empty_state(icon, title, message, action_label='', action_target='') %}
+<div class="empty-state saas-empty">
+  <div class="empty-illustration">{{ icon }}</div>
+  <h3>{{ title }}</h3>
+  <p>{{ message }}</p>
+  {% if action_label and action_target %}
+  <button type="button" class="btn btn-primary modal-trigger" data-target="{{ action_target }}">{{ action_label }}</button>
+  {% endif %}
+</div>
+{% endmacro %}
+
+{% macro status_badge(status) %}
+<span class="badge badge-status badge-{{ status|css_class }}">{{ status }}</span>
+{% endmacro %}
+
+{% macro table_toolbar(search_placeholder='Search...', export_url='') %}
+<div class="table-toolbar">
+  <div class="table-search-wrap">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+    <input type="search" class="table-search" placeholder="{{ search_placeholder }}" data-table-search>
+  </div>
+  <div class="table-toolbar-actions">
+    {% if export_url %}
+    <a href="{{ export_url }}" class="btn btn-outline btn-sm" title="Export CSV">Export</a>
+    {% endif %}
+  </div>
+</div>
+{% endmacro %}

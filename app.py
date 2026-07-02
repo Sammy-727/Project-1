@@ -532,14 +532,27 @@ def search():
 
 
 def dashboard_stats():
+    today = date.today().isoformat()
     revenue = query("SELECT COALESCE(SUM(amount),0) t FROM payments", one=True)["t"]
+    total_rooms = query("SELECT COUNT(*) c FROM rooms", one=True)["c"]
+    occupied = query("SELECT COUNT(*) c FROM rooms WHERE status='Occupied'", one=True)["c"]
     return {
-        "total_rooms": query("SELECT COUNT(*) c FROM rooms", one=True)["c"],
+        "total_rooms": total_rooms,
         "available": query("SELECT COUNT(*) c FROM rooms WHERE status='Available'", one=True)["c"],
-        "occupied": query("SELECT COUNT(*) c FROM rooms WHERE status='Occupied'", one=True)["c"],
+        "occupied": occupied,
+        "occupancy_rate": round((occupied / total_rooms) * 100) if total_rooms else 0,
         "active_bookings": query("SELECT COUNT(*) c FROM bookings WHERE status IN ('Reserved','Checked-in')", one=True)["c"],
         "employees": query("SELECT COUNT(*) c FROM employees WHERE status='Active'", one=True)["c"],
         "revenue": revenue,
+        "today_revenue": query(
+            "SELECT COALESCE(SUM(amount),0) t FROM payments WHERE date(payment_date)=?",
+            (today,), one=True
+        )["t"],
+        "today_checkins": query("SELECT COUNT(*) c FROM bookings WHERE checkin=?", (today,), one=True)["c"],
+        "today_checkouts": query("SELECT COUNT(*) c FROM bookings WHERE checkout=?", (today,), one=True)["c"],
+        "pending_payments": query(
+            "SELECT COUNT(*) c FROM bookings WHERE payment_status IN ('Pending','Partial')", one=True
+        )["c"],
         "maintenance": query("SELECT COUNT(*) c FROM rooms WHERE status='Maintenance'", one=True)["c"],
         "cleaning": query("SELECT COUNT(*) c FROM rooms WHERE status='Cleaning'", one=True)["c"],
     }
@@ -566,9 +579,27 @@ def dashboard():
         FROM payments GROUP BY month ORDER BY month DESC LIMIT 6
     """)
     monthly_revenue = list(reversed(monthly_revenue))
+    room_types = query("SELECT room_type, COUNT(*) c FROM rooms GROUP BY room_type ORDER BY c DESC")
+    upcoming_checkins = query("""
+        SELECT b.id, c.name, r.room_no, b.checkin, b.checkout, b.status
+        FROM bookings b JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
+        WHERE b.checkin >= ? AND b.status IN ('Reserved','Checked-in')
+        ORDER BY b.checkin ASC LIMIT 6
+    """, (date.today().isoformat(),))
+    upcoming_checkouts = query("""
+        SELECT b.id, c.name, r.room_no, b.checkin, b.checkout, b.status
+        FROM bookings b JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
+        WHERE b.checkout >= ? AND b.status='Checked-in'
+        ORDER BY b.checkout ASC LIMIT 6
+    """, (date.today().isoformat(),))
+    maintenance_rooms = query(
+        "SELECT room_no, room_type, status FROM rooms WHERE status IN ('Maintenance','Cleaning') LIMIT 6"
+    )
     return render_template("dashboard.html", stats=stats, low_stock=low_stock,
                            recent_bookings=recent_bookings, recent_payments=recent_payments,
-                           room_summary=room_summary, monthly_revenue=monthly_revenue)
+                           room_summary=room_summary, monthly_revenue=monthly_revenue,
+                           room_types=room_types, upcoming_checkins=upcoming_checkins,
+                           upcoming_checkouts=upcoming_checkouts, maintenance_rooms=maintenance_rooms)
 
 
 # ─── Rooms ───────────────────────────────────────────────────────────────────
@@ -1504,6 +1535,26 @@ def invoice(booking_id):
     """, (booking_id,))
     payments = query("SELECT * FROM payments WHERE booking_id=? ORDER BY id", (booking_id,))
     return render_template("invoice.html", bill=bill, services=services, rs_charges=rs_charges, payments=payments)
+
+
+@app.route("/reports")
+@role_required(*admin_roles())
+def reports_page():
+    stats = dashboard_stats()
+    monthly_revenue = list(reversed(query("""
+        SELECT strftime('%Y-%m', payment_date) month, SUM(amount) total
+        FROM payments GROUP BY month ORDER BY month DESC LIMIT 12
+    """)))
+    booking_status = query("SELECT status, COUNT(*) c FROM bookings GROUP BY status")
+    room_types = query("SELECT room_type, COUNT(*) c FROM rooms GROUP BY room_type")
+    return render_template("reports.html", stats=stats, monthly_revenue=monthly_revenue,
+                           booking_status=booking_status, room_types=room_types)
+
+
+@app.route("/settings")
+@role_required(*admin_roles())
+def settings_page():
+    return render_template("settings.html")
 
 
 @app.route("/reports/export")
