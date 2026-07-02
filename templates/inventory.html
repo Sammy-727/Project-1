@@ -1,52 +1,83 @@
 {% extends "base.html" %}
+{% from "macros/ui.html" import breadcrumb, page_header, empty_state, view_toggle, card_menu, icon %}
 {% set title = "Inventory" %}
 {% block content %}
 
-<div class="page-actions">
-    <form class="filter-bar" method="get">
-        <input type="search" name="q" placeholder="Search items..." value="{{ search_q }}">
-        <label style="display:flex;align-items:center;gap:6px;font-size:13px">
-            <input type="checkbox" name="low" value="1" {% if low_only %}checked{% endif %} onchange="this.form.submit()"> Low stock only
-        </label>
-        <button type="submit" class="btn btn-secondary btn-sm">Search</button>
-    </form>
-    <button class="btn btn-primary modal-trigger" data-target="#addInvModal">+ Add Item</button>
+{{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Operations"}, {"label": "Inventory"}]) }}
+<div class="page-header">
+  <div class="page-header-text">
+    <h1 class="page-title">Inventory</h1>
+    <p class="page-description">Stock levels and suppliers</p>
+  </div>
+  <div class="page-header-actions">
+    {{ view_toggle('inventory') }}
+    <button class="btn btn-primary modal-trigger" data-target="#addInvModal">{{ icon('plus', 16) }} Add Item</button>
+  </div>
 </div>
 
-<div class="panel">
-    {% if items %}
+<form class="filter-toolbar" method="get" data-card-filter="#inventoryCardGrid">
+  <div class="table-search-wrap filter-search">
+    {{ icon('search', 16) }}
+    <input type="search" name="q" placeholder="Search items..." value="{{ search_q }}" data-local-search>
+  </div>
+  <label style="display:flex;align-items:center;gap:6px;font-size:13px">
+    <input type="checkbox" name="low" value="1" {% if low_only %}checked{% endif %}> Low stock only
+  </label>
+  <div class="filter-toolbar-actions">
+    <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+  </div>
+</form>
+
+{% if items %}
+<div class="entity-grid" id="inventoryCardGrid" data-view-panel="cards" data-page="inventory">
+  {% for i in items %}
+  <article class="entity-card {% if i.quantity <= i.reorder_level %}low-stock{% endif %}" data-searchable
+           data-search="{{ i.item_name }} {{ i.category }} {{ i.supplier_name or '' }}">
+    <div class="entity-card-header">
+      <div class="service-icon" style="width:40px;height:40px;margin:0">{{ icon('package', 20) }}</div>
+      <div style="flex:1">
+        <div class="entity-card-title">{{ i.item_name }}</div>
+        <div class="entity-card-sub">{{ i.category }}</div>
+      </div>
+      {{ card_menu([{'type': 'button', 'label': 'Edit', 'icon': 'pencil', 'target': '#editInv' ~ i.id}]) }}
+    </div>
+    <div class="entity-card-body">
+      <div class="entity-card-stats">
+        <div class="entity-stat">Stock<strong {% if i.quantity <= i.reorder_level %}style="color:#dc2626"{% endif %}>{{ i.quantity }} {{ i.unit }}</strong></div>
+        <div class="entity-stat">Min level<strong>{{ i.reorder_level }}</strong></div>
+        <div class="entity-stat">Price<strong>₹{{ i.price }}</strong></div>
+        <div class="entity-stat">Supplier<strong>{{ i.supplier_name or '—' }}</strong></div>
+      </div>
+    </div>
+    <div class="entity-card-footer">
+      {% if i.quantity <= i.reorder_level %}<span class="badge badge-danger">Low Stock</span>{% else %}<span class="badge badge-Available">In Stock</span>{% endif %}
+      <form class="inline-form" method="post" action="{{ url_for('restock_inventory', item_id=i.id) }}" onclick="event.stopPropagation()">
+        <input name="quantity" type="number" placeholder="Qty" min="1" style="width:56px;height:28px" required>
+        <button type="submit" class="btn btn-primary btn-sm">Restock</button>
+      </form>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+
+<div class="saas-table-wrap" data-view-panel="table" data-page="inventory" hidden>
+  <div class="table-wrap">
     <table class="data-table">
-        <thead><tr><th>Item</th><th>Category</th><th>Qty</th><th>Unit</th><th>Price</th><th>Reorder</th><th>Supplier</th><th>Updated</th><th>Actions</th></tr></thead>
-        <tbody>
-        {% for i in items %}
-        <tr {% if i.quantity <= i.reorder_level %}class="low-stock"{% endif %}>
-            <td><strong>{{ i.item_name }}</strong>{% if i.quantity <= i.reorder_level %} ⚠️{% endif %}</td>
-            <td>{{ i.category }}</td>
-            <td {% if i.quantity <= i.reorder_level %}class="danger"{% endif %}>{{ i.quantity }}</td>
-            <td>{{ i.unit }}</td>
-            <td>₹{{ i.price }}</td>
-            <td>{{ i.reorder_level }}</td>
-            <td>{{ i.supplier_name or '—' }}</td>
-            <td>{{ i.last_updated or '—' }}</td>
-            <td>
-                <button class="btn btn-secondary btn-sm modal-trigger" data-target="#editInv{{ i.id }}">Edit</button>
-                <form class="inline-form" method="post" action="{{ url_for('restock_inventory', item_id=i.id) }}">
-                    <input name="quantity" type="number" placeholder="Qty" min="1" style="width:70px" required>
-                    <button type="submit" class="btn btn-success btn-sm">Restock</button>
-                </form>
-                <form class="inline-form" method="post" action="{{ url_for('delete_inventory', item_id=i.id) }}" data-confirm="Delete {{ i.item_name }}?">
-                    <button type="submit" class="btn btn-danger btn-sm">Delete</button>
-                </form>
-            </td>
-        </tr>
-        {% endfor %}
-        </tbody>
+      <thead><tr><th>Item</th><th>Qty</th><th>Category</th><th>Supplier</th><th></th></tr></thead>
+      <tbody>
+      {% for i in items %}
+      <tr><td>{{ i.item_name }}</td><td>{{ i.quantity }}</td><td>{{ i.category }}</td><td>{{ i.supplier_name or '—' }}</td>
+      <td><button class="btn btn-sm btn-outline modal-trigger" data-target="#editInv{{ i.id }}">Edit</button></td></tr>
+      {% endfor %}
+      </tbody>
     </table>
-    {% else %}
-    <div class="empty-state"><div class="empty-icon">📦</div><p>No inventory items found.</p></div>
-    {% endif %}
+  </div>
 </div>
+{% else %}
+{{ empty_state("package", "No inventory items", "Add items to track hotel supplies.", "Add Item", "#addInvModal") }}
+{% endif %}
 
+<!-- modals same as before -->
 <div class="modal" id="addInvModal">
     <div class="modal-overlay"></div>
     <div class="modal-content">

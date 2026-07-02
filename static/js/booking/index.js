@@ -70,6 +70,18 @@ function renderBookingRows(bookings) {
   });
 }
 
+async function refreshBookingsView() {
+  const cardGrid = document.getElementById('bookingCardGrid');
+  const tablePanel = document.querySelector('[data-view-panel="table"][data-page="bookings"]');
+  const cardViewActive = cardGrid && (!tablePanel || tablePanel.hidden);
+
+  if (cardViewActive) {
+    window.location.reload();
+    return;
+  }
+  await refreshBookingsTable();
+}
+
 async function refreshBookingsTable() {
   const tbody = document.getElementById('bookingsTableBody');
   if (!tbody) return;
@@ -109,7 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const drawer = new BookingDrawer(drawerEl, {
     bookingSources,
     paymentModes,
-    onSuccess: refreshBookingsTable,
+    onSuccess: refreshBookingsView,
   });
 
   document.getElementById('newBookingBtn')?.addEventListener('click', () => drawer.open());
@@ -120,5 +132,5 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('quickAddCustomerBtn')?.addEventListener('click', () => quickAddModal.open());
 
-  window.refreshBookingsTable = refreshBookingsTable;
+  window.refreshBookingsTable = refreshBookingsView;
 });

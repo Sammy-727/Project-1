@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros/ui.html" import breadcrumb, status_badge, empty_state %}
+{% from "macros/ui.html" import breadcrumb, page_header, status_badge, empty_state, view_toggle, card_menu, icon %}
 {% set title = "Rooms" %}
 {% block content %}
 
@@ -8,112 +8,126 @@
 <div class="page-header">
   <div class="page-header-text">
     <h1 class="page-title">Rooms</h1>
-    <p class="page-description">Manage room inventory, pricing, and availability</p>
+    <p class="page-description">Manage inventory, pricing, and availability</p>
   </div>
   <div class="page-header-actions">
-    <div class="view-toggle" id="roomViewToggle">
-      <button type="button" data-view="table" class="active">Table</button>
-      <button type="button" data-view="cards">Cards</button>
-    </div>
-    <button class="btn btn-primary modal-trigger" data-target="#addRoomModal">+ Add Room</button>
+    {{ view_toggle('rooms') }}
+    <button class="btn btn-primary modal-trigger" data-target="#addRoomModal">{{ icon('plus', 16) }} Add Room</button>
   </div>
 </div>
 
-<div class="page-actions">
-    <form class="filter-bar" method="get">
-        <input type="search" name="q" placeholder="Search room..." value="{{ search_q }}" style="width:180px">
-        <select name="status" onchange="this.form.submit()">
-            <option value="">All Status</option>
-            {% for s in room_statuses %}
-            <option value="{{ s }}" {% if filter_status == s %}selected{% endif %}>{{ s }}</option>
-            {% endfor %}
-        </select>
-        <select name="type" onchange="this.form.submit()">
-            <option value="">All Types</option>
-            {% for t in types %}
-            <option value="{{ t.room_type }}" {% if filter_type == t.room_type %}selected{% endif %}>{{ t.room_type }}</option>
-            {% endfor %}
-        </select>
-        <button type="submit" class="btn btn-outline btn-sm">Filter</button>
-    </form>
-</div>
-
-<div class="panel" id="roomTableView" style="padding:0;overflow:hidden">
-    {% if rooms %}
-    <div class="table-toolbar">
-        <div class="table-search-wrap">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/></svg>
-            <input type="search" placeholder="Search rooms..." data-table-search>
-        </div>
-    </div>
-    <div class="table-wrap">
-    <table class="data-table" data-paginate>
-        <thead>
-            <tr><th>Room</th><th>Type</th><th>Floor</th><th>Price/Night</th><th>Capacity</th><th>Amenities</th><th>Status</th><th>Actions</th></tr>
-        </thead>
-        <tbody>
-        {% for r in rooms %}
-        <tr>
-            <td><strong>{{ r.room_no }}</strong></td>
-            <td>{{ r.room_type or r.category }}</td>
-            <td>{{ r.floor or 1 }}</td>
-            <td>₹{{ "{:,.0f}".format(r.price) }}</td>
-            <td>{{ r.capacity or 2 }}</td>
-            <td><small>{{ r.amenities or '—' }}</small></td>
-            <td>{{ status_badge(r.status) }}</td>
-            <td>
-                <div class="actions-dropdown">
-                    <button type="button" class="btn btn-outline btn-sm actions-toggle" title="Actions">⋮</button>
-                    <div class="actions-menu">
-                        <button type="button" class="actions-item modal-trigger" data-target="#editRoom{{ r.id }}">Edit</button>
-                        <form method="post" action="{{ url_for('delete_room', room_id=r.id) }}" data-confirm="Delete room {{ r.room_no }}?">
-                            <button type="submit" class="actions-item danger">Delete</button>
-                        </form>
-                    </div>
-                </div>
-            </td>
-        </tr>
-        {% endfor %}
-        </tbody>
-    </table>
-    </div>
-    {% else %}
-    {{ empty_state("🛏️", "No rooms yet", "Add your first room to start managing availability.", "+ Add Room", "#addRoomModal") }}
-    {% endif %}
-</div>
+<form class="filter-toolbar" method="get" data-card-filter="#roomCardGrid" data-enrich-bookings>
+  <div class="table-search-wrap filter-search">
+    {{ icon('search', 16) }}
+    <input type="search" name="q" placeholder="Search rooms..." value="{{ search_q }}" data-local-search>
+  </div>
+  <select name="status">
+    <option value="">All Status</option>
+    {% for s in room_statuses %}
+    <option value="{{ s }}" {% if filter_status == s %}selected{% endif %}>{{ s }}</option>
+    {% endfor %}
+  </select>
+  <select name="type">
+    <option value="">All Types</option>
+    {% for t in types %}
+    <option value="{{ t.room_type }}" {% if filter_type == t.room_type %}selected{% endif %}>{{ t.room_type }}</option>
+    {% endfor %}
+  </select>
+  <div class="filter-toolbar-actions">
+    <a href="{{ url_for('rooms') }}" class="btn btn-ghost btn-sm">Reset</a>
+    <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+  </div>
+</form>
 
 {% if rooms %}
-<div class="room-grid" id="roomCardView" style="display:none">
-    {% for r in rooms %}
-    <div class="room-card">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start">
-            <div>
-                <div class="room-no">{{ r.room_no }}</div>
-                <div class="room-type">{{ r.room_type or r.category }}</div>
-            </div>
-            {{ status_badge(r.status) }}
-        </div>
-        <p style="margin:12px 0;font-size:20px;font-weight:700">₹{{ "{:,.0f}".format(r.price) }}<span style="font-size:12px;font-weight:500;color:var(--text-muted)">/night</span></p>
-        <p style="font-size:12px;color:var(--text-muted)">Floor {{ r.floor or 1 }} · {{ r.capacity or 2 }} guests</p>
-        <button class="btn btn-outline btn-sm modal-trigger" data-target="#editRoom{{ r.id }}" style="margin-top:12px;width:100%">Manage</button>
+<div class="entity-grid wide" id="roomCardGrid" data-view-panel="cards" data-page="rooms" data-enrich-bookings>
+  {% for r in rooms %}
+  {% set amenities = (r.amenities or '').split(',')[:4] %}
+  <article class="entity-card status-{{ r.status|css_class }}" data-searchable
+       data-room-no="{{ r.room_no }}" data-status="{{ r.status }}"
+       data-type="{{ r.room_type or r.category }}" data-card-drawer="#drawerRoom{{ r.id }}"
+       data-search="{{ r.room_no }} {{ r.room_type }} {{ r.status }}">
+    <div class="room-card-image">
+      {% if r.image_url %}<img src="{{ r.image_url }}" alt="Room {{ r.room_no }}">{% else %}{{ icon('bed-double', 28) }}{% endif %}
     </div>
-    {% endfor %}
+    <div class="entity-card-header">
+      <div>
+        <div class="entity-card-title">Room {{ r.room_no }}</div>
+        <div class="entity-card-sub">{{ r.room_type or r.category }} · Floor {{ r.floor or 1 }}</div>
+      </div>
+      {{ card_menu([
+        {'type': 'button', 'label': 'View', 'icon': 'eye', 'drawer': '#drawerRoom' ~ r.id},
+        {'type': 'button', 'label': 'Edit', 'icon': 'pencil', 'target': '#editRoom' ~ r.id, 'class': 'modal-trigger'},
+        {'type': 'link', 'label': 'Book', 'icon': 'calendar-plus', 'url': url_for('bookings')},
+        {'type': 'link', 'label': 'Check-in', 'icon': 'log-in', 'url': url_for('checkin_out')},
+      ]) }}
+    </div>
+    <div class="entity-card-body">
+      <div class="entity-card-stats">
+        <div class="entity-stat">Capacity<strong>{{ r.capacity or 2 }} guests</strong></div>
+        <div class="entity-stat">Price<strong>₹{{ "{:,.0f}".format(r.price) }}/night</strong></div>
+        <div class="entity-stat">Guest<strong data-room-guest class="muted">—</strong></div>
+        <div class="entity-stat">Next check-in<strong data-room-next class="muted">—</strong></div>
+      </div>
+      {% if amenities and amenities[0] %}
+      <div class="amenity-icons">
+        {% for a in amenities %}{% if a.strip() %}<span class="amenity-chip">{{ icon('check', 10) }} {{ a.strip() }}</span>{% endif %}{% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    <div class="entity-card-footer">
+      {{ status_badge(r.status) }}
+      <span class="booking-card-amount" style="font-size:14px">₹{{ "{:,.0f}".format(r.price) }}</span>
+    </div>
+  </article>
+
+  <aside class="drawer detail-drawer" id="drawerRoom{{ r.id }}">
+    <button class="modal-close drawer-close" type="button">{{ icon('x', 18) }}</button>
+    <div class="drawer-section" style="margin-top:12px">
+      <h3>Room {{ r.room_no }}</h3>
+      <p class="muted">{{ r.room_type or r.category }} · Floor {{ r.floor or 1 }}</p>
+      {{ status_badge(r.status) }}
+    </div>
+    <div class="drawer-section detail-grid">
+      <div><span>Capacity</span><strong>{{ r.capacity or 2 }} guests</strong></div>
+      <div><span>Price</span><strong>₹{{ "{:,.0f}".format(r.price) }}/night</strong></div>
+      <div><span>Amenities</span><strong>{{ r.amenities or '—' }}</strong></div>
+      <div><span>Guest</span><strong data-room-guest>—</strong></div>
+    </div>
+    <div class="card-quick-actions">
+      <button type="button" class="btn btn-secondary btn-sm modal-trigger" data-target="#editRoom{{ r.id }}">Edit</button>
+      <a href="{{ url_for('bookings') }}" class="btn btn-primary btn-sm">Book</a>
+      <a href="{{ url_for('checkin_out') }}" class="btn btn-outline btn-sm">Check-in/out</a>
+    </div>
+  </aside>
+  {% endfor %}
 </div>
+
+<div class="saas-table-wrap" data-view-panel="table" data-page="rooms" hidden>
+  <div class="table-wrap">
+    <table class="data-table" data-paginate>
+      <thead><tr><th>Room</th><th>Type</th><th>Floor</th><th>Price</th><th>Capacity</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+      {% for r in rooms %}
+      <tr>
+        <td><strong>{{ r.room_no }}</strong></td>
+        <td>{{ r.room_type or r.category }}</td>
+        <td>{{ r.floor or 1 }}</td>
+        <td>₹{{ "{:,.0f}".format(r.price) }}</td>
+        <td>{{ r.capacity or 2 }}</td>
+        <td>{{ status_badge(r.status) }}</td>
+        <td>{{ card_menu([{'type': 'button', 'label': 'Edit', 'target': '#editRoom' ~ r.id, 'class': 'modal-trigger'}]) }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+{{ empty_state("bed-double", "No rooms yet", "Add your first room to start managing availability.", "Add Room", "#addRoomModal") }}
 {% endif %}
 
-<script>
-document.getElementById('roomViewToggle')?.addEventListener('click', (e) => {
-  const btn = e.target.closest('button[data-view]');
-  if (!btn) return;
-  document.querySelectorAll('#roomViewToggle button').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  const cards = btn.dataset.view === 'cards';
-  document.getElementById('roomTableView').style.display = cards ? 'none' : 'block';
-  document.getElementById('roomCardView').style.display = cards ? 'grid' : 'none';
-});
-</script>
-
-<!-- Add Room Modal -->
+<!-- Add / Edit modals unchanged -->
 <div class="modal" id="addRoomModal">
     <div class="modal-overlay"></div>
     <div class="modal-content">
@@ -130,13 +144,11 @@ document.getElementById('roomViewToggle')?.addEventListener('click', (e) => {
                 <input name="floor" type="number" placeholder="Floor" value="1" min="1">
                 <input name="price" type="number" placeholder="Price/Night" required min="0">
                 <input name="capacity" type="number" placeholder="Capacity" value="2" min="1">
-                <select name="status">
-                    {% for s in room_statuses %}<option>{{ s }}</option>{% endfor %}
-                </select>
+                <select name="status">{% for s in room_statuses %}<option>{{ s }}</option>{% endfor %}</select>
                 <input name="amenities" placeholder="Amenities (comma separated)">
                 <input name="image_url" placeholder="Image URL (optional)">
             </div>
-            <button type="submit" class="btn btn-primary">Add Room</button>
+            <button type="submit" class="btn btn-primary" style="margin-top:16px">Add Room</button>
         </form>
     </div>
 </div>
@@ -158,15 +170,11 @@ document.getElementById('roomViewToggle')?.addEventListener('click', (e) => {
                 <input name="floor" type="number" value="{{ r.floor or 1 }}">
                 <input name="price" type="number" value="{{ r.price }}" required>
                 <input name="capacity" type="number" value="{{ r.capacity or 2 }}">
-                <select name="status">
-                    {% for s in room_statuses %}
-                    <option {% if r.status == s %}selected{% endif %}>{{ s }}</option>
-                    {% endfor %}
-                </select>
+                <select name="status">{% for s in room_statuses %}<option {% if r.status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select>
                 <input name="amenities" value="{{ r.amenities or '' }}">
                 <input name="image_url" value="{{ r.image_url or '' }}">
             </div>
-            <button type="submit" class="btn btn-primary">Save Changes</button>
+            <button type="submit" class="btn btn-primary" style="margin-top:16px">Save Changes</button>
         </form>
     </div>
 </div>

@@ -132,6 +132,33 @@
 </div>
 {% endmacro %}
 
+{% macro view_toggle(page_key) %}
+<div class="view-toggle" data-view-toggle="{{ page_key }}">
+  <button type="button" data-view="cards" title="Card view">{{ icon('layout-grid', 16) }}</button>
+  <button type="button" data-view="grid" title="Grid view">{{ icon('grid-3x3', 16) }}</button>
+  <button type="button" data-view="table" title="Table view">{{ icon('table', 16) }}</button>
+</div>
+{% endmacro %}
+
+{% macro card_menu(items) %}
+<div class="actions-dropdown" onclick="event.stopPropagation()">
+  <button type="button" class="btn-icon-round actions-toggle" aria-label="Actions">{{ icon('more-vertical', 16) }}</button>
+  <div class="actions-menu">
+    {% for item in items %}
+      {% if item.type == 'link' %}
+      <a href="{{ item.url }}" class="actions-item">{% if item.icon %}{{ icon(item.icon, 14) }}{% endif %}{{ item.label }}</a>
+      {% elif item.type == 'button' %}
+      <button type="button" class="actions-item {% if item.target %}modal-trigger{% endif %} {{ item.class or '' }}" {% if item.target %}data-target="{{ item.target }}"{% endif %} {% if item.drawer %}data-drawer="{{ item.drawer }}"{% endif %}>{% if item.icon %}{{ icon(item.icon, 14) }}{% endif %}{{ item.label }}</button>
+      {% elif item.type == 'form' %}
+      <form method="post" action="{{ item.url }}" {% if item.confirm %}data-confirm="{{ item.confirm }}"{% endif %}>
+        <button type="submit" class="actions-item {% if item.danger %}danger{% endif %}">{% if item.icon %}{{ icon(item.icon, 14) }}{% endif %}{{ item.label }}</button>
+      </form>
+      {% endif %}
+    {% endfor %}
+  </div>
+</div>
+{% endmacro %}
+
 {% macro float_field(name, label, type='text', required=false, value='', field_id='') %}
 {% set fid = field_id or ('field_' ~ name) %}
 <div class="float-field">

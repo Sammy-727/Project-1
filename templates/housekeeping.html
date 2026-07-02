@@ -1,43 +1,53 @@
 {% extends "base.html" %}
+{% from "macros/ui.html" import breadcrumb, page_header, empty_state, status_badge, card_menu, icon %}
 {% set title = "Housekeeping" %}
 {% block content %}
 
-<div class="page-actions">
-    <form class="filter-bar" method="get">
-        <select name="status" onchange="this.form.submit()">
-            <option value="">All Status</option>
-            {% for s in hk_statuses %}
-            <option value="{{ s }}" {% if filter_status == s %}selected{% endif %}>{{ s }}</option>
-            {% endfor %}
-        </select>
-    </form>
-    <button class="btn btn-primary modal-trigger" data-target="#addHKModal">+ New Task</button>
+{{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Operations"}, {"label": "Housekeeping"}]) }}
+<div class="page-header">
+  <div class="page-header-text">
+    <h1 class="page-title">Housekeeping</h1>
+    <p class="page-description">Kanban board for room cleaning tasks</p>
+  </div>
+  <button class="btn btn-primary modal-trigger" data-target="#addHKModal">{{ icon('plus', 16) }} New Task</button>
 </div>
 
-<div class="panel">
-    {% if tasks %}
-    <table class="data-table">
-        <thead><tr><th>Room</th><th>Assigned To</th><th>Priority</th><th>Status</th><th>Notes</th><th>Created</th><th>Actions</th></tr></thead>
-        <tbody>
-        {% for t in tasks %}
-        <tr>
-            <td><strong>{{ t.room_no }}</strong> <small>{{ t.room_type }}</small></td>
-            <td>{{ t.staff_name or 'Unassigned' }}</td>
-            <td><span class="badge badge-{{ t.priority }}">{{ t.priority }}</span></td>
-            <td><span class="badge badge-{{ t.status }}">{{ t.status }}</span></td>
-            <td>{{ t.notes or '—' }}</td>
-            <td>{{ t.created_at }}</td>
-            <td>
-                <button class="btn btn-secondary btn-sm modal-trigger" data-target="#editHK{{ t.id }}">Update</button>
-            </td>
-        </tr>
-        {% endfor %}
-        </tbody>
-    </table>
-    {% else %}
-    <div class="empty-state"><div class="empty-icon">🧹</div><p>No housekeeping tasks.</p></div>
-    {% endif %}
+{% if tasks %}
+<div class="kanban-board" data-kanban>
+  {% for col_status in hk_statuses %}
+  <div class="kanban-column">
+    <div class="kanban-column-head">
+      <span>{{ col_status }}</span>
+      <span>{{ tasks|selectattr('status', 'equalto', col_status)|list|length }}</span>
+    </div>
+    <div class="kanban-column-body" data-status="{{ col_status }}">
+      {% for t in tasks if t.status == col_status %}
+      <div class="kanban-card priority-{{ t.priority }}" data-status="{{ t.status }}" data-searchable
+           data-search="room {{ t.room_no }} {{ t.staff_name }}">
+        <strong>Room {{ t.room_no }}</strong>
+        <div class="muted">{{ t.room_type }}</div>
+        <div style="margin:8px 0;display:flex;gap:6px;flex-wrap:wrap">
+          <span class="badge badge-{{ t.priority }}">{{ t.priority }}</span>
+          {{ status_badge(t.status) }}
+        </div>
+        <div class="entity-stat" style="margin-top:6px">Staff<strong>{{ t.staff_name or 'Unassigned' }}</strong></div>
+        <div class="muted">Post checkout cleaning · {{ t.created_at }}</div>
+        <form class="kanban-update-form" method="post" action="{{ url_for('update_housekeeping', task_id=t.id) }}" style="display:none">
+          <input type="hidden" name="status" value="{{ t.status }}">
+          <input type="hidden" name="assigned_to" value="{{ t.assigned_to or '' }}">
+          <input type="hidden" name="priority" value="{{ t.priority }}">
+          <input type="hidden" name="notes" value="{{ t.notes or '' }}">
+        </form>
+        <button type="button" class="btn btn-ghost btn-sm modal-trigger" data-target="#editHK{{ t.id }}" style="margin-top:8px">Update</button>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
 </div>
+{% else %}
+{{ empty_state("sparkles", "No housekeeping tasks", "Create a task when a room needs cleaning.", "New Task", "#addHKModal") }}
+{% endif %}
 
 <div class="modal" id="addHKModal">
     <div class="modal-overlay"></div>
@@ -56,9 +66,7 @@
                     <option value="">Assign Staff</option>
                     {% for s in hk_staff %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
                 </select>
-                <select name="priority">
-                    {% for p in hk_priorities %}<option>{{ p }}</option>{% endfor %}
-                </select>
+                <select name="priority">{% for p in hk_priorities %}<option>{{ p }}</option>{% endfor %}</select>
                 <input name="notes" placeholder="Notes">
             </div>
             <button type="submit" class="btn btn-primary" style="margin-top:16px">Create Task</button>
@@ -80,16 +88,8 @@
                     <option value="{{ s.id }}" {% if t.assigned_to == s.id %}selected{% endif %}>{{ s.name }}</option>
                     {% endfor %}
                 </select>
-                <select name="status">
-                    {% for s in hk_statuses %}
-                    <option {% if t.status == s %}selected{% endif %}>{{ s }}</option>
-                    {% endfor %}
-                </select>
-                <select name="priority">
-                    {% for p in hk_priorities %}
-                    <option {% if t.priority == p %}selected{% endif %}>{{ p }}</option>
-                    {% endfor %}
-                </select>
+                <select name="status">{% for s in hk_statuses %}<option {% if t.status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select>
+                <select name="priority">{% for p in hk_priorities %}<option {% if t.priority == p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select>
                 <input name="notes" value="{{ t.notes or '' }}">
             </div>
             <button type="submit" class="btn btn-primary" style="margin-top:16px">Update Task</button>

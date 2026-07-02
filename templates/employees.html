@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros/ui.html" import breadcrumb, page_header, status_badge, empty_state %}
+{% from "macros/ui.html" import breadcrumb, page_header, status_badge, empty_state, view_toggle, card_menu, icon %}
 {% set title = "Employees" %}
 {% block content %}
 
@@ -11,34 +11,35 @@
     <p class="page-description">Manage your hotel staff, roles, and lifecycle</p>
   </div>
   <div class="page-header-actions">
-    <button class="btn btn-primary modal-trigger" data-target="#addEmployeeModal" title="Add new employee">+ Add Employee</button>
+    {{ view_toggle('employees') }}
+    <button class="btn btn-primary modal-trigger" data-target="#addEmployeeModal">{{ icon('plus', 16) }} Add Employee</button>
   </div>
 </div>
 
-<div class="page-actions">
-    <form class="filter-bar" method="get" id="filterForm">
-        <input type="search" name="q" placeholder="Search employees..." value="{{ search_q }}">
-        <select name="status" onchange="this.form.submit()">
+<form class="filter-toolbar" method="get" id="filterForm" data-card-filter="#employeeCardGrid">
+        <input type="search" name="q" placeholder="Search employees..." value="{{ search_q }}" data-local-search>
+        <select name="status">
             <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Employees</option>
             <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
             <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
             <option value="archived" {% if status_filter == 'archived' %}selected{% endif %}>Archived Employees</option>
         </select>
-        <select name="department" onchange="this.form.submit()">
+        <select name="department">
             <option value="">All Departments</option>
             {% for d in departments %}
             <option value="{{ d }}" {% if department == d %}selected{% endif %}>{{ d }}</option>
             {% endfor %}
         </select>
-        <select name="role" onchange="this.form.submit()">
+        <select name="role">
             <option value="">All Roles</option>
             {% for r in roles if r != 'Super Admin' %}
             <option value="{{ r }}" {% if role == r %}selected{% endif %}>{{ r }}</option>
             {% endfor %}
         </select>
-        <button type="submit" class="btn btn-outline btn-sm">Filter</button>
+        <div class="filter-toolbar-actions">
+        <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+        </div>
     </form>
-</div>
 
 {% if employees %}
 <div class="bulk-bar">
@@ -54,7 +55,41 @@
 </div>
 {% endif %}
 
-<div class="panel" style="padding:0;overflow:hidden">
+<div class="entity-grid wide" id="employeeCardGrid" data-view-panel="cards" data-page="employees" {% if not employees %}hidden{% endif %}>
+  {% for e in employees %}
+  {% set emp_bucket = 'archived' if e.status == 'Archived' else ('active' if e.status == 'Active' else 'inactive') %}
+  <article class="entity-card data-searchable" data-search="{{ e.name }} {{ e.role }} {{ e.department }}"
+           data-status="{{ emp_bucket }}" data-department="{{ e.department or '' }}" data-role="{{ e.role or '' }}"
+           data-card-drawer="#drawerEmp{{ e.id }}">
+    <div class="entity-card-header gradient">
+      <div class="guest-card-top">
+        <div class="guest-avatar">{{ e.name[0]|upper }}</div>
+        <div>
+          <div class="entity-card-title">{{ e.name }}</div>
+          <div class="entity-card-sub">{{ e.role or e.designation }} · {{ e.department or '—' }}</div>
+        </div>
+      </div>
+      {{ card_menu([
+        {'type': 'button', 'label': 'View', 'icon': 'eye', 'drawer': '#drawerEmp' ~ e.id},
+        {'type': 'button', 'label': 'Edit', 'icon': 'pencil', 'target': '#editEmp' ~ e.id},
+      ] + ([{'type': 'form', 'label': 'Deactivate', 'icon': 'user-x', 'url': url_for('deactivate_employee', emp_id=e.id, **request.args), 'confirm': 'Deactivate ' ~ e.name ~ '?'}] if e.status != 'Inactive' and e.status != 'Archived' else [])
+        + ([{'type': 'form', 'label': 'Archive', 'icon': 'archive', 'url': url_for('archive_employee', emp_id=e.id, **request.args), 'confirm': 'Archive ' ~ e.name ~ '?'}] if e.status != 'Archived' else [])
+        + ([{'type': 'form', 'label': 'Delete', 'icon': 'trash-2', 'url': url_for('delete_employee', emp_id=e.id, **request.args), 'danger': true, 'confirm': 'Permanently delete ' ~ e.name ~ '?'}] if current_user.role == 'Super Admin' else [])) }}
+    </div>
+    <div class="entity-card-body">
+      <div class="entity-card-stats">
+        <div class="entity-stat">Phone<strong>{{ e.phone or '—' }}</strong></div>
+        <div class="entity-stat">Email<strong>{{ e.email or '—' }}</strong></div>
+        <div class="entity-stat">Shift<strong>{{ e.shift or '—' }}</strong></div>
+        <div class="entity-stat">Joined<strong>{{ e.joining_date or '—' }}</strong></div>
+      </div>
+    </div>
+    <div class="entity-card-footer">{{ status_badge(e.status) }}</div>
+  </article>
+  {% endfor %}
+</div>
+
+<div class="saas-table-wrap" data-view-panel="table" data-page="employees" hidden>
     {% if employees %}
     <div class="table-toolbar">
         <div class="table-search-wrap">
@@ -130,7 +165,7 @@
     </table>
     </div>
     {% else %}
-    {{ empty_state("👔", "No employees yet", "Click 'Add Employee' to create your first employee.", "+ Add Employee", "#addEmployeeModal") }}
+    {{ empty_state("briefcase", "No employees yet", "Add your first team member.", "Add Employee", "#addEmployeeModal") }}
     {% endif %}
 </div>
 

@@ -15,6 +15,39 @@
     {{ kpi_card("Pending Payments", stats.pending_payments, "clock", "red") }}
 </div>
 
+<div class="dash-stats-row">
+    <div class="dash-stat-card">
+        <span class="dash-stat-label">{{ icon('bed-double', 16) }} Rooms</span>
+        <strong>{{ stats.total_rooms }}</strong>
+        <div class="dash-stat-pills">
+            <span class="badge badge-Available">{{ stats.available }} available</span>
+            <span class="badge badge-Occupied">{{ stats.occupied }} occupied</span>
+            <span class="badge badge-Maintenance">{{ stats.maintenance }} maintenance</span>
+        </div>
+    </div>
+    <div class="dash-stat-card">
+        <span class="dash-stat-label">{{ icon('calendar-days', 16) }} Bookings</span>
+        <strong>{{ stats.active_bookings }}</strong>
+        <div class="dash-stat-pills">
+            <span class="badge badge-Reserved">Active reservations</span>
+        </div>
+    </div>
+    <div class="dash-stat-card">
+        <span class="dash-stat-label">{{ icon('users', 16) }} Staff</span>
+        <strong>{{ stats.employees }}</strong>
+        <div class="dash-stat-pills">
+            <span class="badge badge-Available">Active employees</span>
+        </div>
+    </div>
+    <div class="dash-stat-card">
+        <span class="dash-stat-label">{{ icon('sparkles', 16) }} Housekeeping</span>
+        <strong>{{ stats.cleaning }}</strong>
+        <div class="dash-stat-pills">
+            <span class="badge badge-Cleaning">Rooms cleaning</span>
+        </div>
+    </div>
+</div>
+
 <div class="dashboard-charts">
     <div class="panel saas-panel">
         <div class="panel-head"><h3>Revenue Trend</h3><span>Last 6 months</span></div>
@@ -49,22 +82,17 @@
             <a href="{{ url_for('bookings') }}" class="btn btn-ghost btn-sm">View all {{ icon('arrow-right', 14) }}</a>
         </div>
         {% if recent_bookings %}
-        <div class="saas-table-wrap">
-            <div class="table-wrap">
-                <table class="data-table" data-paginate>
-                    <thead><tr><th class="sortable">Booking</th><th class="sortable">Guest</th><th>Room</th><th>Status</th></tr></thead>
-                    <tbody>
-                    {% for b in recent_bookings %}
-                    <tr>
-                        <td data-label="Booking">#{{ b.id }}</td>
-                        <td data-label="Guest"><strong>{{ b.name }}</strong></td>
-                        <td data-label="Room">{{ b.room_no }}</td>
-                        <td data-label="Status">{{ status_badge(b.status) }}</td>
-                    </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+        <div class="dash-card-list">
+            {% for b in recent_bookings %}
+            <a href="{{ url_for('bookings') }}" class="dash-mini-card">
+                <div class="dash-mini-card-icon">{{ icon('calendar-days', 18) }}</div>
+                <div class="dash-mini-card-body">
+                    <strong>#{{ b.id }} · {{ b.name }}</strong>
+                    <span class="muted">Room {{ b.room_no }} · {{ b.checkin }} → {{ b.checkout }}</span>
+                </div>
+                {{ status_badge(b.status) }}
+            </a>
+            {% endfor %}
         </div>
         {% else %}
         {{ empty_state("calendar-days", "No bookings yet", "Create your first booking to get started.", "New Booking", "", "dashNewBooking") }}
@@ -77,21 +105,17 @@
             <a href="{{ url_for('payments') }}" class="btn btn-ghost btn-sm">View all {{ icon('arrow-right', 14) }}</a>
         </div>
         {% if recent_payments %}
-        <div class="saas-table-wrap">
-            <div class="table-wrap">
-                <table class="data-table">
-                    <thead><tr><th>Receipt</th><th>Guest</th><th>Amount</th></tr></thead>
-                    <tbody>
-                    {% for p in recent_payments %}
-                    <tr>
-                        <td data-label="Receipt">{{ p.receipt_number }}</td>
-                        <td data-label="Guest">{{ p.name }}</td>
-                        <td data-label="Amount"><strong>₹{{ "{:,.0f}".format(p.amount) }}</strong></td>
-                    </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+        <div class="dash-card-list">
+            {% for p in recent_payments %}
+            <a href="{{ url_for('payments') }}" class="dash-mini-card">
+                <div class="dash-mini-card-icon payment">{{ icon('credit-card', 18) }}</div>
+                <div class="dash-mini-card-body">
+                    <strong>{{ p.receipt_number }}</strong>
+                    <span class="muted">{{ p.name }} · Room {{ p.room_no }}</span>
+                </div>
+                <span class="booking-card-amount" style="font-size:15px">₹{{ "{:,.0f}".format(p.amount) }}</span>
+            </a>
+            {% endfor %}
         </div>
         {% else %}
         {{ empty_state("credit-card", "No payments yet", "Payment activity will appear here.") }}
@@ -103,18 +127,17 @@
     <div class="panel saas-panel">
         <div class="panel-head"><h3>Upcoming Check-ins</h3></div>
         {% if upcoming_checkins %}
-        <div class="table-wrap">
-            <table class="data-table compact-table">
-                <thead><tr><th>Guest</th><th>Room</th><th>Date</th><th>Status</th></tr></thead>
-                <tbody>
-                {% for b in upcoming_checkins %}
-                <tr>
-                    <td>{{ b.name }}</td><td>{{ b.room_no }}</td><td>{{ b.checkin }}</td>
-                    <td>{{ status_badge(b.status) }}</td>
-                </tr>
-                {% endfor %}
-                </tbody>
-            </table>
+        <div class="dash-card-list">
+            {% for b in upcoming_checkins %}
+            <div class="dash-mini-card static">
+                <div class="dash-mini-card-icon checkin">{{ icon('log-in', 18) }}</div>
+                <div class="dash-mini-card-body">
+                    <strong>{{ b.name }}</strong>
+                    <span class="muted">Room {{ b.room_no }} · {{ b.checkin }}</span>
+                </div>
+                {{ status_badge(b.status) }}
+            </div>
+            {% endfor %}
         </div>
         {% else %}
         {{ empty_state("log-in", "No upcoming check-ins", "Arrivals will appear here.") }}
@@ -122,20 +145,81 @@
     </div>
 
     <div class="panel saas-panel">
+        <div class="panel-head"><h3>Upcoming Check-outs</h3></div>
+        {% if upcoming_checkouts %}
+        <div class="dash-card-list">
+            {% for b in upcoming_checkouts %}
+            <div class="dash-mini-card static">
+                <div class="dash-mini-card-icon checkout">{{ icon('log-out', 18) }}</div>
+                <div class="dash-mini-card-body">
+                    <strong>{{ b.name }}</strong>
+                    <span class="muted">Room {{ b.room_no }} · {{ b.checkout }}</span>
+                </div>
+                {{ status_badge(b.status) }}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        {{ empty_state("log-out", "No upcoming check-outs", "Departures will appear here.") }}
+        {% endif %}
+    </div>
+</div>
+
+<div class="grid-2">
+    <div class="panel saas-panel">
+        <div class="panel-head"><h3>Recent Activity</h3></div>
+        <div class="dash-timeline">
+            {% for p in recent_payments[:4] %}
+            <div class="dash-timeline-item">
+                <div class="dash-timeline-dot payment"></div>
+                <div>
+                    <strong>Payment received</strong>
+                    <span class="muted">{{ p.name }} · ₹{{ "{:,.0f}".format(p.amount) }} · {{ p.payment_date }}</span>
+                </div>
+            </div>
+            {% endfor %}
+            {% for b in recent_bookings[:4] %}
+            <div class="dash-timeline-item">
+                <div class="dash-timeline-dot booking"></div>
+                <div>
+                    <strong>Booking #{{ b.id }}</strong>
+                    <span class="muted">{{ b.name }} · Room {{ b.room_no }} · {{ status_badge(b.status) }}</span>
+                </div>
+            </div>
+            {% endfor %}
+            {% if not recent_payments and not recent_bookings %}
+            {{ empty_state("activity", "No activity yet", "Operations will appear here as they happen.") }}
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="panel saas-panel">
         <div class="panel-head"><h3>Housekeeping & Maintenance</h3></div>
         {% if maintenance_rooms or low_stock %}
-        <div class="table-wrap">
-            <table class="data-table compact-table">
-                <thead><tr><th>Type</th><th>Item</th><th>Status</th></tr></thead>
-                <tbody>
-                {% for r in maintenance_rooms %}
-                <tr><td>Room</td><td>{{ r.room_no }} — {{ r.room_type }}</td><td>{{ status_badge(r.status) }}</td></tr>
-                {% endfor %}
-                {% for i in low_stock[:4] %}
-                <tr><td>Inventory</td><td>{{ i.item_name }}</td><td><span class="badge badge-warning">Low: {{ i.quantity }}</span></td></tr>
-                {% endfor %}
-                </tbody>
-            </table>
+        <div class="entity-grid compact" style="padding:12px">
+            {% for r in maintenance_rooms %}
+            <article class="entity-card status-{{ r.status|css_class }}">
+                <div class="entity-card-header" style="padding-bottom:8px">
+                    <div>
+                        <div class="entity-card-sub">Room</div>
+                        <div class="entity-card-title" style="font-size:16px">{{ r.room_no }}</div>
+                        <div class="entity-card-sub">{{ r.room_type }}</div>
+                    </div>
+                    {{ status_badge(r.status) }}
+                </div>
+            </article>
+            {% endfor %}
+            {% for i in low_stock[:4] %}
+            <article class="entity-card low-stock">
+                <div class="entity-card-header" style="padding-bottom:8px">
+                    <div>
+                        <div class="entity-card-sub">Inventory</div>
+                        <div class="entity-card-title" style="font-size:16px">{{ i.item_name }}</div>
+                    </div>
+                    <span class="badge badge-danger">Low: {{ i.quantity }}</span>
+                </div>
+            </article>
+            {% endfor %}
         </div>
         {% else %}
         {{ empty_state("sparkles", "All clear", "No housekeeping or maintenance alerts.") }}
