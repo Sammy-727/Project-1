@@ -1,0 +1,14 @@
+{% extends "public_base.html" %}
+{% block title %}Booking Confirmed{% endblock %}
+{% block content %}
+<div class="public-booking-wrap" id="confirmationApp" data-booking-number="{{ booking_number }}">
+    <div class="confirmation-card" id="confirmationCard">
+        <div class="confirmation-icon">✓</div>
+        <h1>Loading confirmation...</h1>
+    </div>
+    <a href="/book" class="btn btn-primary">Book Another Stay</a>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/public-booking.js') }}"></script>
+{% endblock %}

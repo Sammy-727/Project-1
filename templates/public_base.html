@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="utf-8">
+    <title>{% block title %}Book Your Stay{% endblock %} — GrandStay</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Book your hotel stay online with GrandStay">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/cards.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/public-booking.css') }}" rel="stylesheet">
+</head>
+<body class="auth-body public-booking-body">
+    <header class="public-header">
+        <a href="/book" class="public-brand">
+            <span class="brand-icon">G</span>
+            <span>GrandStay <small>Online Booking</small></span>
+        </a>
+        <a href="{{ url_for('login') }}" class="btn btn-ghost btn-sm">Staff Login</a>
+    </header>
+    <main class="public-main">
+        {% block content %}{% endblock %}
+    </main>
+    <footer class="public-footer">
+        <p>Secure online reservations · Payments powered by Razorpay/Stripe ready gateway</p>
+    </footer>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.7.9/dist/axios.min.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
