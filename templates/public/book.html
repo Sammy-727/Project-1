@@ -1,0 +1,99 @@
+{% extends "public_base.html" %}
+{% block title %}Book Online{% endblock %}
+{% block content %}
+<div class="public-booking-wrap" id="publicBookingApp">
+    <div class="public-hero">
+        <h1>Book Your Perfect Stay</h1>
+        <p>Select your hotel, choose dates, pick a room, and confirm in minutes.</p>
+    </div>
+
+    <div class="booking-steps" id="bookingSteps">
+        <span class="booking-step active" data-step="1">1. Hotel & Dates</span>
+        <span class="booking-step" data-step="2">2. Choose Room</span>
+        <span class="booking-step" data-step="3">3. Guest Details</span>
+        <span class="booking-step" data-step="4">4. Pay & Confirm</span>
+    </div>
+
+    <section class="panel saas-panel booking-panel" id="step1Panel">
+        <h2>Where are you staying?</h2>
+        <div class="form-grid public-form-grid">
+            <label>Hotel
+                <select id="hotelSelect" required>
+                    <option value="">Loading hotels...</option>
+                </select>
+            </label>
+            <label>Check-in
+                <input type="date" id="checkInDate" required>
+            </label>
+            <label>Check-out
+                <input type="date" id="checkOutDate" required>
+            </label>
+            <label>Guests
+                <input type="number" id="numGuests" min="1" max="8" value="2">
+            </label>
+        </div>
+        <button type="button" class="btn btn-primary" id="searchRoomsBtn">Search Available Rooms</button>
+    </section>
+
+    <section class="panel saas-panel booking-panel" id="step2Panel" hidden>
+        <div class="panel-head">
+            <h2>Available Rooms</h2>
+            <button type="button" class="btn btn-ghost btn-sm" id="backToStep1">Change dates</button>
+        </div>
+        <div id="roomsLoading" class="entity-grid wide" hidden>
+            <div class="entity-card skeleton-card"><div class="skeleton" style="height:120px"></div></div>
+            <div class="entity-card skeleton-card"><div class="skeleton" style="height:120px"></div></div>
+        </div>
+        <div id="roomsEmpty" class="platform-empty-state" hidden>
+            <p class="muted">No rooms available for the selected dates. Try different dates.</p>
+        </div>
+        <div class="entity-grid wide" id="roomsGrid"></div>
+    </section>
+
+    <section class="panel saas-panel booking-panel" id="step3Panel" hidden>
+        <h2>Guest Details</h2>
+        <div class="form-grid public-form-grid">
+            <label>Full Name<input id="guestName" required placeholder="Guest full name"></label>
+            <label>Phone<input id="guestPhone" required placeholder="10-digit mobile"></label>
+            <label>Email<input id="guestEmail" type="email" placeholder="email@example.com"></label>
+            <label>Gender
+                <select id="guestGender">
+                    <option value="">Select</option>
+                    <option>Male</option>
+                    <option>Female</option>
+                    <option>Other</option>
+                </select>
+            </label>
+            <label class="full">Special Request<textarea id="specialRequest" rows="2" placeholder="Early check-in, extra bed, etc."></textarea></label>
+        </div>
+        <div class="booking-summary-mini" id="selectedRoomSummary"></div>
+        <button type="button" class="btn btn-primary" id="continueToPayBtn">Continue to Payment</button>
+    </section>
+
+    <section class="panel saas-panel booking-panel" id="step4Panel" hidden>
+        <h2>Review & Pay</h2>
+        <div class="booking-review-card" id="bookingReview"></div>
+        <div class="form-grid public-form-grid">
+            <label>Payment Type
+                <select id="paymentType">
+                    <option value="ADVANCE">Pay 30% Advance</option>
+                    <option value="FULL">Pay Full Amount</option>
+                </select>
+            </label>
+            <label>Payment Mode
+                <select id="paymentMode">
+                    <option value="UPI">UPI</option>
+                    <option value="CARD">Card</option>
+                    <option value="NET_BANKING">Net Banking</option>
+                    <option value="WALLET">Wallet</option>
+                </select>
+            </label>
+        </div>
+        <p class="muted payment-note">Mock payment gateway — payment will succeed instantly for demo.</p>
+        <button type="button" class="btn btn-primary" id="payNowBtn">Pay & Confirm Booking</button>
+    </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/public-booking.js') }}"></script>
+{% endblock %}

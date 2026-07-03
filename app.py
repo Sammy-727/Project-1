@@ -14,6 +14,7 @@ from list_filters import (
     room_service_query, paginate_rows,
 )
 from seed_data import seed_multi_hotel_demo, seed_hotel_demo_notifications
+from public_booking import register_public_booking_routes
 from tenant import (
     ROLES,
     ROLE_LABELS,
@@ -56,9 +57,9 @@ USER_STATUSES = EMPLOYEE_STATUSES
 LOGIN_ALLOWED_STATUSES = {"Active"}
 ACTIVE_EMPLOYEE_STATUSES = ("Active",)
 ROOM_STATUSES = ["Available", "Occupied", "Maintenance", "Cleaning", "Reserved"]
-BOOKING_STATUSES = ["Reserved", "Checked-in", "Checked-out", "Cancelled"]
+BOOKING_STATUSES = ["Pending", "Confirmed", "Reserved", "Checked-in", "Checked-out", "Cancelled"]
 PAYMENT_STATUSES = ["Pending", "Partial", "Paid"]
-PAYMENT_MODES = ["Cash", "UPI", "Card", "Bank Transfer"]
+PAYMENT_MODES = ["Cash", "UPI", "Card", "Bank Transfer", "Net Banking", "Wallet"]
 DEPARTMENTS = ["Front Desk", "Housekeeping", "Management", "Kitchen", "Maintenance"]
 HK_STATUSES = ["Pending", "In Progress", "Completed"]
 HK_PRIORITIES = ["Low", "Medium", "High"]
@@ -75,7 +76,10 @@ NOTIFICATION_CATEGORIES = (
     "UPCOMING_CHECKOUTS",
     "MAINTENANCE",
     "HOUSEKEEPING",
+    "ONLINE_BOOKING",
 )
+BLOCKING_BOOKING_STATUSES = ("Reserved", "Checked-in", "Confirmed", "Pending")
+PUBLIC_PAGE_ENDPOINTS = frozenset({"login", "static", "public_book_page", "public_booking_confirmation"})
 DEFAULT_HOTEL_ID = DEFAULT_HOTEL_ID
 
 
@@ -129,12 +133,12 @@ def receipt_number():
 
 
 def room_has_overlap(room_id, checkin, checkout, exclude_booking_id=None):
-    sql = """
+    sql = f"""
         SELECT COUNT(*) c FROM bookings
-        WHERE room_id=? AND status IN ('Reserved','Checked-in')
+        WHERE room_id=? AND status IN ({",".join("?" * len(BLOCKING_BOOKING_STATUSES))})
         AND checkin < ? AND checkout > ?
     """
-    params = [room_id, checkout, checkin]
+    params = [room_id, *BLOCKING_BOOKING_STATUSES, checkout, checkin]
     if exclude_booking_id:
         sql += " AND id != ?"
         params.append(exclude_booking_id)
@@ -517,7 +521,7 @@ def seed_demo_notifications(hotel_id=DEFAULT_HOTEL_ID):
 
 def sync_room_status_from_bookings(room_id):
     active = query(
-        "SELECT status FROM bookings WHERE room_id=? AND status IN ('Reserved','Checked-in') ORDER BY id DESC LIMIT 1",
+        "SELECT status FROM bookings WHERE room_id=? AND status IN ('Reserved','Checked-in','Confirmed') ORDER BY id DESC LIMIT 1",
         (room_id,), one=True
     )
     maint = query("SELECT status FROM rooms WHERE id=?", (room_id,), one=True)
@@ -741,6 +745,24 @@ def init_db():
         created_at TEXT NOT NULL
     )""")
 
+    c.execute("""CREATE TABLE IF NOT EXISTS online_payment_intents(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        booking_id INTEGER,
+        hotel_id INTEGER,
+        amount REAL,
+        currency TEXT DEFAULT 'INR',
+        payment_mode TEXT,
+        gateway TEXT,
+        gateway_order_id TEXT,
+        gateway_payment_id TEXT,
+        status TEXT DEFAULT 'created',
+        metadata TEXT,
+        created_at TEXT,
+        updated_at TEXT,
+        FOREIGN KEY(booking_id) REFERENCES bookings(id),
+        FOREIGN KEY(hotel_id) REFERENCES hotels(id)
+    )""")
+
     conn.commit()
     conn.close()
     migrate_db()
@@ -787,6 +809,29 @@ def migrate_db():
     add_column_if_missing("bookings", "children", "INTEGER")
     add_column_if_missing("bookings", "booking_source", "TEXT")
     add_column_if_missing("bookings", "special_request", "TEXT")
+    add_column_if_missing("bookings", "booking_number", "TEXT")
+    add_column_if_missing("bookings", "created_at", "TEXT")
+
+    conn = get_db()
+    conn.execute("""CREATE TABLE IF NOT EXISTS online_payment_intents(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        booking_id INTEGER,
+        hotel_id INTEGER,
+        amount REAL,
+        currency TEXT DEFAULT 'INR',
+        payment_mode TEXT,
+        gateway TEXT,
+        gateway_order_id TEXT,
+        gateway_payment_id TEXT,
+        status TEXT DEFAULT 'created',
+        metadata TEXT,
+        created_at TEXT,
+        updated_at TEXT,
+        FOREIGN KEY(booking_id) REFERENCES bookings(id),
+        FOREIGN KEY(hotel_id) REFERENCES hotels(id)
+    )""")
+    conn.commit()
+    conn.close()
 
     for table in HOTEL_SCOPED_TABLES:
         add_column_if_missing(table, "hotel_id", "INTEGER")
@@ -916,6 +961,12 @@ def tenant_security():
 
 @app.before_request
 def require_login():
+    if request.endpoint in PUBLIC_PAGE_ENDPOINTS:
+        return
+    if request.path.startswith("/api/public/"):
+        return
+    if request.path.startswith("/book"):
+        return
     if request.endpoint in ["login", "static", None]:
         return
     if not is_logged_in():
@@ -2562,6 +2613,33 @@ def api_notifications_delete(notification_id):
         return api_error("Notification not found.", 404)
     query("DELETE FROM notifications WHERE id=? AND hotel_id=?", (notification_id, hotel_id), commit=True)
     return api_ok()
+
+
+# ─── Public Online Booking ───────────────────────────────────────────────────
+
+@app.route("/book")
+@app.route("/book/")
+def public_book_page():
+    return render_template("public/book.html")
+
+
+@app.route("/book/confirmation/<booking_number>")
+def public_booking_confirmation(booking_number):
+    return render_template("public/confirmation.html", booking_number=booking_number)
+
+
+register_public_booking_routes(
+    app,
+    query,
+    {
+        "calc_room_charges": calc_room_charges,
+        "nights_between": nights_between,
+        "receipt_number": receipt_number,
+        "update_booking_payment_status": update_booking_payment_status,
+        "booking_paid_amount": booking_paid_amount,
+        "unavailable_room_statuses": UNAVAILABLE_ROOM_STATUSES,
+    },
+)
 
 
 # Legacy redirects
