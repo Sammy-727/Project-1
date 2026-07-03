@@ -1,5 +1,5 @@
 """Multi-tenant SaaS: roles, hotel context, permissions, audit logging."""
-from datetime import datetime
+from datetime import date, datetime
 from functools import wraps
 
 from flask import session, request, redirect, url_for, flash, jsonify
@@ -158,29 +158,118 @@ def hotel_to_dict(row):
 
 
 def get_hotel_stats(query_fn, hotel_id):
-    rooms = query_fn("SELECT COUNT(*) c FROM rooms WHERE hotel_id=?", (hotel_id,), one=True)["c"]
-    occupied = query_fn(
-        "SELECT COUNT(*) c FROM rooms WHERE hotel_id=? AND status='Occupied'",
-        (hotel_id,),
-        one=True,
-    )["c"]
-    employees = query_fn(
-        "SELECT COUNT(*) c FROM employees WHERE hotel_id=? AND status='Active'",
-        (hotel_id,),
-        one=True,
-    )["c"]
-    revenue = query_fn(
-        """SELECT COALESCE(SUM(p.amount),0) t FROM payments p
-           JOIN bookings b ON p.booking_id=b.id WHERE b.hotel_id=?""",
-        (hotel_id,),
-        one=True,
-    )["t"]
-    occupancy = round((occupied / rooms * 100) if rooms else 0, 1)
+    overview = get_hotel_overview_stats(query_fn, hotel_id)
     return {
-        "rooms": rooms,
-        "employees": employees,
-        "revenue": float(revenue or 0),
-        "occupancy": occupancy,
+        "rooms": overview["totalRooms"],
+        "employees": overview["totalStaff"],
+        "revenue": overview["totalRevenue"],
+        "occupancy": overview["occupancyRate"],
+    }
+
+
+def get_hotel_overview_stats(query_fn, hotel_id, hotel_row=None):
+    """Per-hotel metrics scoped strictly by hotel_id."""
+    if hotel_row is None:
+        hotel_row = query_fn("SELECT * FROM hotels WHERE id=?", (hotel_id,), one=True)
+    if not hotel_row:
+        return None
+
+    hotel = dict(hotel_row)
+    today = date.today().isoformat()
+    hid = int(hotel_id)
+
+    total_rooms = query_fn("SELECT COUNT(*) c FROM rooms WHERE hotel_id=?", (hid,), one=True)["c"]
+    occupied_rooms = query_fn(
+        "SELECT COUNT(*) c FROM rooms WHERE hotel_id=? AND status='Occupied'",
+        (hid,),
+        one=True,
+    )["c"]
+    available_rooms = query_fn(
+        "SELECT COUNT(*) c FROM rooms WHERE hotel_id=? AND status='Available'",
+        (hid,),
+        one=True,
+    )["c"]
+    total_staff = query_fn(
+        "SELECT COUNT(*) c FROM employees WHERE hotel_id=? AND status='Active'",
+        (hid,),
+        one=True,
+    )["c"]
+
+    total_revenue = float(
+        query_fn(
+            """SELECT COALESCE(SUM(p.amount),0) t FROM payments p
+               JOIN bookings b ON p.booking_id=b.id WHERE b.hotel_id=?""",
+            (hid,),
+            one=True,
+        )["t"]
+        or 0
+    )
+
+    pending_payments = float(
+        query_fn(
+            """SELECT COALESCE(SUM(b.total_amount - COALESCE(paid.paid, 0)), 0) t
+               FROM bookings b
+               LEFT JOIN (
+                 SELECT booking_id, SUM(amount) paid FROM payments GROUP BY booking_id
+               ) paid ON paid.booking_id=b.id
+               WHERE b.hotel_id=? AND b.payment_status IN ('Pending','Partial')""",
+            (hid,),
+            one=True,
+        )["t"]
+        or 0
+    )
+
+    today_checkins = query_fn(
+        "SELECT COUNT(*) c FROM bookings WHERE hotel_id=? AND checkin=?",
+        (hid, today),
+        one=True,
+    )["c"]
+    today_checkouts = query_fn(
+        "SELECT COUNT(*) c FROM bookings WHERE hotel_id=? AND checkout=?",
+        (hid, today),
+        one=True,
+    )["c"]
+
+    occupancy_rate = round((occupied_rooms / total_rooms * 100) if total_rooms else 0, 1)
+
+    return {
+        "hotelId": hid,
+        "hotelName": hotel["hotel_name"],
+        "hotelCode": hotel["hotel_code"],
+        "city": hotel.get("city") or "",
+        "state": hotel.get("state") or "",
+        "ownerName": hotel.get("owner_name") or "",
+        "subscriptionPlan": hotel.get("subscription_plan") or "",
+        "status": hotel.get("subscription_status") or "Active",
+        "totalRooms": total_rooms,
+        "totalStaff": total_staff,
+        "occupiedRooms": occupied_rooms,
+        "availableRooms": available_rooms,
+        "occupancyRate": occupancy_rate,
+        "totalRevenue": total_revenue,
+        "pendingPayments": pending_payments,
+        "todayCheckIns": today_checkins,
+        "todayCheckOuts": today_checkouts,
+    }
+
+
+def get_platform_overview(query_fn):
+    """Platform-level totals and per-hotel overview cards."""
+    hotels = query_fn("SELECT * FROM hotels ORDER BY hotel_name")
+    hotel_overviews = []
+    for hotel in hotels:
+        overview = get_hotel_overview_stats(query_fn, hotel["id"], hotel_row=hotel)
+        if overview:
+            hotel_overviews.append(overview)
+
+    return {
+        "totals": {
+            "totalHotels": len(hotels),
+            "activeHotels": sum(1 for h in hotels if h["subscription_status"] == "Active"),
+            "totalRooms": sum(h["totalRooms"] for h in hotel_overviews),
+            "platformRevenue": sum(h["totalRevenue"] for h in hotel_overviews),
+        },
+        "hotels": hotel_overviews,
     }
 
 

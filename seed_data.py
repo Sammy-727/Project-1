@@ -17,6 +17,10 @@ HOTEL_DEFINITIONS = [
         "plan": "Professional",
         "room_prefix": "1",
         "price_factor": 1.0,
+        "target_rooms": 18,
+        "target_staff": 11,
+        "target_revenue": 45000,
+        "target_occupied": 11,
     },
     {
         "code": "ROYALVISTA",
@@ -32,6 +36,10 @@ HOTEL_DEFINITIONS = [
         "plan": "Enterprise",
         "room_prefix": "2",
         "price_factor": 1.15,
+        "target_rooms": 12,
+        "target_staff": 8,
+        "target_revenue": 30000,
+        "target_occupied": 5,
     },
     {
         "code": "OCEANPEARL",
@@ -47,14 +55,19 @@ HOTEL_DEFINITIONS = [
         "plan": "Starter",
         "room_prefix": "3",
         "price_factor": 1.25,
+        "target_rooms": 25,
+        "target_staff": 16,
+        "target_revenue": 80000,
+        "target_occupied": 17,
     },
 ]
 
 
-def _hotel_seeded(query, hotel_id):
+def _hotel_seeded(query, hotel_id, definition):
     rooms = query("SELECT COUNT(*) c FROM rooms WHERE hotel_id=?", (hotel_id,), one=True)["c"]
     users = query("SELECT COUNT(*) c FROM users WHERE hotel_id=?", (hotel_id,), one=True)["c"]
-    return rooms >= 10 and users >= 5
+    target_rooms = definition.get("target_rooms", 10)
+    return rooms >= target_rooms and users >= 5
 
 
 def ensure_super_admin(query):
@@ -137,25 +150,61 @@ def seed_hotel_users(query, hotel_id, code):
         )
 
 
-def seed_hotel_employees(query, hotel_id, city):
+def seed_hotel_employees(query, hotel_id, city, definition):
+    target_staff = definition.get("target_staff", 9)
     existing = query("SELECT COUNT(*) c FROM employees WHERE hotel_id=?", (hotel_id,), one=True)["c"]
-    if existing >= 8:
+    if existing >= target_staff:
         return [r["id"] for r in query("SELECT id FROM employees WHERE hotel_id=?", (hotel_id,))]
 
-    staff = [
-        ("Rohit Sharma", "Manager", "Management", 52000, "Morning"),
-        ("Anita Verma", "Receptionist", "Front Desk", 28000, "Morning"),
-        ("Neha Kapoor", "Receptionist", "Front Desk", 26500, "Evening"),
-        ("Rahul Meena", "Housekeeping", "Housekeeping", 20500, "Morning"),
-        ("Vikram Das", "Housekeeping", "Housekeeping", 19500, "Evening"),
-        ("Pooja Singh", "Chef", "Kitchen", 35000, "Night"),
-        ("Suresh Kumar", "Maintenance", "Maintenance", 22500, "Day"),
-        ("Kavita Nair", "Accountant", "Management", 38000, "Morning"),
-        ("Aman Joshi", "Bellboy", "Front Desk", 18000, "Rotational"),
-    ]
+    extra_staff_by_code = {
+        "GRANDSTAY": [
+            ("Rohit Sharma", "Manager", "Management", 52000, "Morning"),
+            ("Anita Verma", "Receptionist", "Front Desk", 28000, "Morning"),
+            ("Neha Kapoor", "Receptionist", "Front Desk", 26500, "Evening"),
+            ("Rahul Meena", "Housekeeping", "Housekeeping", 20500, "Morning"),
+            ("Vikram Das", "Housekeeping", "Housekeeping", 19500, "Evening"),
+            ("Pooja Singh", "Chef", "Kitchen", 35000, "Night"),
+            ("Suresh Kumar", "Maintenance", "Maintenance", 22500, "Day"),
+            ("Kavita Nair", "Accountant", "Management", 38000, "Morning"),
+            ("Aman Joshi", "Bellboy", "Front Desk", 18000, "Rotational"),
+            ("Divya Chauhan", "Concierge", "Front Desk", 24000, "Morning"),
+            ("Harsh Singh", "Security", "Operations", 20000, "Night"),
+        ],
+        "ROYALVISTA": [
+            ("Vikram Rathore Jr", "Manager", "Management", 48000, "Morning"),
+            ("Anjali Jain", "Receptionist", "Front Desk", 26000, "Morning"),
+            ("Mohit Agarwal", "Housekeeping", "Housekeeping", 19000, "Morning"),
+            ("Pooja Singh", "Chef", "Kitchen", 32000, "Night"),
+            ("Sanjay Patel", "Maintenance", "Maintenance", 21000, "Day"),
+            ("Meera Iyer", "Accountant", "Management", 36000, "Morning"),
+            ("Arjun Malhotra", "Bellboy", "Front Desk", 17500, "Rotational"),
+            ("Nidhi Sharma", "Housekeeping", "Housekeeping", 18500, "Evening"),
+        ],
+        "OCEANPEARL": [
+            ("Francis Fernandes", "Manager", "Management", 55000, "Morning"),
+            ("Maria D'Souza Jr", "Receptionist", "Front Desk", 30000, "Morning"),
+            ("Sunita Naik", "Receptionist", "Front Desk", 28500, "Evening"),
+            ("Ravi Kulkarni", "Housekeeping", "Housekeeping", 22000, "Morning"),
+            ("Elena Rodrigues", "Housekeeping", "Housekeeping", 21000, "Evening"),
+            ("Jason D'Silva", "Chef", "Kitchen", 40000, "Night"),
+            ("Ananya Desai", "Maintenance", "Maintenance", 24000, "Day"),
+            ("Pranav Kamat", "Accountant", "Management", 42000, "Morning"),
+            ("Sofia Mendes", "Bellboy", "Front Desk", 19000, "Rotational"),
+            ("Nikhil Borkar", "Concierge", "Front Desk", 26000, "Morning"),
+            ("Leena Pereira", "Housekeeping", "Housekeeping", 20500, "Night"),
+            ("Carlos Alvares", "Security", "Operations", 21500, "Night"),
+            ("Rina D'Souza", "Spa Therapist", "Wellness", 28000, "Morning"),
+            ("Amit Naik", "Pool Attendant", "Operations", 19500, "Day"),
+            ("Priya Kamat", "Laundry", "Housekeeping", 18000, "Morning"),
+            ("Vivek Desai", "Bar Staff", "Kitchen", 23000, "Evening"),
+        ],
+    }
+    staff = extra_staff_by_code.get(definition["code"], extra_staff_by_code["GRANDSTAY"])[:target_staff]
     phone_base = 9876500000 + hotel_id * 100
-    ids = []
+    ids = [r["id"] for r in query("SELECT id FROM employees WHERE hotel_id=?", (hotel_id,))]
     for i, (name, role, dept, salary, shift) in enumerate(staff):
+        if query("SELECT id FROM employees WHERE hotel_id=? AND name=?", (hotel_id, name), one=True):
+            continue
         phone = str(phone_base + i)
         email = f"{name.split()[0].lower()}.{city.lower().replace(' ', '')}@hotel.local"
         eid = query(
@@ -168,32 +217,37 @@ def seed_hotel_employees(query, hotel_id, city):
     return ids
 
 
+def _room_type_for_index(index, pf):
+    tiers = [
+        ("Standard", 1, int(1500 * pf), 2),
+        ("Deluxe", 2, int(2800 * pf), 2),
+        ("Super Deluxe", 3, int(4500 * pf), 3),
+        ("Luxury", 4, int(7500 * pf), 4),
+        ("Suite", 5, int(12000 * pf), 4),
+    ]
+    tier = tiers[min(index // 4, len(tiers) - 1)]
+    return tier[0], tier[1], tier[2], tier[3]
+
+
 def seed_hotel_rooms(query, hotel_id, definition):
     pf = definition["price_factor"]
     prefix = definition["room_prefix"]
-    rooms = []
-    specs = [
-        ("01", "Standard", 1, int(1500 * pf), 2, "Available"),
-        ("02", "Standard", 1, int(1500 * pf), 2, "Available"),
-        ("03", "Standard", 1, int(1500 * pf), 2, "Occupied"),
-        ("04", "Deluxe", 2, int(2800 * pf), 2, "Available"),
-        ("05", "Deluxe", 2, int(2800 * pf), 2, "Reserved"),
-        ("06", "Deluxe", 2, int(2800 * pf), 2, "Available"),
-        ("07", "Super Deluxe", 3, int(4500 * pf), 3, "Available"),
-        ("08", "Super Deluxe", 3, int(4500 * pf), 3, "Cleaning"),
-        ("09", "Luxury", 4, int(7500 * pf), 4, "Available"),
-        ("10", "Luxury", 4, int(7500 * pf), 4, "Maintenance"),
-        ("11", "Luxury", 4, int(7500 * pf), 4, "Occupied"),
-        ("12", "Suite", 5, int(12000 * pf), 4, "Available"),
-        ("13", "Suite", 5, int(12000 * pf), 4, "Reserved"),
-        ("14", "Suite", 5, int(12000 * pf), 6, "Available"),
-    ]
+    target_rooms = definition.get("target_rooms", 14)
+    target_occupied = definition.get("target_occupied", 3)
     amenities = "WiFi, TV, AC, Mini Bar"
     room_ids = []
-    for num, rtype, floor, price, cap, status in specs:
+
+    for index in range(target_rooms):
+        num = f"{index + 1:02d}"
         room_no = f"{prefix}{num}"
         if query("SELECT id FROM rooms WHERE room_no=? AND hotel_id=?", (room_no, hotel_id), one=True):
             continue
+        rtype, floor, price, cap = _room_type_for_index(index, pf)
+        status = "Occupied" if index < target_occupied else "Available"
+        if index == target_rooms - 1:
+            status = "Maintenance"
+        elif index == target_rooms - 2:
+            status = "Cleaning"
         rid = query(
             """INSERT INTO rooms(room_no,room_type,category,floor,price,capacity,status,amenities,hotel_id)
                VALUES(?,?,?,?,?,?,?,?,?)""",
@@ -201,7 +255,45 @@ def seed_hotel_rooms(query, hotel_id, definition):
             commit=True,
         )
         room_ids.append(rid)
+
+    _sync_room_occupancy(query, hotel_id, target_occupied)
     return room_ids
+
+
+def _sync_room_occupancy(query, hotel_id, target_occupied):
+    occupied = query(
+        "SELECT COUNT(*) c FROM rooms WHERE hotel_id=? AND status='Occupied'",
+        (hotel_id,),
+        one=True,
+    )["c"]
+    if occupied == target_occupied:
+        return
+    if occupied < target_occupied:
+        need = target_occupied - occupied
+        available = query(
+            """SELECT id FROM rooms WHERE hotel_id=? AND status='Available'
+               ORDER BY id LIMIT ?""",
+            (hotel_id, need),
+        )
+        for room in available:
+            query(
+                "UPDATE rooms SET status='Occupied' WHERE id=? AND hotel_id=?",
+                (room["id"], hotel_id),
+                commit=True,
+            )
+    else:
+        excess = occupied - target_occupied
+        occupied_rooms = query(
+            """SELECT id FROM rooms WHERE hotel_id=? AND status='Occupied'
+               ORDER BY id DESC LIMIT ?""",
+            (hotel_id, excess),
+        )
+        for room in occupied_rooms:
+            query(
+                "UPDATE rooms SET status='Available' WHERE id=? AND hotel_id=?",
+                (room["id"], hotel_id),
+                commit=True,
+            )
 
 
 def seed_hotel_customers(query, hotel_id, city):
@@ -364,7 +456,7 @@ def seed_hotel_bookings(query, hotel_id, customer_ids, room_ids, calc_room_charg
     return booking_ids
 
 
-def seed_hotel_payments(query, hotel_id, receipt_number_fn):
+def seed_hotel_payments(query, hotel_id, receipt_number_fn, target_revenue=None):
     bookings = query(
         """SELECT id, total_amount, payment_status FROM bookings
            WHERE hotel_id=? AND payment_status IN ('Paid','Partial')""",
@@ -386,6 +478,72 @@ def seed_hotel_payments(query, hotel_id, receipt_number_fn):
             ),
             commit=True,
         )
+
+    if target_revenue is None:
+        return
+
+    current = float(
+        query(
+            """SELECT COALESCE(SUM(p.amount),0) t FROM payments p
+               JOIN bookings b ON p.booking_id=b.id WHERE b.hotel_id=?""",
+            (hotel_id,),
+            one=True,
+        )["t"]
+        or 0
+    )
+    if current >= target_revenue:
+        return
+
+    gap = target_revenue - current
+    booking = query(
+        "SELECT id FROM bookings WHERE hotel_id=? ORDER BY id LIMIT 1",
+        (hotel_id,),
+        one=True,
+    )
+    if not booking:
+        return
+
+    source_key = f"seed_revenue_topup_{hotel_id}"
+    if query(
+        "SELECT id FROM payments WHERE receipt_number=?",
+        (source_key,),
+        one=True,
+    ):
+        return
+
+    query(
+        """INSERT INTO payments(booking_id,amount,payment_mode,receipt_number,payment_date)
+           VALUES(?,?,?,?,?)""",
+        (
+            booking["id"],
+            gap,
+            "Bank Transfer",
+            source_key,
+            datetime.now().strftime("%Y-%m-%d %H:%M"),
+        ),
+        commit=True,
+    )
+
+
+def supplement_hotel_demo_scale(query, hotel_id, definition, receipt_number_fn):
+    """Bring existing hotels up to per-property demo targets without duplicating core seed."""
+    target_rooms = definition.get("target_rooms", 14)
+    target_staff = definition.get("target_staff", 9)
+    target_occupied = definition.get("target_occupied", 3)
+    target_revenue = definition.get("target_revenue")
+
+    current_rooms = query("SELECT COUNT(*) c FROM rooms WHERE hotel_id=?", (hotel_id,), one=True)["c"]
+    if current_rooms < target_rooms:
+        seed_hotel_rooms(query, hotel_id, definition)
+    else:
+        _sync_room_occupancy(query, hotel_id, target_occupied)
+
+    current_staff = query("SELECT COUNT(*) c FROM employees WHERE hotel_id=?", (hotel_id,), one=True)["c"]
+    if current_staff < target_staff:
+        seed_hotel_employees(query, hotel_id, definition["city"], definition)
+
+    if target_revenue:
+        seed_hotel_payments(query, hotel_id, receipt_number_fn, target_revenue=target_revenue)
 
 
 def seed_hotel_housekeeping(query, hotel_id, employee_ids):
@@ -511,21 +669,25 @@ def seed_hotel_notifications(query, hotel_id, city, hotel_name, sync_fn):
 
 def seed_single_hotel(query, definition, calc_room_charges, receipt_number_fn, sync_notifications_fn):
     hotel_id = ensure_hotel(query, definition)
-    if _hotel_seeded(query, hotel_id):
-        return hotel_id
-
-    employee_ids = seed_hotel_employees(query, hotel_id, definition["city"])
-    seed_hotel_users(query, hotel_id, definition["code"])
-    seed_hotel_rooms(query, hotel_id, definition)
-    customer_ids = seed_hotel_customers(query, hotel_id, definition["city"])
-    seed_hotel_inventory(query, hotel_id, definition["code"])
-    seed_hotel_bookings(query, hotel_id, customer_ids, [], calc_room_charges)
-    seed_hotel_payments(query, hotel_id, receipt_number_fn)
-    seed_hotel_housekeeping(query, hotel_id, employee_ids)
-    seed_hotel_maintenance_request(query, hotel_id)
-    seed_hotel_notifications(
-        query, hotel_id, definition["city"], definition["name"], sync_notifications_fn
-    )
+    if not _hotel_seeded(query, hotel_id, definition):
+        employee_ids = seed_hotel_employees(query, hotel_id, definition["city"], definition)
+        seed_hotel_users(query, hotel_id, definition["code"])
+        seed_hotel_rooms(query, hotel_id, definition)
+        customer_ids = seed_hotel_customers(query, hotel_id, definition["city"])
+        seed_hotel_inventory(query, hotel_id, definition["code"])
+        seed_hotel_bookings(query, hotel_id, customer_ids, [], calc_room_charges)
+        seed_hotel_payments(
+            query,
+            hotel_id,
+            receipt_number_fn,
+            target_revenue=definition.get("target_revenue"),
+        )
+        seed_hotel_housekeeping(query, hotel_id, employee_ids)
+        seed_hotel_maintenance_request(query, hotel_id)
+        seed_hotel_notifications(
+            query, hotel_id, definition["city"], definition["name"], sync_notifications_fn
+        )
+    supplement_hotel_demo_scale(query, hotel_id, definition, receipt_number_fn)
     return hotel_id
 
 

@@ -32,6 +32,8 @@ from tenant import (
     platform_admin_required,
     hotel_to_dict,
     get_hotel_stats,
+    get_hotel_overview_stats,
+    get_platform_overview,
     audit_log,
     enforce_permissions,
     is_hotel_write_request,
@@ -2287,17 +2289,6 @@ def export_reports():
 @app.route("/platform/dashboard")
 @platform_admin_required
 def platform_dashboard():
-    hotels = query("SELECT * FROM hotels ORDER BY hotel_name")
-    cards = []
-    for h in hotels:
-        stats = get_hotel_stats(query, h["id"])
-        cards.append({**dict(h), **stats})
-    totals = {
-        "hotels": len(hotels),
-        "active": sum(1 for h in hotels if h["subscription_status"] == "Active"),
-        "rooms": sum(c["rooms"] for c in cards),
-        "revenue": sum(c["revenue"] for c in cards),
-    }
     recent_logs = query(
         """SELECT a.*, u.full_name, u.username, h.hotel_name
            FROM audit_logs a
@@ -2305,7 +2296,7 @@ def platform_dashboard():
            LEFT JOIN hotels h ON a.hotel_id=h.id
            ORDER BY a.id DESC LIMIT 12"""
     )
-    return render_template("platform/dashboard.html", hotel_cards=cards, totals=totals, recent_logs=recent_logs)
+    return render_template("platform/dashboard.html", recent_logs=recent_logs)
 
 
 @app.route("/platform/hotels")
@@ -2453,6 +2444,13 @@ def platform_subscriptions():
 @platform_admin_required
 def platform_settings():
     return render_template("platform/settings.html")
+
+
+@app.route("/api/platform/hotels/overview")
+@platform_admin_required
+def api_platform_hotels_overview():
+    overview = get_platform_overview(query)
+    return api_ok(**overview)
 
 
 @app.route("/api/hotels/switch", methods=["POST"])
