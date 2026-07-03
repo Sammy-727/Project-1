@@ -1,16 +1,16 @@
-WINDOWS QUICK START
-===================
+WINDOWS QUICK START — Safe Stays PMS
+====================================
 
 1. Install Python 3.10+ from https://www.python.org/downloads/
    IMPORTANT: Check "Add python.exe to PATH" during install!
 
-2. Unzip this folder anywhere (e.g. Desktop\GrandStay-HMS)
+2. Unzip this folder anywhere (e.g. Desktop\Safe-Stays-PMS)
 
 3. Double-click:  START.bat
 
 4. Login at http://127.0.0.1:5000
    Username: admin
-   Password: admin123
+   Password: password123
 
 5. DO NOT close the black window while using the app.
 

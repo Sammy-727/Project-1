@@ -1,4 +1,8 @@
-# GrandStay HMS — Hotel Management System
+# Safe Stays — Hotel Management Platform
+
+**Secure. Smart. Seamless Hospitality.**
+
+Multi-Hotel SaaS Hotel Management Platform (PMS)
 
 ## WINDOWS — Follow These Steps
 
@@ -10,11 +14,11 @@
 5. **Restart your computer**
 
 ### Step 2: Run the App
-1. Unzip the project folder (e.g. `GrandStay-HMS`)
+1. Unzip the project folder (e.g. `Safe-Stays-PMS`)
 2. Double-click **`START.bat`**
 3. Wait for "Installing dependencies..." (first time only, 1-2 min)
 4. Browser opens automatically → **http://127.0.0.1:5000**
-5. Login: **`admin`** / **`admin123`**
+5. Login: **`admin`** / **`password123`**
 
 > ⚠️ **Keep the black command window open** while using the app. Closing it stops the server.
 
@@ -51,7 +55,7 @@
 ## Mac / Linux
 
 ```bash
-cd GrandStay-HMS
+cd Safe-Stays-PMS
 python3 -m pip install -r requirements.txt
 python3 run.py
 ```
@@ -76,11 +80,11 @@ To start with a completely clean database (no demo data), run **`RESET_DATABASE.
 
 **One-click free hosting on Render:**
 
-👉 **[Deploy GrandStay HMS to the Web](https://render.com/deploy?repo=https://github.com/Sammy-727/Project-1)**
+👉 **[Deploy Safe Stays PMS to the Web](https://render.com/deploy?repo=https://github.com/Sammy-727/Project-1)**
 
 After deploy (~3 min), open your live URL (e.g. `https://grandstay-hms.onrender.com`).
 
-Login: **`admin`** / **`admin123`**
+Login: **`admin`** / **`password123`**
 
 See `DEPLOY_WEB.md` for details.
 

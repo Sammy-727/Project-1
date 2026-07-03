@@ -1,4 +1,4 @@
-/* GrandStay HMS — Enterprise SaaS UI */
+/* Safe Stays PMS — Enterprise SaaS UI */
 document.addEventListener('DOMContentLoaded', function () {
   initLucide();
   initTheme();

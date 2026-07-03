@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-GrandStay HMS launcher.
+Safe Stays PMS launcher.
 Windows: double-click START.bat
 Others:  python3 run.py
 """
@@ -85,16 +85,16 @@ def main():
         sys.exit(1)
 
     port = int(os.environ.get("PORT", 0)) or find_free_port(5000)
-    # Windows: never use debug/reloader (causes SQLite lock + console errors)
     is_windows = sys.platform == "win32"
     debug = (not is_windows) and os.environ.get("FLASK_DEBUG", "0") == "1"
     use_reloader = False
 
     print("\n" + "=" * 52)
-    print("  GrandStay HMS - Hotel Management System")
+    print("  Safe Stays — Hotel Management Platform")
+    print("  Secure. Smart. Seamless Hospitality.")
     print("=" * 52)
     print(f"  Open:  http://127.0.0.1:{port}")
-    print("  Login: admin / admin123")
+    print("  Login: admin / password123")
     print("  Press Ctrl+C to stop")
     print("=" * 52 + "\n")
 

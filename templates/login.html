@@ -3,9 +3,12 @@
 {% block content %}
 <div class="login-page">
     <div class="login-box">
-        <div class="login-logo">{{ icon('building-2', 24) }}</div>
-        <h1>{{ app_name }}</h1>
-        <p>Sign in to your hotel dashboard</p>
+        <div class="login-logo brand-logo-mark">
+            <i data-lucide="shield" class="icon brand-shield-icon"></i>
+            <i data-lucide="building-2" class="icon brand-building-icon"></i>
+        </div>
+        <h1>Welcome to Safe Stays</h1>
+        <p>Manage your hotel operations from one secure platform.</p>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}

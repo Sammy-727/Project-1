@@ -1,7 +1,7 @@
 @echo off
 cd /d "%~dp0"
 if exist "venv\Scripts\activate.bat" call "venv\Scripts\activate.bat"
-echo Testing GrandStay HMS setup...
+echo Testing Safe Stays PMS setup...
 echo.
 python -c "import sys; print('Python:', sys.version)"
 python -c "import flask; print('Flask: OK')"

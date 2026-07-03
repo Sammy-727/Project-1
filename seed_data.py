@@ -1,4 +1,4 @@
-"""Idempotent multi-hotel demo seed data for GrandStay HMS."""
+"""Idempotent multi-hotel demo seed data for Safe Stays PMS."""
 from datetime import date, datetime, timedelta
 
 HOTEL_ADMIN_PASSWORD = "password123"
@@ -8,15 +8,15 @@ MANAGER_PASSWORD = "password123"
 HOTEL_DEFINITIONS = [
     {
         "code": "GRANDSTAY",
-        "name": "GrandStay Hotel",
+        "name": "Rajpur Suites",
         "address": "15 Rajpur Road, Near Clock Tower",
         "city": "Dehradun",
         "state": "Uttarakhand",
         "phone": "01352745001",
-        "email": "info@grandstay.com",
+        "email": "info@safestays.in",
         "gst": "GSTIN-05AAAAA0000A1Z5",
         "owner_name": "Ayush Sharma",
-        "owner_email": "owner@grandstay.com",
+        "owner_email": "owner@safestays.in",
         "plan": "Professional",
         "room_prefix": "1",
         "price_factor": 1.0,
@@ -71,6 +71,18 @@ def _hotel_seeded(query, hotel_id, definition):
     users = query("SELECT COUNT(*) c FROM users WHERE hotel_id=?", (hotel_id,), one=True)["c"]
     target_rooms = definition.get("target_rooms", 10)
     return rooms >= target_rooms and users >= 5
+
+
+def ensure_brand_migration(query):
+    """Update legacy display names in existing databases (no schema/auth changes)."""
+    query(
+        "UPDATE hotels SET hotel_name='Rajpur Suites', email='info@safestays.in', owner_email='owner@safestays.in' WHERE hotel_code='GRANDSTAY' AND hotel_name='GrandStay Hotel'",
+        commit=True,
+    )
+    query(
+        "UPDATE users SET full_name='Rajpur Suites Admin' WHERE username IN ('admin','grandstay_admin') AND full_name LIKE '%GrandStay%'",
+        commit=True,
+    )
 
 
 def ensure_super_admin(query):
@@ -155,7 +167,7 @@ def seed_hotel_users(query, hotel_id, code):
         (f"{prefix}_maint", "maint123", f"{prefix.title()} Maintenance Tech", "MAINTENANCE"),
     ]
     if code == "GRANDSTAY":
-        users.append(("admin", HOTEL_ADMIN_PASSWORD, "GrandStay Hotel Admin", "HOTEL_ADMIN"))
+        users.append(("admin", HOTEL_ADMIN_PASSWORD, "Rajpur Suites Admin", "HOTEL_ADMIN"))
 
     for username, password, full_name, role in users:
         if query("SELECT id FROM users WHERE username=?", (username,), one=True):
@@ -712,6 +724,7 @@ def seed_multi_hotel_demo(query, calc_room_charges, receipt_number_fn, sync_noti
     """Seed 3 hotels with isolated demo data. Idempotent — skips hotels already seeded."""
     ensure_super_admin(query)
     ensure_hotel_admin_manager_passwords(query)
+    ensure_brand_migration(query)
     for definition in HOTEL_DEFINITIONS:
         seed_single_hotel(
             query,

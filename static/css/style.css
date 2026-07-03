@@ -1,19 +1,19 @@
-/* GrandStay HMS — Premium SaaS Design System */
+/* Safe Stays PMS — Premium SaaS Design System */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 :root {
-  --primary: #6366f1;
-  --primary-hover: #4f46e5;
+  --primary: #4f46e5;
+  --primary-hover: #4338ca;
   --primary-light: #eef2ff;
-  --primary-glow: rgba(99, 102, 241, 0.2);
+  --primary-glow: rgba(79, 70, 229, 0.2);
   --success: #22c55e;
   --warning: #f59e0b;
   --danger: #ef4444;
   --accent-emerald: #22c55e;
   --accent-red: #ef4444;
   --accent-amber: #f59e0b;
-  --accent-blue: #3b82f6;
-  --accent-purple: #8b5cf6;
+  --accent-blue: #2563eb;
+  --accent-purple: #4f46e5;
 
   --bg: #f8fafc;
   --bg-elevated: #ffffff;
@@ -112,11 +112,34 @@ a:hover { color: var(--primary-hover); }
 .brand-icon {
   width: 40px; height: 40px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  background: linear-gradient(135deg, #4f46e5, #2563eb);
   display: flex; align-items: center; justify-content: center;
   color: white; font-weight: 800; font-size: 18px;
   flex-shrink: 0;
   box-shadow: var(--shadow-glow);
+  position: relative;
+}
+
+.brand-logo-mark {
+  overflow: hidden;
+}
+
+.brand-logo-mark .brand-shield-icon {
+  width: 22px;
+  height: 22px;
+  color: #fff;
+  stroke: #fff;
+}
+
+.brand-logo-mark .brand-building-icon {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  bottom: 7px;
+  right: 7px;
+  color: #fff;
+  stroke: #fff;
+  opacity: 0.95;
 }
 
 .brand-text h2 { font-size: 16px; font-weight: 700; color: #fff; }
@@ -954,11 +977,12 @@ input:focus, select:focus, textarea:focus {
 
 .login-logo {
   width: 56px; height: 56px;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  background: linear-gradient(135deg, #4f46e5, #2563eb);
   border-radius: 16px;
   display: flex; align-items: center; justify-content: center;
   font-size: 24px;
   margin: 0 auto 20px;
+  position: relative;
 }
 
 .login-box h1 { text-align: center; font-size: 22px; font-weight: 600; margin-bottom: 4px; }

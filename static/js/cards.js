@@ -1,4 +1,4 @@
-/** GrandStay — Card views, view toggle, filters, kanban */
+/** Safe Stays — Card views, view toggle, filters, kanban */
 const CardUI = {
   bookingsCache: null,
 
