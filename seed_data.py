@@ -1,6 +1,9 @@
 """Idempotent multi-hotel demo seed data for GrandStay HMS."""
 from datetime import date, datetime, timedelta
 
+HOTEL_ADMIN_PASSWORD = "password123"
+MANAGER_PASSWORD = "password123"
+
 
 HOTEL_DEFINITIONS = [
     {
@@ -89,6 +92,20 @@ def ensure_super_admin(query):
             )
 
 
+def ensure_hotel_admin_manager_passwords(query):
+    """Reset seeded HOTEL_ADMIN and MANAGER passwords (plaintext — no BCrypt in this app)."""
+    query(
+        "UPDATE users SET password=? WHERE role IN ('HOTEL_ADMIN', 'Admin')",
+        (HOTEL_ADMIN_PASSWORD,),
+        commit=True,
+    )
+    query(
+        "UPDATE users SET password=? WHERE role IN ('MANAGER', 'Manager')",
+        (MANAGER_PASSWORD,),
+        commit=True,
+    )
+
+
 def ensure_hotel(query, definition):
     row = query("SELECT id FROM hotels WHERE hotel_code=?", (definition["code"],), one=True)
     if row:
@@ -128,8 +145,8 @@ def seed_hotel_users(query, hotel_id, code):
         prefix = "ocean"
 
     users = [
-        (f"{prefix}_admin", "admin123", f"{prefix.title()} Hotel Admin", "HOTEL_ADMIN"),
-        (f"{prefix}_manager", "manager123", f"{prefix.title()} Operations Manager", "MANAGER"),
+        (f"{prefix}_admin", HOTEL_ADMIN_PASSWORD, f"{prefix.title()} Hotel Admin", "HOTEL_ADMIN"),
+        (f"{prefix}_manager", MANAGER_PASSWORD, f"{prefix.title()} Operations Manager", "MANAGER"),
         (f"{prefix}_rec1", "rec123", f"{prefix.title()} Receptionist One", "RECEPTIONIST"),
         (f"{prefix}_rec2", "rec123", f"{prefix.title()} Receptionist Two", "RECEPTIONIST"),
         (f"{prefix}_hk1", "hk123", f"{prefix.title()} Housekeeping Lead", "HOUSEKEEPING"),
@@ -138,7 +155,7 @@ def seed_hotel_users(query, hotel_id, code):
         (f"{prefix}_maint", "maint123", f"{prefix.title()} Maintenance Tech", "MAINTENANCE"),
     ]
     if code == "GRANDSTAY":
-        users.append(("admin", "admin123", "GrandStay Hotel Admin", "HOTEL_ADMIN"))
+        users.append(("admin", HOTEL_ADMIN_PASSWORD, "GrandStay Hotel Admin", "HOTEL_ADMIN"))
 
     for username, password, full_name, role in users:
         if query("SELECT id FROM users WHERE username=?", (username,), one=True):
@@ -694,6 +711,7 @@ def seed_single_hotel(query, definition, calc_room_charges, receipt_number_fn, s
 def seed_multi_hotel_demo(query, calc_room_charges, receipt_number_fn, sync_notifications_fn):
     """Seed 3 hotels with isolated demo data. Idempotent — skips hotels already seeded."""
     ensure_super_admin(query)
+    ensure_hotel_admin_manager_passwords(query)
     for definition in HOTEL_DEFINITIONS:
         seed_single_hotel(
             query,
