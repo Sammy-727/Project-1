@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros/ui.html" import breadcrumb, page_header, status_badge, empty_state, view_toggle, card_menu, icon, filter_meta, filter_empty, sort_controls, room_image, avatar %}
+{% from "macros/ui.html" import breadcrumb, page_header, status_badge, empty_state, card_menu, icon, filter_meta, filter_empty, sort_controls, room_image, avatar %}
 {% set title = "Rooms" %}
 {% block content %}
 
@@ -11,7 +11,6 @@
     <p class="page-description">Manage inventory, pricing, and availability</p>
   </div>
   <div class="page-header-actions">
-    {{ view_toggle('rooms') }}
     <button class="btn btn-primary modal-trigger" data-target="#addRoomModal">{{ icon('plus', 16) }} Add Room</button>
   </div>
 </div>
@@ -106,27 +105,6 @@
     </div>
   </aside>
   {% endfor %}
-</div>
-
-<div class="saas-table-wrap" data-view-panel="table" data-page="rooms" hidden>
-  <div class="table-wrap">
-    <table class="data-table" data-paginate>
-      <thead><tr><th>Room</th><th>Type</th><th>Floor</th><th>Price</th><th>Capacity</th><th>Status</th><th></th></tr></thead>
-      <tbody>
-      {% for r in rooms %}
-      <tr>
-        <td><strong>{{ r.room_no }}</strong></td>
-        <td>{{ r.room_type or r.category }}</td>
-        <td>{{ r.floor or 1 }}</td>
-        <td>₹{{ "{:,.0f}".format(r.price) }}</td>
-        <td>{{ r.capacity or 2 }}</td>
-        <td>{{ status_badge(r.status) }}</td>
-        <td>{{ card_menu([{'type': 'button', 'label': 'Edit', 'target': '#editRoom' ~ r.id, 'class': 'modal-trigger'}]) }}</td>
-      </tr>
-      {% endfor %}
-      </tbody>
-    </table>
-  </div>
 </div>
 </div>
 {% else %}

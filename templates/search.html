@@ -1,93 +1,122 @@
 {% extends "base.html" %}
+{% from "macros/ui.html" import breadcrumb, page_header, empty_state, status_badge, icon %}
 {% set title = "Search Results" %}
 {% block content %}
 
-<div class="panel">
-    <div class="panel-head">
-        <h3>Search Results{% if q %} for "{{ q }}"{% endif %}</h3>
+{{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Search"}]) }}
+{{ page_header("Search", "Find guests, rooms, bookings, and more") }}
+
+{% if not q %}
+{{ empty_state("search", "Search anything", "Press Ctrl+K or use the search bar to find guests, rooms, bookings, employees, and invoices.") }}
+{% else %}
+
+{% set total = results.rooms|length + results.customers|length + results.bookings|length + results.employees|length + results.invoices|length + results.payments|length %}
+
+{% if total == 0 %}
+{{ empty_state("search", "No results", 'Nothing matched "' ~ q ~ '". Try a different term.', illustration="reports") }}
+{% else %}
+
+{% if results.customers %}
+<h3 class="search-section-title">{{ icon('users', 16) }} Guests ({{ results.customers|length }})</h3>
+<div class="search-results-grid">
+  {% for c in results.customers %}
+  <a href="{{ url_for('customers', q=c.name) }}" class="entity-card">
+    <div class="entity-card-header">
+      <div class="entity-card-title" style="font-size:16px">{{ c.name }}</div>
+      {{ icon('chevron-right', 16) }}
     </div>
-
-    {% if not q %}
-    <div class="empty-state"><div class="empty-icon">🔍</div><p>Enter a search term in the top bar.</p></div>
-    {% else %}
-
-    {% if results.rooms %}
-    <div class="search-section">
-        <h3>🛏️ Rooms ({{ results.rooms|length }})</h3>
-        <table class="data-table">
-            <thead><tr><th>Room</th><th>Type</th><th>Price</th><th>Status</th><th></th></tr></thead>
-            <tbody>
-            {% for r in results.rooms %}
-            <tr>
-                <td>{{ r.room_no }}</td><td>{{ r.room_type }}</td><td>₹{{ r.price }}</td>
-                <td><span class="badge badge-{{ r.status }}">{{ r.status }}</span></td>
-                <td><a href="{{ url_for('rooms', q=r.room_no) }}" class="btn btn-secondary btn-sm">View</a></td>
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
+    <div class="entity-card-body">
+      <div class="entity-card-sub">{{ c.phone }} · {{ c.email or 'No email' }}</div>
     </div>
-    {% endif %}
-
-    {% if results.customers %}
-    <div class="search-section">
-        <h3>👥 Customers ({{ results.customers|length }})</h3>
-        <table class="data-table">
-            <thead><tr><th>Name</th><th>Phone</th><th>Email</th><th></th></tr></thead>
-            <tbody>
-            {% for c in results.customers %}
-            <tr>
-                <td>{{ c.name }}</td><td>{{ c.phone }}</td><td>{{ c.email or '—' }}</td>
-                <td><a href="{{ url_for('customers', q=c.name) }}" class="btn btn-secondary btn-sm">View</a></td>
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% endif %}
-
-    {% if results.bookings %}
-    <div class="search-section">
-        <h3>📅 Bookings ({{ results.bookings|length }})</h3>
-        <table class="data-table">
-            <thead><tr><th>ID</th><th>Customer</th><th>Room</th><th>Dates</th><th>Status</th><th></th></tr></thead>
-            <tbody>
-            {% for b in results.bookings %}
-            <tr>
-                <td>#{{ b.id }}</td><td>{{ b.name }}</td><td>{{ b.room_no }}</td>
-                <td>{{ b.checkin }} → {{ b.checkout }}</td>
-                <td><span class="badge badge-{{ b.status }}">{{ b.status }}</span></td>
-                <td><a href="{{ url_for('bookings', q=b.name) }}" class="btn btn-secondary btn-sm">View</a></td>
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% endif %}
-
-    {% if results.payments %}
-    <div class="search-section">
-        <h3>💳 Payments ({{ results.payments|length }})</h3>
-        <table class="data-table">
-            <thead><tr><th>Receipt</th><th>Customer</th><th>Room</th><th>Amount</th><th></th></tr></thead>
-            <tbody>
-            {% for p in results.payments %}
-            <tr>
-                <td>{{ p.receipt_number }}</td><td>{{ p.name }}</td><td>{{ p.room_no }}</td>
-                <td>₹{{ p.amount }}</td>
-                <td><a href="{{ url_for('receipt', payment_id=p.id) }}" class="btn btn-secondary btn-sm">Receipt</a></td>
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% endif %}
-
-    {% if not results.rooms and not results.customers and not results.bookings and not results.payments %}
-    <div class="empty-state"><div class="empty-icon">🔍</div><p>No results found for "{{ q }}".</p></div>
-    {% endif %}
-
-    {% endif %}
+  </a>
+  {% endfor %}
 </div>
+{% endif %}
+
+{% if results.rooms %}
+<h3 class="search-section-title">{{ icon('bed-double', 16) }} Rooms ({{ results.rooms|length }})</h3>
+<div class="search-results-grid">
+  {% for r in results.rooms %}
+  <a href="{{ url_for('rooms', q=r.room_no) }}" class="entity-card">
+    <div class="entity-card-header">
+      <div class="entity-card-title" style="font-size:16px">Room {{ r.room_no }}</div>
+      {{ status_badge(r.status) }}
+    </div>
+    <div class="entity-card-body">
+      <div class="entity-card-sub">{{ r.room_type }} · ₹{{ "{:,.0f}".format(r.price) }}/night</div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if results.bookings %}
+<h3 class="search-section-title">{{ icon('calendar-days', 16) }} Bookings ({{ results.bookings|length }})</h3>
+<div class="search-results-grid">
+  {% for b in results.bookings %}
+  <a href="{{ url_for('bookings', q=b.id) }}" class="entity-card">
+    <div class="entity-card-header">
+      <div class="entity-card-title" style="font-size:16px">#{{ b.id }} · {{ b.name }}</div>
+      {{ status_badge(b.status) }}
+    </div>
+    <div class="entity-card-body">
+      <div class="entity-card-sub">Room {{ b.room_no }} · {{ b.checkin }} → {{ b.checkout }}</div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if results.employees %}
+<h3 class="search-section-title">{{ icon('briefcase', 16) }} Employees ({{ results.employees|length }})</h3>
+<div class="search-results-grid">
+  {% for e in results.employees %}
+  <a href="{{ url_for('employees', q=e.name) }}" class="entity-card">
+    <div class="entity-card-header">
+      <div class="entity-card-title" style="font-size:16px">{{ e.name }}</div>
+    </div>
+    <div class="entity-card-body">
+      <div class="entity-card-sub">{{ e.role or '—' }} · {{ e.department or '—' }}</div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if results.invoices %}
+<h3 class="search-section-title">{{ icon('file-text', 16) }} Invoices ({{ results.invoices|length }})</h3>
+<div class="search-results-grid">
+  {% for inv in results.invoices %}
+  <a href="{{ url_for('invoices_list', q=inv.invoice_id) }}" class="entity-card">
+    <div class="entity-card-header">
+      <div class="entity-card-title" style="font-size:16px">Invoice #{{ inv.invoice_id }}</div>
+      {{ status_badge(inv.payment_status) }}
+    </div>
+    <div class="entity-card-body">
+      <div class="entity-card-sub">{{ inv.customer_name }} · Room {{ inv.room_no }} · ₹{{ "{:,.0f}".format(inv.total or 0) }}</div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if results.payments %}
+<h3 class="search-section-title">{{ icon('credit-card', 16) }} Payments ({{ results.payments|length }})</h3>
+<div class="search-results-grid">
+  {% for p in results.payments %}
+  <a href="{{ url_for('receipt', payment_id=p.id) }}" class="entity-card">
+    <div class="entity-card-header">
+      <div class="entity-card-title" style="font-size:16px">{{ p.receipt_number }}</div>
+    </div>
+    <div class="entity-card-body">
+      <div class="entity-card-sub">{{ p.name }} · ₹{{ "{:,.0f}".format(p.amount) }}</div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% endif %}
+{% endif %}
 
 {% endblock %}

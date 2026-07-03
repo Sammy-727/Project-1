@@ -1,13 +1,12 @@
 {% extends "base.html" %}
-{% from "macros/ui.html" import breadcrumb, page_header, empty_state, status_badge, view_toggle, card_menu, table_toolbar, row_actions, icon, filter_meta, filter_empty, sort_controls %}
+{% from "macros/ui.html" import breadcrumb, page_header, empty_state, status_badge, card_menu, icon, filter_meta, filter_empty, sort_controls %}
 {% set title = "Bookings" %}
 {% block content %}
 
 {{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Front Desk"}, {"label": "Bookings"}]) }}
 {{ page_header("Bookings", "Manage reservations and guest stays") }}
 
-<div class="page-header-actions" style="margin: -8px 0 12px; display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap">
-    {{ view_toggle('bookings') }}
+<div class="page-header-actions-bar">
     <button type="button" class="btn btn-secondary" id="quickAddCustomerBtn">{{ icon('user-plus', 16) }} Add Guest</button>
     <button type="button" class="btn btn-primary" id="newBookingBtn">{{ icon('plus', 16) }} New Booking</button>
 </div>
@@ -105,43 +104,9 @@
   </aside>
   {% endfor %}
 </div>
-
-<div class="saas-table-wrap" id="bookingsPanel" data-view-panel="table" data-page="bookings" hidden>
-    {{ table_toolbar('Search bookings...') }}
-    <div class="table-wrap">
-    <table class="data-table" id="bookingsTable" data-paginate>
-        <thead>
-            <tr>
-                <th style="width:36px"></th>
-                <th class="sortable">ID</th><th class="sortable">Customer</th><th class="sortable">Room</th>
-                <th class="sortable">Check-in</th><th class="sortable">Check-out</th><th>Guests</th>
-                <th class="sortable">Amount</th><th>Status</th><th>Payment</th><th></th>
-            </tr>
-        </thead>
-        <tbody id="bookingsTableBody">
-        {% for b in bookings %}
-        <tr>
-            <td><input type="checkbox" class="row-check"></td>
-            <td>#{{ b.id }}</td>
-            <td><strong>{{ b.customer_name }}</strong><br><small>{{ b.phone }}</small></td>
-            <td>{{ b.room_no }}</td>
-            <td>{{ b.checkin }}</td>
-            <td>{{ b.checkout }}</td>
-            <td>{{ b.num_guests or 1 }}</td>
-            <td>₹{{ "{:,.0f}".format(b.total_amount or 0) }}</td>
-            <td>{{ status_badge(b.status) }}</td>
-            <td>{{ status_badge(b.payment_status) }}</td>
-            <td>{{ row_actions([{'type': 'link', 'label': 'Invoice', 'url': url_for('invoice', booking_id=b.id), 'icon': 'file-text'}]) }}</td>
-        </tr>
-        {% endfor %}
-        </tbody>
-    </table>
-    </div>
-</div>
 </div>
 {% else %}
 {{ empty_state("calendar-days", "No bookings yet", "Create your first booking.", "New Booking", "", "newBookingBtnEmpty", illustration="bookings") }}
-<div class="saas-table-wrap" id="bookingsPanel" hidden><table class="data-table" id="bookingsTable"><tbody id="bookingsTableBody"></tbody></table></div>
 {% endif %}
 
 <aside class="drawer drawer-booking" id="bookingDrawer"

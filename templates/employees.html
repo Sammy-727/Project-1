@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros/ui.html" import breadcrumb, page_header, status_badge, empty_state, view_toggle, card_menu, icon, filter_meta, filter_empty, sort_controls, avatar %}
+{% from "macros/ui.html" import breadcrumb, page_header, status_badge, empty_state, card_menu, icon, filter_meta, filter_empty, sort_controls, avatar %}
 {% set title = "Employees" %}
 {% block content %}
 
@@ -11,7 +11,6 @@
     <p class="page-description">Manage your hotel staff, roles, and lifecycle</p>
   </div>
   <div class="page-header-actions">
-    {{ view_toggle('employees') }}
     <button class="btn btn-primary modal-trigger" data-target="#addEmployeeModal">{{ icon('plus', 16) }} Add Employee</button>
   </div>
 </div>
@@ -54,7 +53,7 @@
 </div>
 {% endif %}
 
-<div class="entity-grid wide" id="employeeCardGrid" data-view-panel="cards" data-page="employees" {% if not employees %}hidden{% endif %}>
+<div class="entity-grid wide" id="employeeCardGrid" data-page="employees">
   {% for e in employees %}
   {% set emp_bucket = 'archived' if e.status == 'Archived' else ('active' if e.status == 'Active' else 'inactive') %}
   <article class="entity-card data-searchable" data-search="{{ e.name }} {{ e.role }} {{ e.department }}"
@@ -88,85 +87,9 @@
   {% endfor %}
 </div>
 
-<div class="saas-table-wrap" data-view-panel="table" data-page="employees" hidden>
-    {% if employees %}
-    <div class="table-toolbar">
-        <div class="table-search-wrap">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-            <input type="search" placeholder="Search table..." data-table-search>
-        </div>
-    </div>
-    <div class="table-wrap">
-    <table class="data-table" data-paginate>
-        <thead>
-            <tr>
-                <th style="width:36px"></th>
-                <th data-sort>Name</th>
-                <th data-sort>Role</th>
-                <th data-sort>Department</th>
-                <th>Phone</th>
-                <th>Email</th>
-                <th data-sort>Status</th>
-                <th data-sort>Joined</th>
-                <th>Last Login</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for e in employees %}
-        <tr>
-            <td><input type="checkbox" class="emp-check" form="employeeBulkForm" name="ids" value="{{ e.id }}"></td>
-            <td>
-                <div style="display:flex;align-items:center;gap:10px">
-                    {{ avatar(e.name, e.image_url, 'sm') }}
-                    <strong>{{ e.name }}</strong>
-                </div>
-            </td>
-            <td>{{ e.role or e.designation }}</td>
-            <td>{{ e.department or '—' }}</td>
-            <td>{{ e.phone or '—' }}</td>
-            <td>{{ e.email or '—' }}</td>
-            <td><span class="badge badge-status badge-{{ e.status|css_class }}">{{ e.status }}</span></td>
-            <td>{{ e.joining_date or '—' }}</td>
-            <td>{{ e.last_login or '—' }}</td>
-            <td>
-                <div class="actions-dropdown">
-                    <button type="button" class="btn btn-outline btn-sm actions-toggle" title="Actions">⋮</button>
-                    <div class="actions-menu">
-                        <button type="button" class="actions-item" data-drawer="#drawerEmp{{ e.id }}">View Details</button>
-                        <button type="button" class="actions-item modal-trigger" data-target="#editEmp{{ e.id }}">Edit</button>
-                        {% if e.status != 'Inactive' and e.status != 'Archived' %}
-                        <form method="post" action="{{ url_for('deactivate_employee', emp_id=e.id, **request.args) }}" data-confirm="Deactivate {{ e.name }}? They will not be able to log in.">
-                            <button type="submit" class="actions-item">Deactivate</button>
-                        </form>
-                        {% endif %}
-                        {% if e.status == 'Inactive' or e.status in ['On Leave', 'Suspended', 'Resigned', 'Terminated'] %}
-                        <form method="post" action="{{ url_for('activate_employee', emp_id=e.id, **request.args) }}">
-                            <button type="submit" class="actions-item">Activate</button>
-                        </form>
-                        {% endif %}
-                        {% if e.status != 'Archived' %}
-                        <form method="post" action="{{ url_for('archive_employee', emp_id=e.id, **request.args) }}" data-confirm="Archive {{ e.name }}?">
-                            <button type="submit" class="actions-item">Archive</button>
-                        </form>
-                        {% endif %}
-                        {% if current_user.role == 'Super Admin' %}
-                        <form method="post" action="{{ url_for('delete_employee', emp_id=e.id, **request.args) }}" data-confirm="Permanently delete {{ e.name }}? This action cannot be undone.">
-                            <button type="submit" class="actions-item danger">Delete Permanently</button>
-                        </form>
-                        {% endif %}
-                    </div>
-                </div>
-            </td>
-        </tr>
-        {% endfor %}
-        </tbody>
-    </table>
-    </div>
-    {% else %}
-    {{ empty_state("briefcase", "No employees yet", "Add your first team member.", "Add Employee", "#addEmployeeModal", illustration="employees") }}
-    {% endif %}
-</div>
+{% if not employees %}
+{{ empty_state("briefcase", "No employees yet", "Add your first team member.", "Add Employee", "#addEmployeeModal", illustration="employees") }}
+{% endif %}
 
 <div class="modal" id="addEmployeeModal">
     <div class="modal-overlay"></div>

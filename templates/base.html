@@ -14,6 +14,7 @@
     <link href="{{ url_for('static', filename='css/notifications.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/platform.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/images.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/premium.css') }}" rel="stylesheet">
 </head>
 <body class="{% if current_user.get('user_id') %}app-body{% if is_read_only %} read-only-mode{% endif %}{% else %}auth-body{% endif %}">
 
@@ -263,6 +264,7 @@
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 {% if current_user.get("user_id") %}
 <script type="module" src="{{ url_for('static', filename='js/notifications/index.js') }}"></script>
+<script src="{{ url_for('static', filename='js/command-palette.js') }}"></script>
 {% endif %}
 
 </body>

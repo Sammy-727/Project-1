@@ -6,7 +6,6 @@ document.addEventListener('DOMContentLoaded', function () {
   initModals();
   initDropdowns();
   initHotelSwitcher();
-  initCommandPalette();
   initToasts();
   initTables();
   initDrawers();

@@ -1018,33 +1018,63 @@ def logout():
 @app.route("/search")
 def search():
     q = request.args.get("q", "").strip()
-    hid = get_current_hotel_id()
-    results = {"rooms": [], "customers": [], "bookings": [], "payments": []}
-    if q:
-        like = f"%{q}%"
-        results["rooms"] = query(
-            "SELECT * FROM rooms WHERE hotel_id=? AND (room_no LIKE ? OR room_type LIKE ? OR category LIKE ?) ORDER BY room_no LIMIT 10",
-            (hid, like, like, like)
-        )
-        results["customers"] = query(
-            "SELECT * FROM customers WHERE hotel_id=? AND (name LIKE ? OR phone LIKE ? OR email LIKE ?) ORDER BY id DESC LIMIT 10",
-            (hid, like, like, like)
-        )
-        results["bookings"] = query("""
-            SELECT b.id, c.name, r.room_no, b.checkin, b.checkout, b.status
-            FROM bookings b JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
-            WHERE b.hotel_id=? AND (c.name LIKE ? OR r.room_no LIKE ? OR CAST(b.id AS TEXT) LIKE ?)
-            ORDER BY b.id DESC LIMIT 10
-        """, (hid, like, like, like))
-        results["payments"] = query("""
-            SELECT p.*, c.name, r.room_no FROM payments p
-            JOIN bookings b ON p.booking_id=b.id
-            JOIN customers c ON b.customer_id=c.id
-            JOIN rooms r ON b.room_id=r.id
-            WHERE b.hotel_id=? AND (p.receipt_number LIKE ? OR c.name LIKE ? OR r.room_no LIKE ?)
-            ORDER BY p.id DESC LIMIT 10
-        """, (hid, like, like, like))
+    results = global_search_results(q, get_current_hotel_id())
     return render_template("search.html", q=q, results=results)
+
+
+def global_search_results(q, hotel_id):
+    results = {"rooms": [], "customers": [], "bookings": [], "payments": [], "employees": [], "invoices": []}
+    if not q:
+        return results
+    like = f"%{q}%"
+    results["rooms"] = query(
+        "SELECT * FROM rooms WHERE hotel_id=? AND (room_no LIKE ? OR room_type LIKE ? OR category LIKE ?) ORDER BY room_no LIMIT 10",
+        (hotel_id, like, like, like),
+    )
+    results["customers"] = query(
+        "SELECT * FROM customers WHERE hotel_id=? AND (name LIKE ? OR phone LIKE ? OR email LIKE ?) ORDER BY id DESC LIMIT 10",
+        (hotel_id, like, like, like),
+    )
+    results["bookings"] = query(
+        """SELECT b.id, c.name, r.room_no, b.checkin, b.checkout, b.status
+           FROM bookings b JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
+           WHERE b.hotel_id=? AND (c.name LIKE ? OR r.room_no LIKE ? OR CAST(b.id AS TEXT) LIKE ?)
+           ORDER BY b.id DESC LIMIT 10""",
+        (hotel_id, like, like, like),
+    )
+    results["payments"] = query(
+        """SELECT p.*, c.name, r.room_no FROM payments p
+           JOIN bookings b ON p.booking_id=b.id
+           JOIN customers c ON b.customer_id=c.id
+           JOIN rooms r ON b.room_id=r.id
+           WHERE b.hotel_id=? AND (p.receipt_number LIKE ? OR c.name LIKE ? OR r.room_no LIKE ?)
+           ORDER BY p.id DESC LIMIT 10""",
+        (hotel_id, like, like, like),
+    )
+    results["employees"] = query(
+        """SELECT id, name, phone, email, role, department FROM employees
+           WHERE hotel_id=? AND (name LIKE ? OR phone LIKE ? OR email LIKE ? OR role LIKE ?)
+           ORDER BY name LIMIT 8""",
+        (hotel_id, like, like, like, like),
+    )
+    results["invoices"] = query(
+        """SELECT bills.id AS invoice_id, bills.booking_id, bills.total, bills.payment_status,
+                  bills.bill_date, c.name AS customer_name, r.room_no
+           FROM bills JOIN bookings b ON bills.booking_id=b.id
+           JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
+           WHERE b.hotel_id=? AND (CAST(bills.id AS TEXT) LIKE ? OR c.name LIKE ? OR CAST(bills.booking_id AS TEXT) LIKE ?)
+           ORDER BY bills.id DESC LIMIT 8""",
+        (hotel_id, like, like, like),
+    )
+    return results
+
+
+@app.route("/api/search")
+def api_search():
+    if not is_logged_in():
+        return api_error("Unauthorized", 401)
+    q = request.args.get("q", "").strip()
+    return api_ok(data=global_search_results(q, get_current_hotel_id()))
 
 
 def dashboard_stats(hotel_id=None):
@@ -1179,6 +1209,18 @@ def dashboard():
         "SELECT room_no, room_type, status FROM rooms WHERE hotel_id=? AND status IN ('Maintenance','Cleaning') LIMIT 6",
         (hid,),
     )
+    today_arrivals = query("""
+        SELECT b.id, c.name, r.room_no, b.checkin, b.checkout, b.status, c.phone
+        FROM bookings b JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
+        WHERE b.hotel_id=? AND b.checkin=? AND b.status IN ('Reserved','Checked-in')
+        ORDER BY b.checkin ASC LIMIT 8
+    """, (hid, date.today().isoformat()))
+    today_departures = query("""
+        SELECT b.id, c.name, r.room_no, b.checkin, b.checkout, b.status
+        FROM bookings b JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
+        WHERE b.hotel_id=? AND b.checkout=? AND b.status='Checked-in'
+        ORDER BY b.checkout ASC LIMIT 8
+    """, (hid, date.today().isoformat()))
     return render_template(
         "dashboard.html",
         stats=stats,
@@ -1188,6 +1230,9 @@ def dashboard():
         upcoming_checkins=upcoming_checkins,
         upcoming_checkouts=upcoming_checkouts,
         maintenance_rooms=maintenance_rooms,
+        today_arrivals=today_arrivals,
+        today_departures=today_departures,
+        today=date.today().isoformat(),
     )
 
 

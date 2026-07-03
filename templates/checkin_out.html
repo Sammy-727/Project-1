@@ -1,68 +1,71 @@
 {% extends "base.html" %}
+{% from "macros/ui.html" import breadcrumb, page_header, empty_state, status_badge, icon %}
 {% set title = "Check In / Out" %}
 {% block content %}
 
-<div class="grid-2">
-    <div class="panel">
+{{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Front Desk"}, {"label": "Check In / Out"}]) }}
+{{ page_header("Check In / Out", "Today's arrivals and active stays") }}
+
+<div class="dashboard-grid">
+    <div class="panel saas-panel">
         <div class="panel-head">
-            <h3>📥 Today's Arrivals</h3>
-            <span>{{ today }}</span>
+            <h3>{{ icon('log-in', 16) }} Today's Arrivals</h3>
+            <span class="ops-count">{{ arrivals|length }}</span>
         </div>
         {% if arrivals %}
-        <table class="data-table">
-            <thead><tr><th>Booking</th><th>Guest</th><th>Room</th><th>Check-in</th><th>Action</th></tr></thead>
-            <tbody>
+        <div class="entity-grid wide">
             {% for b in arrivals %}
-            <tr>
-                <td>#{{ b.id }}</td>
-                <td>{{ b.customer_name }}<br><small>{{ b.phone }}</small></td>
-                <td>{{ b.room_no }} {{ b.room_type }}</td>
-                <td>{{ b.checkin }}</td>
-                <td>
-                    <form method="post" action="{{ url_for('checkin', booking_id=b.id) }}">
-                        <button type="submit" class="btn btn-success btn-sm">Check In</button>
-                    </form>
-                </td>
-            </tr>
+            <article class="entity-card ops-action-card">
+                <div class="ops-action-card-top">
+                    <div>
+                        <div class="entity-card-sub">#{{ b.id }}</div>
+                        <div class="entity-card-title" style="font-size:16px">{{ b.customer_name }}</div>
+                        <div class="entity-card-sub">{{ b.phone }}</div>
+                    </div>
+                    {{ status_badge(b.status) }}
+                </div>
+                <div class="entity-card-stats">
+                    <div class="entity-stat">Room<strong>{{ b.room_no }} · {{ b.room_type }}</strong></div>
+                    <div class="entity-stat">Check-in<strong>{{ b.checkin }}</strong></div>
+                </div>
+                <form method="post" action="{{ url_for('checkin', booking_id=b.id) }}" style="margin-top:12px">
+                    <button type="submit" class="btn btn-success btn-sm" style="width:100%">{{ icon('log-in', 14) }} Check In</button>
+                </form>
+            </article>
             {% endfor %}
-            </tbody>
-        </table>
+        </div>
         {% else %}
-        <div class="empty-state"><div class="empty-icon">📥</div><p>No arrivals pending check-in.</p></div>
+        {{ empty_state("log-in", "No arrivals pending", "Guests arriving today will appear here.", illustration="bookings") }}
         {% endif %}
     </div>
 
-    <div class="panel">
+    <div class="panel saas-panel">
         <div class="panel-head">
-            <h3>🏨 Active Stays</h3>
-            <span>{{ active_stays|length }} guests</span>
+            <h3>{{ icon('bed-double', 16) }} Active Stays</h3>
+            <span class="ops-count">{{ active_stays|length }}</span>
         </div>
         {% if active_stays %}
-        <table class="data-table">
-            <thead><tr><th>Booking</th><th>Guest</th><th>Room</th><th>Balance</th><th>Check-out</th><th>Action</th></tr></thead>
-            <tbody>
+        <div class="entity-grid wide">
             {% for b in active_stays %}
-            <tr>
-                <td>#{{ b.id }}</td>
-                <td>{{ b.customer_name }}</td>
-                <td>{{ b.room_no }}</td>
-                <td>
-                    {% if b.balance > 0 %}
-                    <span class="danger">₹{{ "{:,.0f}".format(b.balance) }}</span>
-                    {% else %}
-                    <span class="badge badge-Paid">Paid</span>
-                    {% endif %}
-                </td>
-                <td>{{ b.checkout }}</td>
-                <td>
-                    <button class="btn btn-primary btn-sm modal-trigger" data-target="#checkout{{ b.id }}">Check Out</button>
-                </td>
-            </tr>
+            <article class="entity-card ops-action-card">
+                <div class="ops-action-card-top">
+                    <div>
+                        <div class="entity-card-sub">#{{ b.id }}</div>
+                        <div class="entity-card-title" style="font-size:16px">{{ b.customer_name }}</div>
+                    </div>
+                    <span class="badge badge-Occupied">In-house</span>
+                </div>
+                <div class="entity-card-stats">
+                    <div class="entity-stat">Room<strong>{{ b.room_no }}</strong></div>
+                    <div class="entity-stat">Check-out<strong>{{ b.checkout }}</strong></div>
+                    <div class="entity-stat">Balance<strong>{% if b.balance > 0 %}<span class="danger">₹{{ "{:,.0f}".format(b.balance) }}</span>{% else %}Paid{% endif %}</strong></div>
+                </div>
+                <button class="btn btn-primary btn-sm modal-trigger" data-target="#checkout{{ b.id }}" style="width:100%;margin-top:12px">{{ icon('log-out', 14) }} Check Out</button>
+            </article>
             {% endfor %}
-            </tbody>
-        </table>
+        </div>
         {% else %}
-        <div class="empty-state"><div class="empty-icon">🏨</div><p>No active stays.</p></div>
+        {{ empty_state("bed-double", "No active stays", "Checked-in guests appear here.", illustration="rooms") }}
         {% endif %}
     </div>
 </div>
@@ -73,7 +76,7 @@
     <div class="modal-content">
         <button class="modal-close">✕</button>
         <h3>Check Out — {{ b.customer_name }}</h3>
-        <p style="margin-bottom:16px;color:var(--muted)">Room {{ b.room_no }} | Total: ₹{{ "{:,.2f}".format(b.total) }} | Paid: ₹{{ "{:,.2f}".format(b.paid) }} | <strong class="danger">Balance: ₹{{ "{:,.2f}".format(b.balance) }}</strong></p>
+        <p style="margin-bottom:16px;color:var(--text-muted)">Room {{ b.room_no }} · Total ₹{{ "{:,.2f}".format(b.total) }} · Paid ₹{{ "{:,.2f}".format(b.paid) }} · <strong class="danger">Balance ₹{{ "{:,.2f}".format(b.balance) }}</strong></p>
         <form method="post" action="{{ url_for('checkout', booking_id=b.id) }}">
             <div class="form-grid">
                 <input name="discount" type="number" placeholder="Discount ₹" value="0" min="0">
@@ -87,7 +90,7 @@
                 <input type="checkbox" name="allow_pending" value="1"> Allow checkout with pending balance
             </label>
             {% endif %}
-            <button type="submit" class="btn btn-primary">Complete Check Out & Generate Bill</button>
+            <button type="submit" class="btn btn-primary">Complete Check Out &amp; Generate Bill</button>
         </form>
     </div>
 </div>

@@ -3,73 +3,106 @@
 {% set title = "Dashboard" %}
 {% block content %}
 
+<div class="dashboard-page">
 {{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Dashboard"}]) }}
-{{ page_header("Dashboard", "Real-time overview of hotel operations") }}
+{{ page_header("Operations Dashboard", "Live front-desk command center for " ~ current_hotel_name) }}
 
+<section class="dashboard-section" aria-label="Key metrics">
 <div class="kpi-grid">
     {{ kpi_card("Today's Revenue", "₹" ~ "{:,.0f}".format(stats.today_revenue), "indian-rupee", "indigo") }}
     {{ kpi_card("Occupancy", stats.occupancy_rate, "percent", "emerald", "%") }}
     {{ kpi_card("Available Rooms", stats.available, "bed-double", "blue") }}
-    {{ kpi_card("Today's Check-ins", stats.today_checkins, "log-in", "purple") }}
-    {{ kpi_card("Today's Check-outs", stats.today_checkouts, "log-out", "amber") }}
+    {{ kpi_card("Arrivals Today", stats.today_checkins, "log-in", "purple") }}
+    {{ kpi_card("Departures Today", stats.today_checkouts, "log-out", "amber") }}
     {{ kpi_card("Pending Payments", stats.pending_payments, "clock", "red") }}
 </div>
+</section>
 
-<div class="dash-stats-row">
-    <div class="dash-stat-card">
-        <span class="dash-stat-label">{{ icon('bed-double', 16) }} Rooms</span>
-        <strong>{{ stats.total_rooms }}</strong>
-        <div class="dash-stat-pills">
-            <span class="badge badge-Available">{{ stats.available }} available</span>
-            <span class="badge badge-Occupied">{{ stats.occupied }} occupied</span>
-            <span class="badge badge-Maintenance">{{ stats.maintenance }} maintenance</span>
+<section class="dashboard-ops" aria-label="Today's operations">
+    <div class="dashboard-ops-stack">
+        <div class="panel saas-panel ops-panel">
+            <div class="panel-head">
+                <h3>{{ icon('log-in', 16) }} Today's Arrivals <span class="ops-count">{{ today_arrivals|length }}</span></h3>
+                <a href="{{ url_for('checkin_out') }}" class="btn btn-ghost btn-sm">Desk</a>
+            </div>
+            {% if today_arrivals %}
+            <div class="ops-queue">
+                {% for b in today_arrivals %}
+                <a href="{{ url_for('bookings', q=b.id) }}" class="ops-queue-item">
+                    <div class="ops-queue-icon arrival">{{ icon('log-in', 16) }}</div>
+                    <div class="ops-queue-body">
+                        <strong>{{ b.name }}</strong>
+                        <span>Room {{ b.room_no }} · {{ b.phone or '—' }}</span>
+                    </div>
+                    {{ status_badge(b.status) }}
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            {{ empty_state("log-in", "No arrivals today", "Check-ins scheduled for today appear here.", illustration="bookings") }}
+            {% endif %}
         </div>
-    </div>
-    <div class="dash-stat-card">
-        <span class="dash-stat-label">{{ icon('calendar-days', 16) }} Bookings</span>
-        <strong>{{ stats.active_bookings }}</strong>
-        <div class="dash-stat-pills">
-            <span class="badge badge-Reserved">Active reservations</span>
-        </div>
-    </div>
-    <div class="dash-stat-card">
-        <span class="dash-stat-label">{{ icon('users', 16) }} Staff</span>
-        <strong>{{ stats.employees }}</strong>
-        <div class="dash-stat-pills">
-            <span class="badge badge-Available">Active employees</span>
-        </div>
-    </div>
-    <div class="dash-stat-card">
-        <span class="dash-stat-label">{{ icon('sparkles', 16) }} Housekeeping</span>
-        <strong>{{ stats.cleaning }}</strong>
-        <div class="dash-stat-pills">
-            <span class="badge badge-Cleaning">Rooms cleaning</span>
-        </div>
-    </div>
-</div>
 
-<div class="dashboard-charts" id="dashboardChartsRoot">
-    <div class="panel saas-panel chart-panel">
-        <div class="panel-head">
-            <h3>Revenue Trend</h3>
-            <span>Last 6 months</span>
+        <div class="panel saas-panel ops-panel">
+            <div class="panel-head">
+                <h3>{{ icon('log-out', 16) }} Today's Departures <span class="ops-count">{{ today_departures|length }}</span></h3>
+                <a href="{{ url_for('checkin_out') }}" class="btn btn-ghost btn-sm">Desk</a>
+            </div>
+            {% if today_departures %}
+            <div class="ops-queue">
+                {% for b in today_departures %}
+                <a href="{{ url_for('bookings', q=b.id) }}" class="ops-queue-item">
+                    <div class="ops-queue-icon departure">{{ icon('log-out', 16) }}</div>
+                    <div class="ops-queue-body">
+                        <strong>{{ b.name }}</strong>
+                        <span>Room {{ b.room_no }} · checkout {{ b.checkout }}</span>
+                    </div>
+                    {{ status_badge(b.status) }}
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            {{ empty_state("log-out", "No departures today", "Guests checking out today appear here.", illustration="bookings") }}
+            {% endif %}
         </div>
-        <div class="chart-skeleton" id="revenueChartSkeleton" aria-hidden="true"></div>
-        <div class="chart-container" id="revenueChartWrap" hidden>
-            <canvas id="revenueChart" height="280"></canvas>
+
+        <div class="panel saas-panel ops-panel">
+            <div class="panel-head">
+                <h3>{{ icon('bell', 16) }} Alerts</h3>
+                <button type="button" class="btn btn-ghost btn-sm" id="dashOpenNotifications">View all</button>
+            </div>
+            <div class="notification-summary" id="dashNotificationSummary">
+                <span class="muted" style="font-size:13px">Loading alerts…</span>
+            </div>
         </div>
-        <p class="chart-demo-note" id="revenueChartDemo" hidden>Showing sample data — record payments to see live revenue.</p>
-        <div class="chart-empty" id="revenueChartEmpty" hidden>No revenue data available.</div>
     </div>
-    <div class="panel saas-panel chart-panel">
-        <div class="panel-head"><h3>Occupancy by Status</h3></div>
-        <div class="chart-skeleton chart-skeleton-donut" id="occupancyChartSkeleton" aria-hidden="true"></div>
-        <div class="chart-container chart-container-donut" id="occupancyChartWrap" hidden>
-            <canvas id="occupancyChart" height="280"></canvas>
+
+    <div class="dashboard-ops-stack">
+        <div class="panel saas-panel chart-panel ops-panel">
+            <div class="panel-head">
+                <h3>Revenue Overview</h3>
+                <span>Last 6 months</span>
+            </div>
+            <div class="chart-skeleton" id="revenueChartSkeleton" aria-hidden="true"></div>
+            <div class="chart-container" id="revenueChartWrap" hidden>
+                <canvas id="revenueChart" height="260"></canvas>
+            </div>
+            <p class="chart-demo-note" id="revenueChartDemo" hidden>Sample data — record payments for live revenue.</p>
+            <div class="chart-empty" id="revenueChartEmpty" hidden>No revenue data.</div>
         </div>
-        <p class="chart-demo-note" id="occupancyChartDemo" hidden>Showing sample data — add rooms to see live occupancy.</p>
-        <div class="chart-empty" id="occupancyChartEmpty" hidden>No occupancy data available.</div>
+        <div class="panel saas-panel chart-panel ops-panel">
+            <div class="panel-head"><h3>Occupancy</h3></div>
+            <div class="chart-skeleton chart-skeleton-donut" id="occupancyChartSkeleton" aria-hidden="true"></div>
+            <div class="chart-container chart-container-donut" id="occupancyChartWrap" hidden>
+                <canvas id="occupancyChart" height="260"></canvas>
+            </div>
+            <p class="chart-demo-note" id="occupancyChartDemo" hidden>Sample data — add rooms for live occupancy.</p>
+            <div class="chart-empty" id="occupancyChartEmpty" hidden>No occupancy data.</div>
+        </div>
     </div>
+</section>
+
+<section class="dashboard-charts" id="dashboardChartsRoot">
     <div class="panel saas-panel chart-panel chart-panel-wide">
         <div class="panel-head">
             <h3>Booking Trend</h3>
@@ -77,14 +110,14 @@
         </div>
         <div class="chart-skeleton" id="bookingChartSkeleton" aria-hidden="true"></div>
         <div class="chart-container" id="bookingChartWrap" hidden>
-            <canvas id="bookingTrendChart" height="280"></canvas>
+            <canvas id="bookingTrendChart" height="240"></canvas>
         </div>
-        <p class="chart-demo-note" id="bookingChartDemo" hidden>Showing sample data — bookings will appear here once created.</p>
-        <div class="chart-empty" id="bookingChartEmpty" hidden>No booking data available.</div>
+        <p class="chart-demo-note" id="bookingChartDemo" hidden>Sample data — bookings appear once created.</p>
+        <div class="chart-empty" id="bookingChartEmpty" hidden>No booking data.</div>
     </div>
-</div>
+</section>
 
-<div class="grid-2">
+<section class="dashboard-grid" aria-label="Recent activity">
     <div class="panel saas-panel">
         <div class="panel-head">
             <h3>Recent Bookings</h3>
@@ -92,8 +125,8 @@
         </div>
         {% if recent_bookings %}
         <div class="dash-card-list">
-            {% for b in recent_bookings %}
-            <a href="{{ url_for('bookings') }}" class="dash-mini-card">
+            {% for b in recent_bookings[:6] %}
+            <a href="{{ url_for('bookings', q=b.id) }}" class="dash-mini-card">
                 <div class="dash-mini-card-icon">{{ icon('calendar-days', 18) }}</div>
                 <div class="dash-mini-card-body">
                     <strong>#{{ b.id }} · {{ b.name }}</strong>
@@ -104,7 +137,7 @@
             {% endfor %}
         </div>
         {% else %}
-        {{ empty_state("calendar-days", "No bookings yet", "Create your first booking to get started.", "New Booking", "", "dashNewBooking", illustration="bookings") }}
+        {{ empty_state("calendar-days", "No bookings yet", "Create your first booking.", "New Booking", "", "dashNewBooking", illustration="bookings") }}
         {% endif %}
     </div>
 
@@ -115,7 +148,7 @@
         </div>
         {% if recent_payments %}
         <div class="dash-card-list">
-            {% for p in recent_payments %}
+            {% for p in recent_payments[:6] %}
             <a href="{{ url_for('payments') }}" class="dash-mini-card">
                 <div class="dash-mini-card-icon payment">{{ icon('credit-card', 18) }}</div>
                 <div class="dash-mini-card-body">
@@ -127,110 +160,56 @@
             {% endfor %}
         </div>
         {% else %}
-        {{ empty_state("credit-card", "No payments yet", "Payment activity will appear here.") }}
+        {{ empty_state("credit-card", "No payments yet", "Payment activity will appear here.", illustration="reports") }}
         {% endif %}
     </div>
-</div>
+</section>
 
-<div class="grid-2">
+<section class="dashboard-grid" aria-label="Operations alerts">
     <div class="panel saas-panel">
-        <div class="panel-head"><h3>Upcoming Check-ins</h3></div>
-        {% if upcoming_checkins %}
-        <div class="dash-card-list">
-            {% for b in upcoming_checkins %}
-            <div class="dash-mini-card static">
-                <div class="dash-mini-card-icon checkin">{{ icon('log-in', 18) }}</div>
-                <div class="dash-mini-card-body">
-                    <strong>{{ b.name }}</strong>
-                    <span class="muted">Room {{ b.room_no }} · {{ b.checkin }}</span>
-                </div>
-                {{ status_badge(b.status) }}
-            </div>
-            {% endfor %}
+        <div class="panel-head">
+            <h3>Maintenance &amp; Housekeeping</h3>
+            <a href="{{ url_for('housekeeping') }}" class="btn btn-ghost btn-sm">Board</a>
         </div>
-        {% else %}
-        {{ empty_state("log-in", "No upcoming check-ins", "Arrivals will appear here.") }}
-        {% endif %}
-    </div>
-
-    <div class="panel saas-panel">
-        <div class="panel-head"><h3>Upcoming Check-outs</h3></div>
-        {% if upcoming_checkouts %}
-        <div class="dash-card-list">
-            {% for b in upcoming_checkouts %}
-            <div class="dash-mini-card static">
-                <div class="dash-mini-card-icon checkout">{{ icon('log-out', 18) }}</div>
-                <div class="dash-mini-card-body">
-                    <strong>{{ b.name }}</strong>
-                    <span class="muted">Room {{ b.room_no }} · {{ b.checkout }}</span>
-                </div>
-                {{ status_badge(b.status) }}
-            </div>
-            {% endfor %}
-        </div>
-        {% else %}
-        {{ empty_state("log-out", "No upcoming check-outs", "Departures will appear here.") }}
-        {% endif %}
-    </div>
-</div>
-
-<div class="grid-2">
-    <div class="panel saas-panel">
-        <div class="panel-head"><h3>Recent Activity</h3></div>
-        <div class="dash-timeline">
-            {% for p in recent_payments[:4] %}
-            <div class="dash-timeline-item">
-                <div class="dash-timeline-dot payment"></div>
-                <div>
-                    <strong>Payment received</strong>
-                    <span class="muted">{{ p.name }} · ₹{{ "{:,.0f}".format(p.amount) }} · {{ p.payment_date }}</span>
-                </div>
-            </div>
-            {% endfor %}
-            {% for b in recent_bookings[:4] %}
-            <div class="dash-timeline-item">
-                <div class="dash-timeline-dot booking"></div>
-                <div>
-                    <strong>Booking #{{ b.id }}</strong>
-                    <span class="muted">{{ b.name }} · Room {{ b.room_no }} · {{ status_badge(b.status) }}</span>
-                </div>
-            </div>
-            {% endfor %}
-            {% if not recent_payments and not recent_bookings %}
-            {{ empty_state("activity", "No activity yet", "Operations will appear here as they happen.") }}
-            {% endif %}
-        </div>
-    </div>
-
-    <div class="panel saas-panel">
-        <div class="panel-head"><h3>Housekeeping & Maintenance</h3></div>
-        {% if maintenance_rooms or low_stock %}
-        <div class="dash-card-list" style="padding:12px">
+        {% if maintenance_rooms %}
+        <div class="dashboard-alerts-grid">
             {% for r in maintenance_rooms %}
-            <div class="alert-visual-card">
-                <div class="alert-visual-thumb maintenance">{{ icon('wrench', 20) }}</div>
+            <div class="dash-alert-card warning">
+                {{ icon('wrench', 16) }}
                 <div>
                     <strong>Room {{ r.room_no }}</strong>
-                    <div class="muted">{{ r.room_type }} · {{ r.status }}</div>
+                    <span>{{ r.room_type }} · {{ r.status }}</span>
                 </div>
-                {{ status_badge(r.status) }}
-            </div>
-            {% endfor %}
-            {% for i in low_stock[:4] %}
-            <div class="alert-visual-card">
-                <div class="alert-visual-thumb inventory">{{ icon('package', 20) }}</div>
-                <div>
-                    <strong>{{ i.item_name }}</strong>
-                    <div class="muted">Low stock · {{ i.quantity }} left</div>
-                </div>
-                <span class="badge badge-danger">Low</span>
             </div>
             {% endfor %}
         </div>
         {% else %}
-        {{ empty_state("sparkles", "All clear", "No housekeeping or maintenance alerts.") }}
+        <p class="muted" style="font-size:13px;padding:8px 0">All rooms operational.</p>
         {% endif %}
     </div>
+
+    <div class="panel saas-panel">
+        <div class="panel-head">
+            <h3>Low Inventory</h3>
+            <a href="{{ url_for('inventory') }}" class="btn btn-ghost btn-sm">Stock</a>
+        </div>
+        {% if low_stock %}
+        <div class="dashboard-alerts-grid">
+            {% for i in low_stock[:6] %}
+            <div class="dash-alert-card danger">
+                {{ icon('package', 16) }}
+                <div>
+                    <strong>{{ i.item_name }}</strong>
+                    <span>{{ i.quantity }} left · reorder {{ i.reorder_level }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="muted" style="font-size:13px;padding:8px 0">Inventory levels healthy.</p>
+        {% endif %}
+    </div>
+</section>
 </div>
 
 {% endblock %}
@@ -240,7 +219,31 @@
 <script src="{{ url_for('static', filename='js/dashboard-charts.js') }}"></script>
 <script>
 document.getElementById('dashNewBooking')?.addEventListener('click', () => {
-  window.location.href = '/bookings';
+  window.location.href = '/bookings?new=1';
 });
+document.getElementById('dashOpenNotifications')?.addEventListener('click', () => {
+  document.getElementById('notificationBellBtn')?.click();
+});
+(async function loadDashAlerts() {
+  const el = document.getElementById('dashNotificationSummary');
+  if (!el || typeof axios === 'undefined') return;
+  try {
+    const { data } = await axios.get('/api/notifications');
+    const items = (data.notifications || []).slice(0, 4);
+    if (!items.length) {
+      el.innerHTML = '<span class="muted" style="font-size:13px">No active alerts.</span>';
+      return;
+    }
+    el.innerHTML = items.map((n) => {
+      const tone = (n.type || '').toLowerCase() === 'red' ? 'red' : 'yellow';
+      return `<button type="button" class="notification-pill ${tone}" data-open-notifications>${n.title || 'Alert'}</button>`;
+    }).join('');
+    el.querySelectorAll('[data-open-notifications]').forEach((btn) => {
+      btn.addEventListener('click', () => document.getElementById('notificationBellBtn')?.click());
+    });
+  } catch (_) {
+    el.innerHTML = '<span class="muted" style="font-size:13px">Alerts unavailable.</span>';
+  }
+})();
 </script>
 {% endblock %}

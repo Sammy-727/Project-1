@@ -71,29 +71,7 @@ function renderBookingRows(bookings) {
 }
 
 async function refreshBookingsView() {
-  const cardGrid = document.getElementById('bookingCardGrid');
-  const tablePanel = document.querySelector('[data-view-panel="table"][data-page="bookings"]');
-  const cardViewActive = cardGrid && (!tablePanel || tablePanel.hidden);
-
-  if (cardViewActive) {
-    window.location.reload();
-    return;
-  }
-  await refreshBookingsTable();
-}
-
-async function refreshBookingsTable() {
-  const tbody = document.getElementById('bookingsTableBody');
-  if (!tbody) return;
-  tbody.closest('.saas-table-wrap, .panel')?.classList.add('loading');
-  try {
-    const bookings = await fetchBookings(getFilterParams());
-    renderBookingRows(bookings);
-  } catch (err) {
-    window.showToast?.(err.message, 'danger');
-  } finally {
-    tbody.closest('.saas-table-wrap, .panel')?.classList.remove('loading');
-  }
+  window.location.reload();
 }
 
 function escapeHtml(str) {
@@ -128,6 +106,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.getElementById('newBookingBtn')?.addEventListener('click', () => drawer.open());
+
+  if (new URLSearchParams(window.location.search).get('new') === '1') {
+    drawer.open();
+  }
 
   const quickAddModal = new AddCustomerModal(document.getElementById('quickAddCustomerModal'), {
     compact: true,
