@@ -45,7 +45,11 @@ app.secret_key = os.environ.get("SECRET_KEY", "hms-v2-secret-key")
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["SESSION_COOKIE_SECURE"] = os.environ.get("FORCE_HTTPS", "0") == "1"
-APP_NAME = "GrandStay HMS"
+APP_NAME = "Safe Stays"
+APP_SHORT_NAME = "SafeStays"
+APP_TAGLINE = "Secure. Smart. Seamless Hospitality."
+PLATFORM_NAME = "Safe Stays Platform"
+BROWSER_TITLE = "Safe Stays | Hotel Management Platform"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "instance", "hotel_v2.db")
 _db_ready = False
@@ -878,6 +882,10 @@ def inject_globals():
         )
     return dict(
         app_name=APP_NAME,
+        app_short_name=APP_SHORT_NAME,
+        app_tagline=APP_TAGLINE,
+        platform_name=PLATFORM_NAME,
+        browser_title=BROWSER_TITLE,
         current_user=session,
         active_page=request.endpoint if request else "",
         roles=ROLES,
@@ -897,7 +905,7 @@ def inject_globals():
         booking_sources=BOOKING_SOURCES,
         subscription_plans=SUBSCRIPTION_PLANS,
         current_hotel=hotel,
-        current_hotel_name=hotel["hotel_name"] if hotel else "GrandStay Hotel",
+        current_hotel_name=hotel["hotel_name"] if hotel else "Safe Stays Property",
         platform_hotels=hotels,
         is_read_only=is_hotel_read_only(),
         can_write=can_write_hotel_ops(),
@@ -2374,7 +2382,7 @@ def platform_view_hotel(hotel_id):
         flash("Hotel not found.", "danger")
         return redirect(url_for("platform_hotels"))
     set_session_hotel(hotel_id)
-    flash(f"Viewing {hotel['hotel_name']} in read-only mode.", "success")
+    flash(f"Viewing {hotel['hotel_name']} through Safe Stays Platform (read-only).", "success")
     return redirect(url_for("dashboard"))
 
 
@@ -2593,7 +2601,7 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     is_windows = sys.platform == "win32"
     debug = (not is_windows) and os.environ.get("FLASK_DEBUG", "0") == "1"
-    print(f"\n  GrandStay HMS running at http://127.0.0.1:{port}")
+    print(f"\n  Safe Stays PMS running at http://127.0.0.1:{port}")
     print("  Login: admin / admin123")
     print("  Tip: On Windows use START.bat instead\n")
     app.run(

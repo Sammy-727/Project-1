@@ -1,4 +1,4 @@
-# GrandStay HMS — Live Web Link
+# Safe Stays PMS — Live Web Link
 
 ## Option 1: One-click deploy (permanent free URL)
 
@@ -10,7 +10,7 @@
 3. Your live URL will look like:
    **https://grandstay-hms.onrender.com**
 
-4. Login: `admin` / `admin123`
+4. Login: `admin` / `password123`
 
 > Free tier sleeps after 15 min idle. First visit may take ~30 sec to wake up.
 
@@ -31,6 +31,5 @@ Open: http://127.0.0.1:5000
 
 | Username | Password |
 |----------|----------|
-| admin | admin123 |
-| manager | manager123 |
-| reception | rec123 |
+| admin | password123 |
+| manager | password123 |

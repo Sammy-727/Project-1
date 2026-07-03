@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"><title>Login - Safe Stays</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link th:href="@{/css/style.css}" rel="stylesheet">
+</head>
+<body>
+<div class="login-page">
+    <div class="login-box">
+        <div class="login-logo">🏨</div>
+        <h1 th:text="${appName}">Safe Stays</h1>
+        <p>Sign in to your account</p>
+        <div th:if="${param.error}" class="alert alert-danger">Invalid username or password.</div>
+        <div th:if="${param.logout}" class="alert alert-success">Logged out successfully.</div>
+        <form th:action="@{/login}" method="post">
+            <input name="username" placeholder="Username" required>
+            <input name="password" type="password" placeholder="Password" required>
+            <button type="submit" class="btn btn-primary">Sign In</button>
+        </form>
+        <div class="login-hint">
+            <strong>Demo:</strong> admin / admin123<br>
+            manager / manager123<br>
+            reception / rec123
+        </div>
+    </div>
+</div>
+</body>
+</html>

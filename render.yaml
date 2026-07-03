@@ -1,4 +1,5 @@
 # One-click deploy: https://render.com/deploy?repo=https://github.com/Sammy-727/Project-1
+# Safe Stays PMS (Render service name kept for existing URL compatibility)
 services:
   - type: web
     name: grandstay-hms

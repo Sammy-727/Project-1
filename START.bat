@@ -1,11 +1,11 @@
 @echo off
 setlocal EnableExtensions
-title GrandStay HMS
+title Safe Stays PMS
 cd /d "%~dp0"
 
 echo.
 echo  ============================================
-echo    GrandStay HMS - Hotel Management System
+echo    Safe Stays — Hotel Management Platform
 echo  ============================================
 echo.
 
@@ -70,7 +70,7 @@ if errorlevel 1 (
 if not exist "instance" mkdir instance
 
 echo.
-echo  Starting GrandStay HMS...
+echo  Starting Safe Stays PMS...
 echo  Browser will open automatically.
 echo  DO NOT CLOSE THIS WINDOW while using the app.
 echo.

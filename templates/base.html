@@ -2,9 +2,9 @@
 <html lang="en" data-theme="light">
 <head>
     <meta charset="utf-8">
-    <title>{{ title or app_name }} — GrandStay</title>
+    <title>{% if title %}{{ title }} — {% endif %}{{ browser_title }}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Premium Hotel Management System">
+    <meta name="description" content="{{ app_tagline }} — Multi-Hotel SaaS Hotel Management Platform">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
@@ -19,10 +19,13 @@
 <div class="app-layout">
     <aside class="sidebar" id="sidebar" aria-label="Main navigation">
         <div class="sidebar-header">
-            <div class="brand-icon">G</div>
+            <div class="brand-icon brand-logo-mark">
+                <i data-lucide="shield" class="icon brand-shield-icon"></i>
+                <i data-lucide="building-2" class="icon brand-building-icon"></i>
+            </div>
             <div class="brand-text">
-                <h2>GrandStay</h2>
-                <p>Hotel SaaS</p>
+                <h2>Safe Stays</h2>
+                <p>{{ app_tagline }}</p>
             </div>
             <button class="icon-btn-round sidebar-collapse-btn" id="sidebarCollapse" title="Collapse sidebar" aria-label="Collapse sidebar">
                 <i data-lucide="panel-left-close" class="icon"></i>
@@ -188,7 +191,7 @@
             {% if is_read_only and current_hotel %}
             <div class="read-only-banner" role="status">
                 <i data-lucide="eye" class="icon"></i>
-                Viewing <strong>{{ current_hotel.hotel_name }}</strong> in Read-Only Mode
+                Viewing <strong>{{ current_hotel.hotel_name }}</strong> through {{ platform_name }}
                 <a href="{{ url_for('platform_hotels') }}" class="read-only-banner-link">Back to Platform</a>
             </div>
             {% endif %}
