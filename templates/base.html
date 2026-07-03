@@ -133,6 +133,7 @@
             </button>
 
             <div class="topbar-actions">
+                {% if is_platform_admin %}
                 <div class="hotel-switcher" id="hotelSwitcherWrap">
                     <button class="hotel-switcher-btn" id="hotelSwitcher" type="button" aria-haspopup="listbox">
                         <i data-lucide="building-2" class="icon"></i>
@@ -150,6 +151,7 @@
                         {% endfor %}
                     </div>
                 </div>
+                {% endif %}
 
                 <button class="icon-btn-round notification-btn" id="notificationBellBtn" type="button" title="Notifications & Alerts" aria-label="Notifications and alerts" aria-expanded="false">
                     <i data-lucide="bell" class="icon"></i>
