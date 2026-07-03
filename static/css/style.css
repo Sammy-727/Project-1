@@ -530,6 +530,40 @@ a:hover { color: var(--primary-hover); }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .grid-3 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; }
 .dashboard-charts { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; margin-bottom: 16px; }
+.chart-panel { min-height: 360px; display: flex; flex-direction: column; }
+.chart-panel-wide { grid-column: 1 / -1; }
+.chart-panel .chart-container { flex: 1; min-height: 280px; height: 280px; position: relative; }
+.chart-container-donut { max-width: 360px; margin: 0 auto; width: 100%; }
+.chart-skeleton {
+  height: 280px;
+  border-radius: 12px;
+  margin: 8px 0 12px;
+  background: linear-gradient(90deg, var(--bg-subtle) 25%, var(--border) 50%, var(--bg-subtle) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+.chart-skeleton-donut {
+  max-width: 280px;
+  margin-left: auto;
+  margin-right: auto;
+  border-radius: 50%;
+  aspect-ratio: 1;
+  height: auto;
+}
+.chart-demo-note {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 8px;
+  text-align: center;
+}
+.chart-empty {
+  min-height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
 
 /* ─── Buttons ─── */
 .btn {
@@ -1143,7 +1177,8 @@ input:focus, select:focus, textarea:focus {
 .flash-wrap { display: none; }
 
 /* ─── Chart container ─── */
-.chart-container { position: relative; height: 260px; }
+.chart-container { position: relative; height: 280px; min-height: 280px; width: 100%; overflow: hidden; }
+.chart-container canvas { display: block; width: 100% !important; height: 100% !important; }
 
 /* ─── Responsive ─── */
 @media (max-width: 1024px) {

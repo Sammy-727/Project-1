@@ -249,9 +249,10 @@
 <div class="notification-drawer-backdrop" id="notificationDrawerBackdrop"></div>
 {% endif %}
 
-{% block scripts %}{% endblock %}
-<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/axios@1.7.9/dist/axios.min.js"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+{% block scripts %}{% endblock %}
 <script src="{{ url_for('static', filename='js/cards.js') }}"></script>
 <script src="{{ url_for('static', filename='js/filters.js') }}"></script>
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>

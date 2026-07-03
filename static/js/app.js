@@ -342,15 +342,16 @@ function initCharts() {
     return {
       text: dark ? '#94a3b8' : '#64748b',
       grid: dark ? '#1e293b' : '#f1f5f9',
-      primary: '#6366f1',
+      primary: '#4f46e5',
       emerald: '#10b981',
       amber: '#f59e0b',
       purple: '#8b5cf6',
+      secondary: '#2563eb',
     };
   };
 
   const revenueEl = document.getElementById('revenueChart');
-  if (revenueEl && revenueEl.dataset.labels) {
+  if (revenueEl && revenueEl.dataset.labels && !document.getElementById('dashboardChartsRoot')) {
     const c = chartColors();
     new Chart(revenueEl, {
       type: 'line',
@@ -412,7 +413,7 @@ function initCharts() {
   }
 
   const occupancyEl = document.getElementById('occupancyChart');
-  if (occupancyEl && occupancyEl.dataset.labels) {
+  if (occupancyEl && occupancyEl.dataset.labels && !document.getElementById('dashboardChartsRoot')) {
     const c = chartColors();
     new Chart(occupancyEl, {
       type: 'doughnut',

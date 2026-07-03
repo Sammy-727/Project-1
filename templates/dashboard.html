@@ -48,30 +48,39 @@
     </div>
 </div>
 
-<div class="dashboard-charts">
-    <div class="panel saas-panel">
-        <div class="panel-head"><h3>Revenue Trend</h3><span>Last 6 months</span></div>
-        {% if monthly_revenue %}
-        <div class="chart-container">
-            <canvas id="revenueChart"
-                data-labels='{{ monthly_revenue|map(attribute="month")|list|tojson }}'
-                data-values='{{ monthly_revenue|map(attribute="total")|list|tojson }}'></canvas>
+<div class="dashboard-charts" id="dashboardChartsRoot">
+    <div class="panel saas-panel chart-panel">
+        <div class="panel-head">
+            <h3>Revenue Trend</h3>
+            <span>Last 6 months</span>
         </div>
-        {% else %}
-        {{ empty_state("bar-chart-3", "No revenue yet", "Revenue charts appear after your first payment.") }}
-        {% endif %}
+        <div class="chart-skeleton" id="revenueChartSkeleton" aria-hidden="true"></div>
+        <div class="chart-container" id="revenueChartWrap" hidden>
+            <canvas id="revenueChart" height="280"></canvas>
+        </div>
+        <p class="chart-demo-note" id="revenueChartDemo" hidden>Showing sample data — record payments to see live revenue.</p>
+        <div class="chart-empty" id="revenueChartEmpty" hidden>No revenue data available.</div>
     </div>
-    <div class="panel saas-panel">
+    <div class="panel saas-panel chart-panel">
         <div class="panel-head"><h3>Occupancy by Status</h3></div>
-        {% if room_summary %}
-        <div class="chart-container">
-            <canvas id="occupancyChart"
-                data-labels='{{ room_summary|map(attribute="status")|list|tojson }}'
-                data-values='{{ room_summary|map(attribute="c")|list|tojson }}'></canvas>
+        <div class="chart-skeleton chart-skeleton-donut" id="occupancyChartSkeleton" aria-hidden="true"></div>
+        <div class="chart-container chart-container-donut" id="occupancyChartWrap" hidden>
+            <canvas id="occupancyChart" height="280"></canvas>
         </div>
-        {% else %}
-        {{ empty_state("pie-chart", "No occupancy data", "Add rooms to see occupancy breakdown.") }}
-        {% endif %}
+        <p class="chart-demo-note" id="occupancyChartDemo" hidden>Showing sample data — add rooms to see live occupancy.</p>
+        <div class="chart-empty" id="occupancyChartEmpty" hidden>No occupancy data available.</div>
+    </div>
+    <div class="panel saas-panel chart-panel chart-panel-wide">
+        <div class="panel-head">
+            <h3>Booking Trend</h3>
+            <span>Last 6 months</span>
+        </div>
+        <div class="chart-skeleton" id="bookingChartSkeleton" aria-hidden="true"></div>
+        <div class="chart-container" id="bookingChartWrap" hidden>
+            <canvas id="bookingTrendChart" height="280"></canvas>
+        </div>
+        <p class="chart-demo-note" id="bookingChartDemo" hidden>Showing sample data — bookings will appear here once created.</p>
+        <div class="chart-empty" id="bookingChartEmpty" hidden>No booking data available.</div>
     </div>
 </div>
 
@@ -227,6 +236,11 @@
     </div>
 </div>
 
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/dashboard-charts.js') }}"></script>
 <script>
 document.getElementById('dashNewBooking')?.addEventListener('click', () => {
   window.location.href = '/bookings';
