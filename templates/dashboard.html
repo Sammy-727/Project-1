@@ -104,7 +104,7 @@
             {% endfor %}
         </div>
         {% else %}
-        {{ empty_state("calendar-days", "No bookings yet", "Create your first booking to get started.", "New Booking", "", "dashNewBooking") }}
+        {{ empty_state("calendar-days", "No bookings yet", "Create your first booking to get started.", "New Booking", "", "dashNewBooking", illustration="bookings") }}
         {% endif %}
     </div>
 
@@ -205,29 +205,26 @@
     <div class="panel saas-panel">
         <div class="panel-head"><h3>Housekeeping & Maintenance</h3></div>
         {% if maintenance_rooms or low_stock %}
-        <div class="entity-grid compact" style="padding:12px">
+        <div class="dash-card-list" style="padding:12px">
             {% for r in maintenance_rooms %}
-            <article class="entity-card status-{{ r.status|css_class }}">
-                <div class="entity-card-header" style="padding-bottom:8px">
-                    <div>
-                        <div class="entity-card-sub">Room</div>
-                        <div class="entity-card-title" style="font-size:16px">{{ r.room_no }}</div>
-                        <div class="entity-card-sub">{{ r.room_type }}</div>
-                    </div>
-                    {{ status_badge(r.status) }}
+            <div class="alert-visual-card">
+                <div class="alert-visual-thumb maintenance">{{ icon('wrench', 20) }}</div>
+                <div>
+                    <strong>Room {{ r.room_no }}</strong>
+                    <div class="muted">{{ r.room_type }} · {{ r.status }}</div>
                 </div>
-            </article>
+                {{ status_badge(r.status) }}
+            </div>
             {% endfor %}
             {% for i in low_stock[:4] %}
-            <article class="entity-card low-stock">
-                <div class="entity-card-header" style="padding-bottom:8px">
-                    <div>
-                        <div class="entity-card-sub">Inventory</div>
-                        <div class="entity-card-title" style="font-size:16px">{{ i.item_name }}</div>
-                    </div>
-                    <span class="badge badge-danger">Low: {{ i.quantity }}</span>
+            <div class="alert-visual-card">
+                <div class="alert-visual-thumb inventory">{{ icon('package', 20) }}</div>
+                <div>
+                    <strong>{{ i.item_name }}</strong>
+                    <div class="muted">Low stock · {{ i.quantity }} left</div>
                 </div>
-            </article>
+                <span class="badge badge-danger">Low</span>
+            </div>
             {% endfor %}
         </div>
         {% else %}

@@ -7,6 +7,7 @@ from io import StringIO, BytesIO
 from datetime import datetime, date, timedelta
 from functools import wraps
 from werkzeug.middleware.proxy_fix import ProxyFix
+import uuid
 
 from list_filters import (
     bookings_query, customers_query, rooms_query, employees_query,
@@ -61,6 +62,9 @@ PLATFORM_NAME = "Safe Stays Platform"
 BROWSER_TITLE = "Safe Stays | Hotel Management Platform"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "instance", "hotel_v2.db")
+UPLOAD_FOLDER = os.path.join(BASE_DIR, "static", "uploads")
+ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
+MAX_IMAGE_BYTES = 2 * 1024 * 1024
 _db_ready = False
 
 ROLES = ROLES  # from tenant
@@ -116,6 +120,34 @@ def query(sql, params=(), one=False, commit=False):
 def table_columns(table):
     rows = query(f"PRAGMA table_info({table})")
     return {r["name"] for r in rows}
+
+
+def ensure_upload_folder():
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+
+def allowed_image(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
+
+
+def save_uploaded_image(file_storage):
+    if not file_storage or not file_storage.filename:
+        return None, "No file selected"
+    if not allowed_image(file_storage.filename):
+        return None, "Invalid file type. Use JPG, PNG, or WebP."
+    file_storage.stream.seek(0, os.SEEK_END)
+    size = file_storage.stream.tell()
+    file_storage.stream.seek(0)
+    if size > MAX_IMAGE_BYTES:
+        return None, "Image must be under 2 MB."
+    ext = file_storage.filename.rsplit(".", 1)[1].lower()
+    if ext == "jpg":
+        ext = "jpeg"
+    name = f"{uuid.uuid4().hex}.{ext}"
+    ensure_upload_folder()
+    path = os.path.join(UPLOAD_FOLDER, name)
+    file_storage.save(path)
+    return f"/static/uploads/{name}", None
 
 
 def add_column_if_missing(table, column, col_type):
@@ -758,6 +790,7 @@ def init_db():
     conn.close()
     migrate_db()
     seed_db()
+    ensure_upload_folder()
     _db_ready = True
 
 
@@ -777,6 +810,9 @@ def migrate_db():
     add_column_if_missing("rooms", "capacity", "INTEGER DEFAULT 2")
     add_column_if_missing("rooms", "amenities", "TEXT")
     add_column_if_missing("rooms", "image_url", "TEXT")
+    add_column_if_missing("hotels", "cover_url", "TEXT")
+    add_column_if_missing("employees", "image_url", "TEXT")
+    add_column_if_missing("customers", "image_url", "TEXT")
     add_column_if_missing("customers", "id_proof_type", "TEXT")
     add_column_if_missing("customers", "id_proof_number", "TEXT")
     add_column_if_missing("customers", "gender", "TEXT")
@@ -883,10 +919,10 @@ def inject_globals():
     hotel = get_current_hotel()
     hotels = []
     if is_super_admin_role():
-        hotels = query("SELECT id, hotel_name, hotel_code, subscription_status FROM hotels ORDER BY hotel_name")
+        hotels = query("SELECT id, hotel_name, hotel_code, subscription_status, logo FROM hotels ORDER BY hotel_name")
     elif session.get("user_hotel_id"):
         hotels = query(
-            "SELECT id, hotel_name, hotel_code, subscription_status FROM hotels WHERE id=?",
+            "SELECT id, hotel_name, hotel_code, subscription_status, logo FROM hotels WHERE id=?",
             (session["user_hotel_id"],),
         )
     return dict(
@@ -1240,14 +1276,14 @@ def customers():
 
 @app.route("/customers/add", methods=["POST"])
 def add_customer():
-    cid = query("""INSERT INTO customers(name,phone,email,address,id_proof_type,id_proof_number,gender,age,id_proof,emergency_contact)
-                   VALUES(?,?,?,?,?,?,?,?,?,?)""",
+    cid = query("""INSERT INTO customers(name,phone,email,address,id_proof_type,id_proof_number,gender,age,id_proof,emergency_contact,image_url)
+                   VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
                 (request.form["name"], request.form["phone"], request.form.get("email"),
                  request.form.get("address"), request.form.get("id_proof_type"),
                  request.form.get("id_proof_number"), request.form.get("gender"),
                  int(request.form["age"]) if request.form.get("age") else None,
                  f"{request.form.get('id_proof_type','')}-{request.form.get('id_proof_number','')}",
-                 request.form.get("emergency_contact")), commit=True)
+                 request.form.get("emergency_contact"), request.form.get("image_url", "")), commit=True)
     guest_names = request.form.getlist("guest_name")
     for i, gn in enumerate(guest_names):
         if gn.strip():
@@ -1265,13 +1301,13 @@ def add_customer():
 @app.route("/customers/update/<int:customer_id>", methods=["POST"])
 def update_customer(customer_id):
     query("""UPDATE customers SET name=?, phone=?, email=?, address=?, id_proof_type=?,
-             id_proof_number=?, gender=?, age=?, id_proof=? WHERE id=?""",
+             id_proof_number=?, gender=?, age=?, id_proof=?, image_url=? WHERE id=?""",
           (request.form["name"], request.form["phone"], request.form.get("email"),
            request.form.get("address"), request.form.get("id_proof_type"),
            request.form.get("id_proof_number"), request.form.get("gender"),
            int(request.form["age"]) if request.form.get("age") else None,
            f"{request.form.get('id_proof_type','')}-{request.form.get('id_proof_number','')}",
-           customer_id), commit=True)
+           request.form.get("image_url", ""), customer_id), commit=True)
     query("DELETE FROM guests WHERE customer_id=? AND booking_id IS NULL", (customer_id,), commit=True)
     for gn in request.form.getlist("guest_name"):
         if gn.strip():
@@ -1751,12 +1787,12 @@ def add_employee():
     status = request.form.get("status", "Active")
     if status not in EMPLOYEE_STATUSES:
         status = "Active"
-    query("""INSERT INTO employees(name,phone,email,role,designation,department,salary,shift,joining_date,status)
-             VALUES(?,?,?,?,?,?,?,?,?,?)""",
+    query("""INSERT INTO employees(name,phone,email,role,designation,department,salary,shift,joining_date,status,image_url)
+             VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
           (request.form["name"], request.form.get("phone"), request.form.get("email"),
            request.form["role"], request.form["role"], request.form.get("department"),
            float(request.form.get("salary") or 0), request.form.get("shift"),
-           request.form.get("joining_date"), status), commit=True)
+           request.form.get("joining_date"), status, request.form.get("image_url", "")), commit=True)
     flash("Employee added successfully.", "success")
     return redirect(url_for("employees"))
 
@@ -1769,11 +1805,12 @@ def update_employee(emp_id):
         status = "Active"
     archived_at = datetime.now().strftime("%Y-%m-%d %H:%M") if status == "Archived" else None
     query("""UPDATE employees SET name=?, phone=?, email=?, role=?, designation=?, department=?,
-             salary=?, shift=?, joining_date=?, status=?, archived_at=? WHERE id=?""",
+             salary=?, shift=?, joining_date=?, status=?, archived_at=?, image_url=? WHERE id=?""",
           (request.form["name"], request.form.get("phone"), request.form.get("email"),
            request.form["role"], request.form["role"], request.form.get("department"),
            float(request.form.get("salary") or 0), request.form.get("shift"),
-           request.form.get("joining_date"), status, archived_at, emp_id), commit=True)
+           request.form.get("joining_date"), status, archived_at,
+           request.form.get("image_url", ""), emp_id), commit=True)
     sync_employee_user_status(emp_id, status)
     flash("Employee updated successfully.", "success")
     return redirect(url_for("employees", **request.args))
@@ -2289,7 +2326,44 @@ def reports_page():
 @app.route("/settings")
 @role_required(*admin_roles())
 def settings_page():
-    return render_template("settings.html")
+    hotel = get_current_hotel()
+    return render_template("settings.html", hotel=hotel)
+
+
+@app.route("/settings/hotel", methods=["POST"])
+@role_required(*admin_roles())
+def save_hotel_settings():
+    hotel_id = get_current_hotel_id()
+    query(
+        """UPDATE hotels SET hotel_name=?, email=?, phone=?, address=?,
+           logo=?, cover_url=? WHERE id=?""",
+        (
+            request.form.get("hotel_name", "").strip(),
+            request.form.get("email", "").strip(),
+            request.form.get("phone", "").strip(),
+            request.form.get("address", "").strip(),
+            request.form.get("logo", "").strip(),
+            request.form.get("cover_url", "").strip(),
+            hotel_id,
+        ),
+        commit=True,
+    )
+    flash("Hotel profile saved.", "success")
+    return redirect(url_for("settings_page"))
+
+
+@app.route("/api/upload/image", methods=["POST"])
+def upload_image():
+    if not session.get("user_id"):
+        return jsonify({"error": "Unauthorized"}), 401
+    if not can_write_hotel_ops():
+        return jsonify({"error": "Read-only access"}), 403
+    if "image" not in request.files:
+        return jsonify({"error": "No image file provided"}), 400
+    url, err = save_uploaded_image(request.files["image"])
+    if err:
+        return jsonify({"error": err}), 400
+    return jsonify({"url": url})
 
 
 @app.route("/reports/export")

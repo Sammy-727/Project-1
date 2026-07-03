@@ -2,37 +2,47 @@
 {% from "macros/ui.html" import icon, float_field %}
 {% block content %}
 <div class="login-page">
-    <div class="login-box">
-        <div class="login-logo brand-logo-mark">
-            <i data-lucide="shield" class="icon brand-shield-icon"></i>
-            <i data-lucide="building-2" class="icon brand-building-icon"></i>
+    <div class="login-hero" aria-hidden="true">
+        <div class="login-hero-bg"></div>
+        <img src="{{ url_for('static', filename='images/login-hero.svg') }}" alt="" class="login-hero-img" width="800" height="600">
+        <div class="login-hero-overlay">
+            <h2>Secure hospitality operations</h2>
+            <p>Run front desk, housekeeping, billing, and reports from one modern platform built for multi-property hotels.</p>
         </div>
-        <h1>Welcome to Safe Stays</h1>
-        <p>Manage your hotel operations from one secure platform.</p>
-
-        {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-        {% for category, msg in messages %}
-        <div class="alert alert-{{ category }}" style="margin-bottom:16px">{{ msg }}</div>
-        {% endfor %}
-        {% endif %}
-        {% endwith %}
-
-        <form method="post" class="login-form">
-            <div class="float-field">
-                <input class="float-input" name="username" id="login_user" placeholder=" " required autocomplete="username">
-                <label for="login_user">Username</label>
+    </div>
+    <div class="login-panel">
+        <div class="login-box">
+            <div class="login-logo brand-logo-mark">
+                <i data-lucide="shield" class="icon brand-shield-icon"></i>
+                <i data-lucide="building-2" class="icon brand-building-icon"></i>
             </div>
-            <div class="float-field">
-                <input class="float-input" name="password" type="password" id="login_pass" placeholder=" " required autocomplete="current-password">
-                <label for="login_pass">Password</label>
-            </div>
-            <button type="submit" class="btn btn-primary login-submit">{{ icon('log-in', 16) }} Sign In</button>
-        </form>
+            <h1>Welcome to Safe Stays</h1>
+            <p>Manage your hotel operations from one secure platform.</p>
 
-        <div class="login-hint">
-            Platform login: <strong>superadmin</strong> / <strong>admin123</strong><br>
-            Hotel staff accounts are created by the Hotel Admin.
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            {% for category, msg in messages %}
+            <div class="alert alert-{{ category }}" style="margin-bottom:16px">{{ msg }}</div>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+
+            <form method="post" class="login-form">
+                <div class="float-field">
+                    <input class="float-input" name="username" id="login_user" placeholder=" " required autocomplete="username">
+                    <label for="login_user">Username</label>
+                </div>
+                <div class="float-field">
+                    <input class="float-input" name="password" type="password" id="login_pass" placeholder=" " required autocomplete="current-password">
+                    <label for="login_pass">Password</label>
+                </div>
+                <button type="submit" class="btn btn-primary login-submit">{{ icon('log-in', 16) }} Sign In</button>
+            </form>
+
+            <div class="login-hint">
+                Platform login: <strong>superadmin</strong> / <strong>admin123</strong><br>
+                Hotel staff accounts are created by the Hotel Admin.
+            </div>
         </div>
     </div>
 </div>

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros/ui.html" import breadcrumb, page_header, status_badge, empty_state, view_toggle, card_menu, icon, filter_meta, filter_empty, sort_controls %}
+{% from "macros/ui.html" import breadcrumb, page_header, status_badge, empty_state, view_toggle, card_menu, icon, filter_meta, filter_empty, sort_controls, room_image, avatar %}
 {% set title = "Rooms" %}
 {% block content %}
 
@@ -54,9 +54,7 @@
        data-room-no="{{ r.room_no }}" data-status="{{ r.status }}"
        data-type="{{ r.room_type or r.category }}" data-card-drawer="#drawerRoom{{ r.id }}"
        data-search="{{ r.room_no }} {{ r.room_type }} {{ r.status }}">
-    <div class="room-card-image">
-      {% if r.image_url %}<img src="{{ r.image_url }}" alt="Room {{ r.room_no }}">{% else %}{{ icon('bed-double', 28) }}{% endif %}
-    </div>
+    {{ room_image(r.image_url, r.room_no) }}
     <div class="entity-card-header">
       <div>
         <div class="entity-card-title">Room {{ r.room_no }}</div>
@@ -132,7 +130,7 @@
 </div>
 </div>
 {% else %}
-{{ empty_state("bed-double", "No rooms yet", "Add your first room to start managing availability.", "Add Room", "#addRoomModal") }}
+{{ empty_state("bed-double", "No rooms yet", "Add your first room to start managing availability.", "Add Room", "#addRoomModal", illustration="rooms") }}
 {% endif %}
 
 <!-- Add / Edit modals unchanged -->
@@ -154,7 +152,13 @@
                 <input name="capacity" type="number" placeholder="Capacity" value="2" min="1">
                 <select name="status">{% for s in room_statuses %}<option>{{ s }}</option>{% endfor %}</select>
                 <input name="amenities" placeholder="Amenities (comma separated)">
-                <input name="image_url" placeholder="Image URL (optional)">
+                <input name="image_url" placeholder="Image URL (optional)" data-room-image-url>
+                <div class="image-upload-zone" data-image-upload style="grid-column:1/-1">
+                    <input type="file" accept="image/jpeg,image/png,image/webp" aria-label="Upload room image">
+                    <p>{{ icon('image', 18) }} Upload room photo or paste URL above</p>
+                    <small data-upload-status>JPG, PNG, WebP · max 2 MB</small>
+                    <div class="image-upload-preview" data-upload-preview></div>
+                </div>
             </div>
             <button type="submit" class="btn btn-primary" style="margin-top:16px">Add Room</button>
         </form>
@@ -180,7 +184,13 @@
                 <input name="capacity" type="number" value="{{ r.capacity or 2 }}">
                 <select name="status">{% for s in room_statuses %}<option {% if r.status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select>
                 <input name="amenities" value="{{ r.amenities or '' }}">
-                <input name="image_url" value="{{ r.image_url or '' }}">
+                <input name="image_url" value="{{ r.image_url or '' }}" data-room-image-url>
+                <div class="image-upload-zone" data-image-upload style="grid-column:1/-1">
+                    <input type="file" accept="image/jpeg,image/png,image/webp" aria-label="Upload room image">
+                    <p>{{ icon('image', 18) }} Upload room photo</p>
+                    <small data-upload-status>JPG, PNG, WebP · max 2 MB</small>
+                    <div class="image-upload-preview" data-upload-preview></div>
+                </div>
             </div>
             <button type="submit" class="btn btn-primary" style="margin-top:16px">Save Changes</button>
         </form>
@@ -188,4 +198,9 @@
 </div>
 {% endfor %}
 
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/image-upload.js') }}"></script>
 {% endblock %}

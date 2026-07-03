@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros/ui.html" import breadcrumb, page_header, status_badge, empty_state, view_toggle, card_menu, icon, filter_meta, filter_empty, sort_controls %}
+{% from "macros/ui.html" import breadcrumb, page_header, status_badge, empty_state, view_toggle, card_menu, icon, filter_meta, filter_empty, sort_controls, avatar %}
 {% set title = "Guests" %}
 {% block content %}
 
@@ -51,7 +51,7 @@
            data-card-drawer="#drawerGuest{{ c.id }}">
     <div class="entity-card-header gradient">
       <div class="guest-card-top">
-        <div class="guest-avatar">{{ c.name[0]|upper }}</div>
+        {{ avatar(c.name, c.image_url) }}
         <div>
           <div class="entity-card-title">{{ c.name }}</div>
           <div class="entity-card-sub">{{ loyalty }} Guest · {{ c.booking_count }} stay{{ 's' if c.booking_count != 1 else '' }}</div>
@@ -81,7 +81,7 @@
   <aside class="drawer detail-drawer" id="drawerGuest{{ c.id }}">
     <button class="modal-close drawer-close" type="button">{{ icon('x', 18) }}</button>
     <div style="text-align:center;margin:16px 0">
-      <div class="guest-avatar" style="width:64px;height:64px;font-size:24px;margin:0 auto 10px">{{ c.name[0]|upper }}</div>
+      <div style="text-align:center;margin-bottom:12px">{{ avatar(c.name, c.image_url, 'lg') }}</div>
       <h3>{{ c.name }}</h3>
       <p class="muted">{{ c.phone }} · {{ c.email or 'No email' }}</p>
     </div>
@@ -119,7 +119,7 @@
 </div>
 </div>
 {% else %}
-{{ empty_state("users", "No guests found", "Add your first guest to start taking bookings.", "Add Guest", "#addCustomerModal") }}
+{{ empty_state("users", "No guests found", "Add your first guest to start taking bookings.", "Add Guest", "#addCustomerModal", illustration="bookings") }}
 {% endif %}
 
 <div class="modal" id="addCustomerModal">
@@ -137,6 +137,13 @@
                 <input name="age" type="number" placeholder="Age" min="0">
                 <select name="id_proof_type"><option value="">ID Type</option>{% for t in id_proof_types %}<option>{{ t }}</option>{% endfor %}</select>
                 <input name="id_proof_number" placeholder="ID Number">
+                <input type="hidden" name="image_url" data-upload-url value="">
+                <div class="image-upload-zone" data-image-upload style="grid-column:1/-1">
+                    <input type="file" accept="image/jpeg,image/png,image/webp" aria-label="Upload guest photo">
+                    <p>{{ icon('user', 18) }} Profile photo (optional)</p>
+                    <small data-upload-status>JPG, PNG, WebP · max 2 MB</small>
+                    <div class="image-upload-preview" data-upload-preview></div>
+                </div>
             </div>
             <div style="margin-top:16px;display:flex;gap:10px">
                 <button type="submit" class="btn btn-primary">Save Guest</button>
@@ -162,6 +169,13 @@
                 <input name="age" type="number" value="{{ c.age or '' }}">
                 <select name="id_proof_type"><option value="">ID Type</option>{% for t in id_proof_types %}<option {% if c.id_proof_type == t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select>
                 <input name="id_proof_number" value="{{ c.id_proof_number or '' }}">
+                <input type="hidden" name="image_url" data-upload-url value="{{ c.image_url or '' }}">
+                <div class="image-upload-zone" data-image-upload style="grid-column:1/-1">
+                    <input type="file" accept="image/jpeg,image/png,image/webp" aria-label="Upload guest photo">
+                    <p>{{ icon('user', 18) }} Profile photo</p>
+                    <small data-upload-status>JPG, PNG, WebP · max 2 MB</small>
+                    <div class="image-upload-preview" data-upload-preview></div>
+                </div>
             </div>
             <button type="submit" class="btn btn-primary" style="margin-top:16px">Save Changes</button>
         </form>
@@ -169,4 +183,9 @@
 </div>
 {% endfor %}
 
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/image-upload.js') }}"></script>
 {% endblock %}

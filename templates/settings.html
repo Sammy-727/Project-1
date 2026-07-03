@@ -1,6 +1,8 @@
 {% extends "base.html" %}
-{% from "macros/ui.html" import breadcrumb, page_header %}
+{% from "macros/ui.html" import breadcrumb, page_header, icon %}
 {% set title = "Settings" %}
+{% set cover_default = url_for('static', filename='images/placeholders/hotel-cover-default.svg') %}
+{% set logo_default = url_for('static', filename='images/placeholders/hotel-logo-default.svg') %}
 {% block content %}
 
 {{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Settings"}]) }}
@@ -18,27 +20,53 @@
 </div>
 
 <div class="settings-panel active" id="tab-hotel">
-    <div class="panel">
-        <h3 style="margin-bottom:16px">Hotel Profile</h3>
-        <div class="form-grid">
-            <div class="form-group"><label>Hotel Name</label><input value="{{ current_hotel_name }}" placeholder="Hotel name"></div>
-            <div class="form-group"><label>Email</label><input type="email" placeholder="contact@hotel.com"></div>
-            <div class="form-group"><label>Phone</label><input placeholder="+91 00000 00000"></div>
-            <div class="form-group"><label>Address</label><input placeholder="Full address"></div>
+    <form method="post" action="{{ url_for('save_hotel_settings') }}">
+        <div class="panel">
+            <div class="hotel-profile-cover">
+                <img src="{{ hotel.cover_url or cover_default }}" alt="" id="hotelCoverPreview" loading="lazy" width="960" height="240">
+                <div class="hotel-profile-logo-wrap">
+                    <img src="{{ hotel.logo or logo_default }}" alt="" id="hotelLogoPreview" loading="lazy" width="96" height="96">
+                </div>
+            </div>
+            <h3 style="margin-bottom:16px">Hotel Profile</h3>
+            <div class="form-grid">
+                <div class="form-group"><label>Hotel Name</label><input name="hotel_name" value="{{ hotel.hotel_name or current_hotel_name }}" placeholder="Hotel name" required></div>
+                <div class="form-group"><label>Email</label><input type="email" name="email" value="{{ hotel.email or '' }}" placeholder="contact@hotel.com"></div>
+                <div class="form-group"><label>Phone</label><input name="phone" value="{{ hotel.phone or '' }}" placeholder="+91 00000 00000"></div>
+                <div class="form-group"><label>Address</label><input name="address" value="{{ hotel.address or '' }}" placeholder="Full address"></div>
+            </div>
+            <div class="image-upload-row" style="margin-top:20px">
+                <div class="form-group">
+                    <label>Hotel Logo</label>
+                    <div class="image-upload-zone" data-image-upload>
+                        <input type="file" accept="image/jpeg,image/png,image/webp" aria-label="Upload hotel logo">
+                        <p>{{ icon('image', 20) }} Drop logo or click to upload</p>
+                        <small data-upload-status>JPG, PNG, WebP · max 2 MB</small>
+                        <div class="image-upload-preview" data-upload-preview></div>
+                    </div>
+                    <input type="hidden" name="logo" data-upload-url value="{{ hotel.logo or '' }}">
+                </div>
+                <div class="form-group">
+                    <label>Cover / Banner</label>
+                    <div class="image-upload-zone" data-image-upload>
+                        <input type="file" accept="image/jpeg,image/png,image/webp" aria-label="Upload cover image">
+                        <p>{{ icon('image', 20) }} Drop banner or click to upload</p>
+                        <small data-upload-status>JPG, PNG, WebP · max 2 MB</small>
+                        <div class="image-upload-preview" data-upload-preview></div>
+                    </div>
+                    <input type="hidden" name="cover_url" data-upload-url value="{{ hotel.cover_url or '' }}">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top:16px">Save Changes</button>
         </div>
-        <button class="btn btn-primary" style="margin-top:16px" onclick="showToast('Settings saved','success')">Save Changes</button>
-    </div>
+    </form>
 </div>
 
 <div class="settings-panel" id="tab-branding">
     <div class="panel">
         <h3 style="margin-bottom:16px">Branding</h3>
         <div class="form-group"><label>Primary Color</label><input type="color" value="#6366f1"></div>
-        <div class="form-group" style="margin-top:16px"><label>Hotel Logo</label>
-            <div style="border:2px dashed var(--border);border-radius:14px;padding:32px;text-align:center;color:var(--text-muted)">
-                Drag & drop logo here or click to upload
-            </div>
-        </div>
+        <p style="color:var(--text-muted);font-size:13px;margin-top:12px">Upload your hotel logo and cover image in the <strong>Hotel Profile</strong> tab.</p>
     </div>
 </div>
 
@@ -92,4 +120,39 @@
     </div>
 </div>
 
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/image-upload.js') }}"></script>
+<script>
+document.querySelectorAll('[data-upload-url]').forEach(function (input) {
+  input.addEventListener('change', function () {
+    if (input.name === 'logo') {
+      var img = document.getElementById('hotelLogoPreview');
+      if (img && input.value) img.src = input.value;
+    }
+    if (input.name === 'cover_url') {
+      var cover = document.getElementById('hotelCoverPreview');
+      if (cover && input.value) cover.src = input.value;
+    }
+  });
+});
+document.querySelectorAll('[data-image-upload]').forEach(function (zone) {
+  zone.addEventListener('change', function () {
+    var hidden = zone.parentElement.querySelector('[data-upload-url]');
+    if (!hidden) return;
+    setTimeout(function () {
+      if (hidden.name === 'logo') {
+        var img = document.getElementById('hotelLogoPreview');
+        if (img && hidden.value) img.src = hidden.value;
+      }
+      if (hidden.name === 'cover_url') {
+        var cover = document.getElementById('hotelCoverPreview');
+        if (cover && hidden.value) cover.src = hidden.value;
+      }
+    }, 800);
+  });
+});
+</script>
 {% endblock %}

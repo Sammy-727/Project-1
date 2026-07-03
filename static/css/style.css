@@ -990,12 +990,9 @@ input:focus, select:focus, textarea:focus {
   overflow: hidden;
 }
 
+/* ─── Login ─── */
 .login-page::before {
-  content: '';
-  position: absolute;
-  width: 600px; height: 600px;
-  background: radial-gradient(circle, rgba(99,102,241,0.3), transparent 70%);
-  top: -200px; right: -200px;
+  display: none;
 }
 
 .login-box {

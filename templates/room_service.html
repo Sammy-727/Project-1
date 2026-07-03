@@ -36,16 +36,20 @@
 <h3 class="page-title" style="font-size:14px;margin-bottom:10px">Available Services</h3>
 <div class="entity-grid service-grid" style="margin-bottom:20px">
   {% set services = [
-    ('concierge-bell', 'Room Service', 'From ₹120', 'Food'),
-    ('shirt', 'Laundry', 'From ₹250', 'Laundry'),
-    ('sparkles', 'Extra Cleaning', 'From ₹150', 'Cleaning'),
-    ('wrench', 'Maintenance', 'On request', 'Maintenance'),
-    ('coffee', 'Minibar Refill', 'From ₹70', 'Food'),
-    ('wifi', 'WiFi Support', 'Complimentary', 'Other'),
+    ('food-order', 'Food Order', 'From ₹120', 'Food'),
+    ('laundry', 'Laundry', 'From ₹250', 'Laundry'),
+    ('spa', 'Spa', 'From ₹800', 'Wellness'),
+    ('airport-pickup', 'Airport Pickup', 'From ₹600', 'Transport'),
+    ('extra-bed', 'Extra Bed', 'From ₹500', 'Room'),
+    ('minibar', 'Minibar', 'From ₹70', 'Food'),
+    ('gym', 'Gym', 'Complimentary', 'Wellness'),
+    ('conference-hall', 'Conference Hall', 'On request', 'Events'),
   ] %}
-  {% for icon_name, name, price, cat in services %}
+  {% for slug, name, price, cat in services %}
   <article class="entity-card service-card">
-    <div class="service-icon">{{ icon(icon_name, 22) }}</div>
+    <div class="service-card-visual">
+      <img src="{{ url_for('static', filename='images/services/' ~ slug ~ '.svg') }}" alt="" loading="lazy" width="48" height="48">
+    </div>
     <div class="entity-card-title" style="font-size:15px">{{ name }}</div>
     <div class="entity-card-sub">{{ cat }}</div>
     <div class="booking-card-amount" style="font-size:14px;margin-top:8px">{{ price }}</div>

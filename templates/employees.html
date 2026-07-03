@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros/ui.html" import breadcrumb, page_header, status_badge, empty_state, view_toggle, card_menu, icon, filter_meta, filter_empty, sort_controls %}
+{% from "macros/ui.html" import breadcrumb, page_header, status_badge, empty_state, view_toggle, card_menu, icon, filter_meta, filter_empty, sort_controls, avatar %}
 {% set title = "Employees" %}
 {% block content %}
 
@@ -62,7 +62,7 @@
            data-card-drawer="#drawerEmp{{ e.id }}">
     <div class="entity-card-header gradient">
       <div class="guest-card-top">
-        <div class="guest-avatar">{{ e.name[0]|upper }}</div>
+        {{ avatar(e.name, e.image_url) }}
         <div>
           <div class="entity-card-title">{{ e.name }}</div>
           <div class="entity-card-sub">{{ e.role or e.designation }} · {{ e.department or '—' }}</div>
@@ -118,7 +118,7 @@
             <td><input type="checkbox" class="emp-check" form="employeeBulkForm" name="ids" value="{{ e.id }}"></td>
             <td>
                 <div style="display:flex;align-items:center;gap:10px">
-                    <div class="profile-avatar" style="width:36px;height:36px;font-size:14px">{{ e.name[0]|upper }}</div>
+                    {{ avatar(e.name, e.image_url, 'sm') }}
                     <strong>{{ e.name }}</strong>
                 </div>
             </td>
@@ -164,7 +164,7 @@
     </table>
     </div>
     {% else %}
-    {{ empty_state("briefcase", "No employees yet", "Add your first team member.", "Add Employee", "#addEmployeeModal") }}
+    {{ empty_state("briefcase", "No employees yet", "Add your first team member.", "Add Employee", "#addEmployeeModal", illustration="employees") }}
     {% endif %}
 </div>
 
@@ -191,6 +191,13 @@
                 <select name="status">
                     {% for s in employee_statuses %}<option {% if s == 'Active' %}selected{% endif %}>{{ s }}</option>{% endfor %}
                 </select>
+                <input type="hidden" name="image_url" data-upload-url value="">
+                <div class="image-upload-zone" data-image-upload style="grid-column:1/-1">
+                    <input type="file" accept="image/jpeg,image/png,image/webp" aria-label="Upload employee photo">
+                    <p>{{ icon('camera', 18) }} Profile photo (optional)</p>
+                    <small data-upload-status>JPG, PNG, WebP · max 2 MB</small>
+                    <div class="image-upload-preview" data-upload-preview></div>
+                </div>
             </div>
             <button type="submit" class="btn btn-primary" style="margin-top:16px">Add Employee</button>
         </form>
@@ -201,7 +208,7 @@
 <aside class="drawer" id="drawerEmp{{ e.id }}">
     <button class="modal-close drawer-close" style="position:relative;top:0;right:0;float:right">✕</button>
     <div style="text-align:center;margin:20px 0 28px">
-        <div class="profile-avatar" style="width:72px;height:72px;font-size:28px;margin:0 auto 12px">{{ e.name[0]|upper }}</div>
+        {{ avatar(e.name, e.image_url, 'lg') }}
         <h2 style="font-size:20px">{{ e.name }}</h2>
         <p style="color:var(--text-muted)">{{ e.role or e.designation }} · {{ e.department or '—' }}</p>
         {{ status_badge(e.status) }}
@@ -250,6 +257,13 @@
                     <option {% if e.status == s %}selected{% endif %}>{{ s }}</option>
                     {% endfor %}
                 </select>
+                <input type="hidden" name="image_url" data-upload-url value="{{ e.image_url or '' }}">
+                <div class="image-upload-zone" data-image-upload style="grid-column:1/-1">
+                    <input type="file" accept="image/jpeg,image/png,image/webp" aria-label="Upload employee photo">
+                    <p>{{ icon('camera', 18) }} Profile photo</p>
+                    <small data-upload-status>JPG, PNG, WebP · max 2 MB</small>
+                    <div class="image-upload-preview" data-upload-preview></div>
+                </div>
             </div>
             <button type="submit" class="btn btn-primary" style="margin-top:16px">Save Changes</button>
         </form>
@@ -257,4 +271,9 @@
 </div>
 {% endfor %}
 
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/image-upload.js') }}"></script>
 {% endblock %}

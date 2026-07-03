@@ -24,8 +24,38 @@
 </div>
 {% endmacro %}
 
+{% macro initials(name) %}{{ (name or '?')[0]|upper }}{% endmacro %}
+
+{% macro avatar(name, image_url='', size='md', round=false, class='') %}
+{% if image_url %}
+<img src="{{ image_url }}" alt="{{ name }}" class="entity-avatar entity-avatar-{{ size }}{% if round %} entity-avatar-round{% endif %} {{ class }}" loading="lazy" width="{% if size == 'sm' %}36{% elif size == 'lg' %}72{% elif size == 'xl' %}96{% else %}48{% endif %}" height="{% if size == 'sm' %}36{% elif size == 'lg' %}72{% elif size == 'xl' %}96{% else %}48{% endif %}">
+{% else %}
+<div class="entity-avatar entity-avatar-{{ size }} entity-avatar-initials{% if round %} entity-avatar-round{% endif %} {{ class }}" aria-hidden="true">{{ initials(name) }}</div>
+{% endif %}
+{% endmacro %}
+
+{% macro hotel_thumb(name, logo_url='') %}
+{% if logo_url %}
+<img src="{{ logo_url }}" alt="" class="hotel-thumb" loading="lazy" width="28" height="28">
+{% else %}
+<span class="hotel-thumb-initials" aria-hidden="true">{{ initials(name) }}</span>
+{% endif %}
+{% endmacro %}
+
+{% macro room_image(image_url='', room_no='', lazy=true) %}
+{% set fallback = url_for('static', filename='images/placeholders/room-default.svg') %}
+<div class="room-card-image">
+  {% if image_url %}
+  <img src="{{ image_url }}" alt="Room {{ room_no }}" {% if lazy %}loading="lazy"{% endif %} width="320" height="200">
+  {% else %}
+  <img src="{{ fallback }}" alt="" class="room-placeholder-img" {% if lazy %}loading="lazy"{% endif %} width="320" height="200">
+  {% endif %}
+</div>
+{% endmacro %}
+
 {% macro kpi_card(label, value, icon_name, tone='indigo', suffix='') %}
 <div class="kpi-card kpi-{{ tone }}">
+  <div class="kpi-decor" aria-hidden="true"></div>
   <div class="kpi-top">
     <div class="kpi-icon-wrap kpi-icon-{{ tone }}">{{ icon(icon_name, 20) }}</div>
   </div>
@@ -34,9 +64,13 @@
 </div>
 {% endmacro %}
 
-{% macro empty_state(icon_name, title, message, action_label='', action_target='', action_id='') %}
+{% macro empty_state(icon_name, title, message, action_label='', action_target='', action_id='', illustration='') %}
 <div class="empty-state saas-empty">
+  {% if illustration %}
+  <img src="{{ url_for('static', filename='images/empty/' ~ illustration ~ '.svg') }}" alt="" class="empty-illustration-img" loading="lazy" width="160" height="128">
+  {% else %}
   <div class="empty-illustration">{{ icon(icon_name, 40) }}</div>
+  {% endif %}
   <h3>{{ title }}</h3>
   <p>{{ message }}</p>
   {% if action_label %}
