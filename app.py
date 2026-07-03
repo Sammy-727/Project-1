@@ -13,6 +13,15 @@ from list_filters import (
     inventory_query, payments_query, invoices_query, housekeeping_query,
     room_service_query, paginate_rows,
 )
+from chart_data import (
+    get_revenue_trend,
+    get_occupancy_status,
+    get_booking_trend,
+    with_fallback,
+    DEMO_REVENUE_TREND,
+    DEMO_OCCUPANCY_STATUS,
+    DEMO_BOOKING_TREND,
+)
 from seed_data import seed_multi_hotel_demo, seed_hotel_demo_notifications
 from tenant import (
     ROLES,
@@ -1072,6 +1081,33 @@ def dashboard_stats(hotel_id=None):
     }
 
 
+@app.route("/api/dashboard/charts/revenue-trend")
+def api_chart_revenue_trend():
+    if not is_logged_in():
+        return api_error("Unauthorized", 401)
+    hotel_id = get_current_hotel_id()
+    data, is_demo = with_fallback(get_revenue_trend(query, hotel_id), DEMO_REVENUE_TREND, "revenue")
+    return api_ok(data=data, hotelId=hotel_id, isDemo=is_demo)
+
+
+@app.route("/api/dashboard/charts/occupancy-status")
+def api_chart_occupancy_status():
+    if not is_logged_in():
+        return api_error("Unauthorized", 401)
+    hotel_id = get_current_hotel_id()
+    data, is_demo = with_fallback(get_occupancy_status(query, hotel_id), DEMO_OCCUPANCY_STATUS, "value")
+    return api_ok(data=data, hotelId=hotel_id, isDemo=is_demo)
+
+
+@app.route("/api/dashboard/charts/booking-trend")
+def api_chart_booking_trend():
+    if not is_logged_in():
+        return api_error("Unauthorized", 401)
+    hotel_id = get_current_hotel_id()
+    data, is_demo = with_fallback(get_booking_trend(query, hotel_id), DEMO_BOOKING_TREND, "bookings")
+    return api_ok(data=data, hotelId=hotel_id, isDemo=is_demo)
+
+
 @app.route("/dashboard")
 def dashboard():
     hid = get_current_hotel_id()
@@ -1091,17 +1127,6 @@ def dashboard():
         JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
         WHERE b.hotel_id=? ORDER BY p.id DESC LIMIT 8
     """, (hid,))
-    room_summary = query("SELECT status, COUNT(*) c FROM rooms WHERE hotel_id=? GROUP BY status", (hid,))
-    monthly_revenue = query("""
-        SELECT strftime('%Y-%m', p.payment_date) month, SUM(p.amount) total
-        FROM payments p JOIN bookings b ON p.booking_id=b.id
-        WHERE b.hotel_id=? GROUP BY month ORDER BY month DESC LIMIT 6
-    """, (hid,))
-    monthly_revenue = list(reversed(monthly_revenue))
-    room_types = query(
-        "SELECT room_type, COUNT(*) c FROM rooms WHERE hotel_id=? GROUP BY room_type ORDER BY c DESC",
-        (hid,),
-    )
     upcoming_checkins = query("""
         SELECT b.id, c.name, r.room_no, b.checkin, b.checkout, b.status
         FROM bookings b JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
@@ -1118,11 +1143,16 @@ def dashboard():
         "SELECT room_no, room_type, status FROM rooms WHERE hotel_id=? AND status IN ('Maintenance','Cleaning') LIMIT 6",
         (hid,),
     )
-    return render_template("dashboard.html", stats=stats, low_stock=low_stock,
-                           recent_bookings=recent_bookings, recent_payments=recent_payments,
-                           room_summary=room_summary, monthly_revenue=monthly_revenue,
-                           room_types=room_types, upcoming_checkins=upcoming_checkins,
-                           upcoming_checkouts=upcoming_checkouts, maintenance_rooms=maintenance_rooms)
+    return render_template(
+        "dashboard.html",
+        stats=stats,
+        low_stock=low_stock,
+        recent_bookings=recent_bookings,
+        recent_payments=recent_payments,
+        upcoming_checkins=upcoming_checkins,
+        upcoming_checkouts=upcoming_checkouts,
+        maintenance_rooms=maintenance_rooms,
+    )
 
 
 # ─── Rooms ───────────────────────────────────────────────────────────────────
