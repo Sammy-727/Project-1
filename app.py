@@ -13,6 +13,7 @@ from list_filters import (
     inventory_query, payments_query, invoices_query, housekeeping_query,
     room_service_query, paginate_rows,
 )
+from seed_data import seed_multi_hotel_demo, seed_hotel_demo_notifications
 from tenant import (
     ROLES,
     ROLE_LABELS,
@@ -506,46 +507,10 @@ def sync_notifications_from_data(hotel_id=None):
 
 
 def seed_demo_notifications(hotel_id=DEFAULT_HOTEL_ID):
-    demos = [
-        (
-            "demo_pay_15",
-            "Payment Pending",
-            "Booking #15 has ₹8,000 pending.",
-            "RED",
-            "PENDING_PAYMENTS",
-            "/payments?booking_id=15",
-        ),
-        (
-            "demo_low_towels",
-            "Low Inventory",
-            "Towels stock is below minimum level.",
-            "RED",
-            "LOW_INVENTORY",
-            "/inventory?q=Towel",
-        ),
-        (
-            "demo_checkin_ishita",
-            "Upcoming Check-in",
-            "Ishita Arora arriving today for Room 403.",
-            "YELLOW",
-            "UPCOMING_CHECKINS",
-            "/bookings?q=Ishita",
-        ),
-    ]
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    for source_key, title, message, ntype, category, action_url in demos:
-        if query(
-            "SELECT id FROM notifications WHERE hotel_id=? AND source_key=?",
-            (hotel_id, source_key),
-            one=True,
-        ):
-            continue
-        query(
-            """INSERT INTO notifications(hotel_id,title,message,type,category,is_read,created_at,action_url,source_key,is_demo)
-               VALUES(?,?,?,?,?,0,?,?,?,1)""",
-            (hotel_id, title, message, ntype, category, now, action_url, source_key),
-            commit=True,
-        )
+    hotel = query("SELECT hotel_name, city FROM hotels WHERE id=?", (hotel_id,), one=True)
+    if not hotel:
+        return
+    seed_hotel_demo_notifications(query, hotel_id, hotel["hotel_name"], hotel["city"])
 
 
 def sync_room_status_from_bookings(room_id):
@@ -850,222 +815,13 @@ def migrate_db():
 
 
 def seed_db():
-    """Seed demo hotel data on first run; always ensure core login accounts exist."""
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    if query("SELECT COUNT(*) c FROM hotels", one=True)["c"] == 0:
-        query(
-            """INSERT INTO hotels(hotel_name,hotel_code,address,city,state,country,phone,email,
-               gst_number,owner_name,owner_email,subscription_plan,subscription_status,created_at)
-               VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-            (
-                "GrandStay Hotel",
-                "GRANDSTAY",
-                "123 Mall Road",
-                "Dehradun",
-                "Uttarakhand",
-                "India",
-                "9876543000",
-                "info@grandstay.com",
-                "GSTIN-05AAAAA0000A1Z5",
-                "Ayush Sharma",
-                "owner@grandstay.com",
-                "Professional",
-                "Active",
-                now,
-            ),
-            commit=True,
-        )
-
-    demo_users = [
-        ("superadmin", "admin123", "Super Admin User", "SUPER_ADMIN", "Active", None),
-        ("admin", "admin123", "Hotel Admin", "HOTEL_ADMIN", "Active", DEFAULT_HOTEL_ID),
-        ("manager", "manager123", "Operations Manager", "MANAGER", "Active", DEFAULT_HOTEL_ID),
-        ("reception", "rec123", "Front Desk Reception", "RECEPTIONIST", "Active", DEFAULT_HOTEL_ID),
-        ("housekeeping", "hk123", "Housekeeping Lead", "HOUSEKEEPING", "Active", DEFAULT_HOTEL_ID),
-        ("accountant", "acc123", "Finance Accountant", "ACCOUNTANT", "Active", DEFAULT_HOTEL_ID),
-    ]
-    if query("SELECT COUNT(*) c FROM users", one=True)["c"] == 0:
-        for u in demo_users:
-            query(
-                "INSERT INTO users(username,password,full_name,role,status,hotel_id) VALUES(?,?,?,?,?,?)",
-                u,
-                commit=True,
-            )
-    else:
-        for u in demo_users:
-            if not query("SELECT id FROM users WHERE username=?", (u[0],), one=True):
-                query(
-                    "INSERT INTO users(username,password,full_name,role,status,hotel_id) VALUES(?,?,?,?,?,?)",
-                    u,
-                    commit=True,
-                )
-        query("UPDATE users SET full_name=username WHERE full_name IS NULL OR full_name=''", commit=True)
-        query("UPDATE users SET role='SUPER_ADMIN', hotel_id=NULL WHERE username='superadmin'", commit=True)
-        query(
-            "UPDATE users SET role='HOTEL_ADMIN', hotel_id=? WHERE username='admin'",
-            (DEFAULT_HOTEL_ID,),
-            commit=True,
-        )
-
-    if query("SELECT COUNT(*) c FROM rooms", one=True)["c"] == 0:
-        rooms = []
-        amenities_map = {
-            "Standard": "WiFi, TV, AC",
-            "Deluxe": "WiFi, TV, AC, Mini Bar",
-            "Super Deluxe": "WiFi, Smart TV, AC, Mini Bar, Balcony",
-            "Luxury": "WiFi, Smart TV, AC, Mini Bar, Jacuzzi",
-            "Presidential Suite": "WiFi, Smart TV, AC, Mini Bar, Jacuzzi, Butler",
-        }
-        prices = {"Standard": 1500, "Deluxe": 3000, "Super Deluxe": 5000, "Luxury": 8000, "Presidential Suite": 15000}
-        caps = {"Standard": 2, "Deluxe": 2, "Super Deluxe": 3, "Luxury": 4, "Presidential Suite": 6}
-
-        for i in range(101, 111):
-            rooms.append((str(i), "Standard", "Standard", 1, prices["Standard"], caps["Standard"], "Available", amenities_map["Standard"]))
-        for i in range(201, 211):
-            rooms.append((str(i), "Deluxe", "Deluxe", 2, prices["Deluxe"], caps["Deluxe"], "Available", amenities_map["Deluxe"]))
-        for i in range(301, 309):
-            rooms.append((str(i), "Super Deluxe", "Super Deluxe", 3, prices["Super Deluxe"], caps["Super Deluxe"], "Available", amenities_map["Super Deluxe"]))
-        for i in range(401, 407):
-            rooms.append((str(i), "Luxury", "Luxury", 4, prices["Luxury"], caps["Luxury"], "Available", amenities_map["Luxury"]))
-        for i in range(501, 504):
-            rooms.append((str(i), "Presidential Suite", "Presidential Suite", 5, prices["Presidential Suite"], caps["Presidential Suite"], "Available", amenities_map["Presidential Suite"]))
-
-        for r in rooms:
-            query("""INSERT INTO rooms(room_no,room_type,category,floor,price,capacity,status,amenities,hotel_id)
-                     VALUES(?,?,?,?,?,?,?,?,?)""", (*r, DEFAULT_HOTEL_ID), commit=True)
-
-    if query("SELECT COUNT(*) c FROM customers", one=True)["c"] == 0:
-        customers = [
-            ("Ayush Sharma", "9876543210", "ayush@example.com", "Dehradun", "Aadhar", "AADHAR-1001", "Male", 28),
-            ("Priya Mehta", "9876543211", "priya@example.com", "Delhi", "Passport", "PASS-1002", "Female", 32),
-            ("Rohan Verma", "9876543212", "rohan@example.com", "Jaipur", "Aadhar", "AADHAR-1003", "Male", 35),
-            ("Sneha Kapoor", "9876543213", "sneha@example.com", "Mumbai", "PAN Card", "PAN-1004", "Female", 29),
-            ("Karan Singh", "9876543214", "karan@example.com", "Lucknow", "Aadhar", "AADHAR-1005", "Male", 41),
-            ("Neha Joshi", "9876543215", "neha@example.com", "Pune", "Driving License", "DL-1006", "Female", 27),
-            ("Rahul Gupta", "9876543216", "rahul@example.com", "Noida", "Aadhar", "AADHAR-1007", "Male", 33),
-            ("Aditi Sharma", "9876543217", "aditi@example.com", "Chandigarh", "Voter ID", "VID-1008", "Female", 30),
-            ("Vivek Kumar", "9876543218", "vivek@example.com", "Patna", "Aadhar", "AADHAR-1009", "Male", 38),
-            ("Anjali Jain", "9876543219", "anjali@example.com", "Indore", "Passport", "PASS-1010", "Female", 26),
-            ("Mohit Agarwal", "9876543220", "mohit@example.com", "Bhopal", "Aadhar", "AADHAR-1011", "Male", 34),
-            ("Pooja Singh", "9876543221", "pooja@example.com", "Kanpur", "Aadhar", "AADHAR-1012", "Female", 31),
-            ("Arjun Malhotra", "9876543222", "arjun@example.com", "Gurgaon", "PAN Card", "PAN-1013", "Male", 36),
-            ("Ishita Arora", "9876543223", "ishita@example.com", "Faridabad", "Aadhar", "AADHAR-1014", "Female", 24),
-            ("Yash Raj", "9876543224", "yash@example.com", "Ranchi", "Driving License", "DL-1015", "Male", 29),
-            ("Deepak Nair", "9876543225", "deepak@example.com", "Kochi", "Passport", "PASS-1016", "Male", 42),
-            ("Kavita Reddy", "9876543226", "kavita@example.com", "Hyderabad", "Aadhar", "AADHAR-1017", "Female", 28),
-            ("Sanjay Patel", "9876543227", "sanjay@example.com", "Ahmedabad", "Aadhar", "AADHAR-1018", "Male", 45),
-            ("Meera Iyer", "9876543228", "meera@example.com", "Chennai", "Voter ID", "VID-1019", "Female", 33),
-            ("Amit Bose", "9876543229", "amit@example.com", "Kolkata", "Aadhar", "AADHAR-1020", "Male", 37),
-        ]
-        for c in customers:
-            query("""INSERT INTO customers(name,phone,email,address,id_proof_type,id_proof_number,gender,age,id_proof,hotel_id)
-                     VALUES(?,?,?,?,?,?,?,?,?,?)""",
-                  (*c, f"{c[4]}-{c[5]}", DEFAULT_HOTEL_ID), commit=True)
-
-    if query("SELECT COUNT(*) c FROM bookings", one=True)["c"] == 0:
-        today = date.today()
-
-        def d(offset):
-            return str(today + timedelta(days=offset))
-
-        # (customer_id, room_id, checkin_offset, checkout_offset, guests, status, payment_status)
-        bookings_data = [
-            (1, 1, -5, 2, 2, "Checked-in", "Partial"),
-            (2, 2, -4, 3, 1, "Checked-in", "Paid"),
-            (3, 3, -10, -6, 2, "Checked-out", "Paid"),
-            (4, 4, 1, 6, 3, "Reserved", "Pending"),
-            (5, 5, -2, 1, 2, "Checked-in", "Pending"),
-            (6, 6, -15, -12, 1, "Checked-out", "Paid"),
-            (7, 11, 0, 3, 2, "Reserved", "Pending"),
-            (8, 12, 2, 6, 2, "Reserved", "Pending"),
-            (9, 13, -3, 2, 1, "Checked-in", "Partial"),
-            (10, 14, -4, 4, 2, "Checked-in", "Paid"),
-            (11, 21, -12, -8, 2, "Checked-out", "Paid"),
-            (12, 22, 1, 6, 3, "Reserved", "Pending"),
-            (13, 23, -2, 2, 2, "Checked-in", "Partial"),
-            (14, 31, 0, 5, 2, "Reserved", "Pending"),
-            (15, 32, 0, 3, 4, "Checked-in", "Pending"),
-        ]
-        for b in bookings_data:
-            customer_id, room_id, ci_off, co_off, guests, status, pay_status = b
-            checkin, checkout = d(ci_off), d(co_off)
-            room = query("SELECT price FROM rooms WHERE id=?", (room_id,), one=True)
-            total = calc_room_charges(room["price"], checkin, checkout) if room else 0
-            query("""INSERT INTO bookings(customer_id,room_id,checkin,checkout,num_guests,status,payment_status,total_amount,hotel_id)
-                     VALUES(?,?,?,?,?,?,?,?,?)""",
-                  (customer_id, room_id, checkin, checkout, guests, status, pay_status, total, DEFAULT_HOTEL_ID), commit=True)
-            if status == "Checked-in":
-                query("UPDATE rooms SET status='Occupied' WHERE id=?", (room_id,), commit=True)
-            elif status == "Reserved":
-                query("UPDATE rooms SET status='Reserved' WHERE id=?", (room_id,), commit=True)
-            elif status == "Checked-out":
-                query("UPDATE rooms SET status='Cleaning' WHERE id=?", (room_id,), commit=True)
-
-    if query("SELECT COUNT(*) c FROM payments", one=True)["c"] == 0:
-        paid_bookings = query("SELECT id, total_amount, payment_status FROM bookings WHERE payment_status IN ('Paid','Partial')")
-        for b in paid_bookings:
-            amt = b["total_amount"] if b["payment_status"] == "Paid" else b["total_amount"] * 0.5
-            query("""INSERT INTO payments(booking_id,amount,payment_mode,receipt_number,payment_date)
-                     VALUES(?,?,?,?,?)""",
-                  (b["id"], amt, "UPI", receipt_number(), datetime.now().strftime("%Y-%m-%d %H:%M")), commit=True)
-
-    if query("SELECT COUNT(*) c FROM inventory", one=True)["c"] == 0:
-        today_str = datetime.now().strftime("%Y-%m-%d")
-        items = [
-            ("Water Bottle", "Beverages", 100, "pcs", 30, 20, "Aqua Supplies", today_str),
-            ("Soap", "Toiletries", 8, "pcs", 15, 20, "CleanCo", today_str),
-            ("Shampoo", "Toiletries", 45, "pcs", 20, 20, "CleanCo", today_str),
-            ("Towel", "Linens", 60, "pcs", 150, 10, "Linen World", today_str),
-            ("Bedsheet", "Linens", 5, "pcs", 350, 10, "Linen World", today_str),
-            ("Tea Kit", "Room Service", 100, "pcs", 50, 20, "FoodMart", today_str),
-            ("Coffee Kit", "Room Service", 100, "pcs", 70, 20, "FoodMart", today_str),
-            ("Sandwich", "Food", 50, "pcs", 120, 10, "Kitchen Pro", today_str),
-            ("Dinner Thali", "Food", 50, "plate", 350, 10, "Kitchen Pro", today_str),
-            ("Laundry Detergent", "Housekeeping", 12, "L", 250, 15, "CleanCo", today_str),
-            ("Toilet Paper", "Toiletries", 6, "rolls", 40, 15, "CleanCo", today_str),
-            ("Light Bulbs", "Maintenance", 30, "pcs", 80, 10, "ElectroHub", today_str),
-        ]
-        for i in items:
-            query("""INSERT INTO inventory(item_name,category,quantity,unit,price,reorder_level,supplier_name,last_updated,hotel_id)
-                     VALUES(?,?,?,?,?,?,?,?,?)""", (*i, DEFAULT_HOTEL_ID), commit=True)
-
-    if query("SELECT COUNT(*) c FROM employees", one=True)["c"] == 0:
-        employees = [
-            ("Rohit Sharma", "9876543210", "rohit@hotel.com", "Manager", "Management", 55000, "Morning", "2023-01-15", "Active"),
-            ("Anita Verma", "9876500001", "anita@hotel.com", "Receptionist", "Front Desk", 28000, "Morning", "2023-03-20", "Active"),
-            ("Rahul Meena", "9876500002", "rahul@hotel.com", "Housekeeping", "Housekeeping", 20000, "Evening", "2023-05-10", "Active"),
-            ("Pooja Singh", "9876500003", "pooja@hotel.com", "Chef", "Kitchen", 35000, "Night", "2022-11-01", "Active"),
-            ("Suresh Kumar", "9876500004", "suresh@hotel.com", "Maintenance", "Maintenance", 22000, "Day", "2024-02-14", "Active"),
-            ("Neha Kapoor", "9876500005", "neha@hotel.com", "Receptionist", "Front Desk", 26000, "Evening", "2024-06-01", "Active"),
-            ("Vikram Das", "9876500006", "vikram@hotel.com", "Housekeeping", "Housekeeping", 19000, "Morning", "2024-08-15", "Active"),
-        ]
-        for e in employees:
-            query("""INSERT INTO employees(name,phone,email,role,designation,department,salary,shift,joining_date,status,hotel_id)
-                     VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
-                  (e[0], e[1], e[2], e[3], e[3], e[4], e[5], e[6], e[7], e[8], DEFAULT_HOTEL_ID), commit=True)
-
-    if query("SELECT COUNT(*) c FROM housekeeping_tasks", one=True)["c"] == 0:
-        cleaning_rooms = query("SELECT id FROM rooms WHERE status='Cleaning' LIMIT 3")
-        hk_staff = query("SELECT id FROM employees WHERE department='Housekeeping' LIMIT 1", one=True)
-        staff_id = hk_staff["id"] if hk_staff else None
-        now = datetime.now().strftime("%Y-%m-%d %H:%M")
-        for i, room in enumerate(cleaning_rooms):
-            query("""INSERT INTO housekeeping_tasks(room_id,assigned_to,status,priority,notes,created_at,hotel_id)
-                     VALUES(?,?,?,?,?,?,?)""",
-                  (room["id"], staff_id, "Pending" if i == 0 else "In Progress", "High" if i == 0 else "Medium",
-                   "Post checkout cleaning", now, DEFAULT_HOTEL_ID), commit=True)
-
-    if query("SELECT COUNT(*) c FROM room_service_requests", one=True)["c"] == 0:
-        active = query("SELECT b.id, b.room_id FROM bookings b WHERE b.status='Checked-in' LIMIT 3")
-        now = datetime.now().strftime("%Y-%m-%d %H:%M")
-        types = ["Food", "Laundry", "Maintenance"]
-        for i, b in enumerate(active):
-            query("""INSERT INTO room_service_requests(booking_id,room_id,request_type,description,status,charges,add_to_bill,created_at)
-                     VALUES(?,?,?,?,?,?,?,?)""",
-                  (b["id"], b["room_id"], types[i], f"Guest request for {types[i].lower()}", "Pending", 250 * (i + 1), 1, now), commit=True)
-
-    seed_demo_notifications(DEFAULT_HOTEL_ID)
-    sync_notifications_from_data(DEFAULT_HOTEL_ID)
+    """Seed multi-hotel demo data idempotently; always ensure super admin exists."""
+    seed_multi_hotel_demo(
+        query,
+        calc_room_charges,
+        receipt_number,
+        sync_notifications_from_data,
+    )
 
 
 def is_logged_in():
