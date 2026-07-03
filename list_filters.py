@@ -48,7 +48,14 @@ def filters_dict(**kwargs):
     return {k: v for k, v in kwargs.items() if v not in (None, "", "all")}
 
 
-def bookings_query():
+def hotel_filter(alias, hotel_id):
+    if hotel_id is None:
+        return "", []
+    prefix = f"{alias}." if alias else ""
+    return f" AND {prefix}hotel_id=?", [hotel_id]
+
+
+def bookings_query(hotel_id=None):
     f = {
         "q": arg("q"),
         "status": arg("status"),
@@ -75,6 +82,9 @@ def bookings_query():
         WHERE 1=1
     """
     params = []
+    clause, hp = hotel_filter("b", hotel_id)
+    sql += clause
+    params.extend(hp)
     if f["q"]:
         sql += " AND (c.name LIKE ? OR c.phone LIKE ? OR r.room_no LIKE ? OR CAST(b.id AS TEXT) LIKE ?)"
         params.extend([like(f["q"])] * 4)
@@ -127,7 +137,7 @@ def bookings_query():
     return sql, params, f
 
 
-def customers_query():
+def customers_query(hotel_id=None):
     f = {
         "q": arg("q"),
         "email": arg("email"),
@@ -143,6 +153,9 @@ def customers_query():
     }
     sql = "SELECT * FROM customers WHERE 1=1"
     params = []
+    clause, hp = hotel_filter("", hotel_id)
+    sql += clause
+    params.extend(hp)
     if f["q"]:
         sql += " AND (name LIKE ? OR phone LIKE ? OR email LIKE ?)"
         params.extend([like(f["q"])] * 3)
@@ -164,7 +177,7 @@ def customers_query():
     return sql, params, f
 
 
-def rooms_query():
+def rooms_query(hotel_id=None):
     f = {
         "q": arg("q"),
         "status": arg("status"),
@@ -180,6 +193,9 @@ def rooms_query():
     }
     sql = "SELECT * FROM rooms WHERE 1=1"
     params = []
+    clause, hp = hotel_filter("", hotel_id)
+    sql += clause
+    params.extend(hp)
     if f["q"]:
         sql += " AND (room_no LIKE ? OR room_type LIKE ? OR category LIKE ?)"
         params.extend([like(f["q"])] * 3)
@@ -209,7 +225,7 @@ def rooms_query():
     return sql, params, f
 
 
-def employees_query():
+def employees_query(hotel_id=None):
     f = {
         "q": arg("q"),
         "status": arg("status", "all") or "all",
@@ -225,6 +241,9 @@ def employees_query():
     }
     sql = "SELECT * FROM employees WHERE 1=1"
     params = []
+    clause, hp = hotel_filter("", hotel_id)
+    sql += clause
+    params.extend(hp)
     if f["status"] == "archived":
         sql += " AND status='Archived'"
     elif f["status"] == "active":
@@ -256,7 +275,7 @@ def employees_query():
     return sql, params, f
 
 
-def inventory_query():
+def inventory_query(hotel_id=None):
     f = {
         "q": arg("q"),
         "category": arg("category"),
@@ -271,6 +290,9 @@ def inventory_query():
     }
     sql = "SELECT * FROM inventory WHERE 1=1"
     params = []
+    clause, hp = hotel_filter("", hotel_id)
+    sql += clause
+    params.extend(hp)
     if f["q"]:
         sql += " AND (item_name LIKE ? OR category LIKE ? OR supplier_name LIKE ?)"
         params.extend([like(f["q"])] * 3)
@@ -297,7 +319,7 @@ def inventory_query():
     return sql, params, f
 
 
-def payments_query():
+def payments_query(hotel_id=None):
     f = {
         "q": arg("q"),
         "payment_status": arg("paymentStatus") or arg("payment_status"),
@@ -318,6 +340,9 @@ def payments_query():
         JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id WHERE 1=1
     """
     params = []
+    clause, hp = hotel_filter("b", hotel_id)
+    sql += clause
+    params.extend(hp)
     if f["q"]:
         sql += " AND (p.receipt_number LIKE ? OR c.name LIKE ? OR r.room_no LIKE ? OR CAST(b.id AS TEXT) LIKE ?)"
         params.extend([like(f["q"])] * 4)
@@ -347,7 +372,7 @@ def payments_query():
     return sql, params, f
 
 
-def invoices_query():
+def invoices_query(hotel_id=None):
     f = {
         "q": arg("q"),
         "payment_status": arg("paymentStatus") or arg("payment_status"),
@@ -368,6 +393,9 @@ def invoices_query():
         JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id WHERE 1=1
     """
     params = []
+    clause, hp = hotel_filter("b", hotel_id)
+    sql += clause
+    params.extend(hp)
     if f["q"]:
         sql += " AND (CAST(bills.id AS TEXT) LIKE ? OR c.name LIKE ? OR CAST(bills.booking_id AS TEXT) LIKE ?)"
         params.extend([like(f["q"])] * 3)
@@ -394,7 +422,7 @@ def invoices_query():
     return sql, params, f
 
 
-def housekeeping_query():
+def housekeeping_query(hotel_id=None):
     f = {
         "q": arg("q"),
         "status": arg("status"),
@@ -414,6 +442,9 @@ def housekeeping_query():
         LEFT JOIN employees e ON h.assigned_to=e.id WHERE 1=1
     """
     params = []
+    clause, hp = hotel_filter("h", hotel_id)
+    sql += clause
+    params.extend(hp)
     if f["status"]:
         sql += " AND h.status=?"
         params.append(f["status"])
@@ -440,7 +471,7 @@ def housekeeping_query():
     return sql, params, f
 
 
-def room_service_query(maintenance_only=False):
+def room_service_query(maintenance_only=False, hotel_id=None):
     f = {
         "q": arg("q"),
         "status": arg("status"),
@@ -460,6 +491,9 @@ def room_service_query(maintenance_only=False):
         LEFT JOIN customers c ON b.customer_id=c.id WHERE 1=1
     """
     params = []
+    clause, hp = hotel_filter("rs", hotel_id)
+    sql += clause
+    params.extend(hp)
     if maintenance_only:
         sql += " AND rs.request_type='Maintenance'"
     if f["status"]:

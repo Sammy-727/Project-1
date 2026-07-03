@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% from "macros/ui.html" import breadcrumb, page_header %}
+{% set title = "Audit Logs" %}
+{% block content %}
+
+{{ breadcrumb([{"label": "Platform", "url": url_for('platform_dashboard')}, {"label": "Audit Logs"}]) }}
+{{ page_header("Audit Logs", "Platform and hotel activity trail") }}
+
+<div class="panel saas-panel">
+    <div class="saas-table-wrap">
+        <table class="data-table saas-table">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>User</th>
+                    <th>Hotel</th>
+                    <th>Action</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td data-label="Time">{{ log.created_at }}</td>
+                    <td data-label="User">{{ log.full_name or log.username or '—' }}</td>
+                    <td data-label="Hotel">{{ log.hotel_name or 'Platform' }}</td>
+                    <td data-label="Action"><strong>{{ log.action }}</strong></td>
+                    <td data-label="Details" class="muted">{{ log.details or '' }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="muted">No audit logs recorded yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

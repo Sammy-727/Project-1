@@ -75,6 +75,19 @@ function initHotelSwitcher() {
     menu.classList.toggle('show');
     document.getElementById('profileMenu')?.classList.remove('show');
   });
+  menu.querySelectorAll('.hotel-switch-item[data-hotel-id]').forEach((item) => {
+    item.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const hotelId = item.getAttribute('data-hotel-id');
+      if (!hotelId || typeof axios === 'undefined') return;
+      try {
+        await axios.post('/api/hotels/switch', { hotelId: Number(hotelId) });
+        window.location.reload();
+      } catch (err) {
+        window.showToast?.(err.response?.data?.error || 'Failed to switch hotel', 'danger');
+      }
+    });
+  });
 }
 
 function initModals() {

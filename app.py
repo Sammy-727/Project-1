@@ -13,6 +13,28 @@ from list_filters import (
     inventory_query, payments_query, invoices_query, housekeeping_query,
     room_service_query, paginate_rows,
 )
+from tenant import (
+    ROLES,
+    ROLE_LABELS,
+    SUBSCRIPTION_PLANS,
+    SUBSCRIPTION_STATUSES,
+    DEFAULT_HOTEL_ID,
+    HOTEL_SCOPED_TABLES,
+    normalize_role,
+    role_label,
+    is_super_admin_role,
+    is_hotel_read_only,
+    can_write_hotel_ops,
+    admin_roles,
+    hotel_admin_roles,
+    role_required,
+    platform_admin_required,
+    hotel_to_dict,
+    get_hotel_stats,
+    audit_log,
+    enforce_permissions,
+    is_hotel_write_request,
+)
 
 app = Flask(__name__)
 application = app  # WSGI entry for gunicorn / Replit / Render
@@ -25,7 +47,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "instance", "hotel_v2.db")
 _db_ready = False
 
-ROLES = ["Super Admin", "Admin", "Manager", "Receptionist", "Housekeeping", "Staff"]
+ROLES = ROLES  # from tenant
 EMPLOYEE_STATUSES = ["Active", "Inactive", "On Leave", "Suspended", "Resigned", "Terminated", "Archived"]
 USER_STATUSES = EMPLOYEE_STATUSES
 LOGIN_ALLOWED_STATUSES = {"Active"}
@@ -51,7 +73,7 @@ NOTIFICATION_CATEGORIES = (
     "MAINTENANCE",
     "HOUSEKEEPING",
 )
-DEFAULT_HOTEL_ID = 1
+DEFAULT_HOTEL_ID = DEFAULT_HOTEL_ID
 
 
 def get_db():
@@ -232,9 +254,44 @@ def api_ok(**payload):
 
 
 def get_current_hotel_id():
-    if "hotel_id" not in session:
-        session["hotel_id"] = DEFAULT_HOTEL_ID
-    return int(session.get("hotel_id", DEFAULT_HOTEL_ID))
+    role = normalize_role(session.get("role"))
+    if role == "SUPER_ADMIN":
+        return int(session.get("hotel_id") or DEFAULT_HOTEL_ID)
+    user_hotel = session.get("user_hotel_id")
+    if user_hotel:
+        return int(user_hotel)
+    return int(session.get("hotel_id") or DEFAULT_HOTEL_ID)
+
+
+def get_current_hotel():
+    hid = get_current_hotel_id()
+    return query("SELECT * FROM hotels WHERE id=?", (hid,), one=True)
+
+
+def set_session_hotel(hotel_id):
+    session["hotel_id"] = int(hotel_id)
+
+
+def ensure_entity_hotel(row, hotel_id=None):
+    """Verify a record belongs to the current hotel."""
+    hid = hotel_id or get_current_hotel_id()
+    if not row:
+        return False
+    if "hotel_id" in row.keys() and row["hotel_id"] is not None:
+        return int(row["hotel_id"]) == int(hid)
+    return True
+
+
+def log_audit(action, entity_type=None, entity_id=None, details=None, hotel_id=None):
+    audit_log(
+        query,
+        action,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        details=details,
+        hotel_id=hotel_id or get_current_hotel_id(),
+        user_id=session.get("user_id"),
+    )
 
 
 def notification_to_dict(row):
@@ -316,7 +373,8 @@ def sync_notifications_from_data(hotel_id=None):
     active_keys = set()
 
     low_items = query(
-        "SELECT id, item_name, quantity, reorder_level FROM inventory WHERE quantity <= reorder_level"
+        "SELECT id, item_name, quantity, reorder_level FROM inventory WHERE hotel_id=? AND quantity <= reorder_level",
+        (hotel_id,),
     )
     for item in low_items:
         key = f"low_inv_{item['id']}"
@@ -335,9 +393,9 @@ def sync_notifications_from_data(hotel_id=None):
     pending_bookings = query("""
         SELECT b.id, c.name, b.total_amount, b.payment_status
         FROM bookings b JOIN customers c ON b.customer_id=c.id
-        WHERE b.payment_status IN ('Pending','Partial')
+        WHERE b.hotel_id=? AND b.payment_status IN ('Pending','Partial')
           AND b.status IN ('Reserved','Checked-in')
-    """)
+    """, (hotel_id,))
     for b in pending_bookings:
         paid = booking_paid_amount(b["id"])
         balance = max(float(b["total_amount"] or 0) - paid, 0)
@@ -362,9 +420,9 @@ def sync_notifications_from_data(hotel_id=None):
         FROM bookings b
         JOIN customers c ON b.customer_id=c.id
         JOIN rooms r ON b.room_id=r.id
-        WHERE b.status IN ('Reserved','Checked-in')
+        WHERE b.hotel_id=? AND b.status IN ('Reserved','Checked-in')
           AND date(b.checkin) BETWEEN date(?) AND date(?)
-    """, (str(today), str(horizon)))
+    """, (hotel_id, str(today), str(horizon)))
     for b in checkins:
         if has_demo_notification(hotel_id, "demo_checkin_ishita") and b["name"] == "Ishita Arora":
             continue
@@ -387,9 +445,9 @@ def sync_notifications_from_data(hotel_id=None):
         FROM bookings b
         JOIN customers c ON b.customer_id=c.id
         JOIN rooms r ON b.room_id=r.id
-        WHERE b.status='Checked-in'
+        WHERE b.hotel_id=? AND b.status='Checked-in'
           AND date(b.checkout) BETWEEN date(?) AND date(?)
-    """, (str(today), str(horizon)))
+    """, (hotel_id, str(today), str(horizon)))
     for b in checkouts:
         key = f"checkout_{b['id']}"
         active_keys.add(key)
@@ -409,8 +467,8 @@ def sync_notifications_from_data(hotel_id=None):
         SELECT h.id, r.room_no, h.priority
         FROM housekeeping_tasks h
         JOIN rooms r ON h.room_id=r.id
-        WHERE h.status IN ('Pending','In Progress')
-    """)
+        WHERE h.hotel_id=? AND h.status IN ('Pending','In Progress')
+    """, (hotel_id,))
     for t in hk_tasks:
         key = f"hk_{t['id']}"
         active_keys.add(key)
@@ -424,7 +482,7 @@ def sync_notifications_from_data(hotel_id=None):
             key,
         )
 
-    maint_rooms = query("SELECT id, room_no FROM rooms WHERE status='Maintenance'")
+    maint_rooms = query("SELECT id, room_no FROM rooms WHERE hotel_id=? AND status='Maintenance'", (hotel_id,))
     for r in maint_rooms:
         key = f"maint_{r['id']}"
         active_keys.add(key)
@@ -686,6 +744,36 @@ def init_db():
         UNIQUE(hotel_id, source_key)
     )""")
 
+    c.execute("""CREATE TABLE IF NOT EXISTS hotels(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        hotel_name TEXT NOT NULL,
+        hotel_code TEXT UNIQUE,
+        logo TEXT,
+        address TEXT,
+        city TEXT,
+        state TEXT,
+        country TEXT DEFAULT 'India',
+        phone TEXT,
+        email TEXT,
+        gst_number TEXT,
+        owner_name TEXT,
+        owner_email TEXT,
+        subscription_plan TEXT DEFAULT 'Professional',
+        subscription_status TEXT DEFAULT 'Active',
+        created_at TEXT
+    )""")
+
+    c.execute("""CREATE TABLE IF NOT EXISTS audit_logs(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        hotel_id INTEGER,
+        user_id INTEGER,
+        action TEXT NOT NULL,
+        entity_type TEXT,
+        entity_id INTEGER,
+        details TEXT,
+        created_at TEXT NOT NULL
+    )""")
+
     conn.commit()
     conn.close()
     migrate_db()
@@ -733,6 +821,26 @@ def migrate_db():
     add_column_if_missing("bookings", "booking_source", "TEXT")
     add_column_if_missing("bookings", "special_request", "TEXT")
 
+    for table in HOTEL_SCOPED_TABLES:
+        add_column_if_missing(table, "hotel_id", "INTEGER")
+
+    query("UPDATE users SET hotel_id=NULL WHERE role IN ('Super Admin','SUPER_ADMIN')", commit=True)
+    query(
+        "UPDATE users SET hotel_id=? WHERE hotel_id IS NULL AND role NOT IN ('Super Admin','SUPER_ADMIN')",
+        (DEFAULT_HOTEL_ID,),
+        commit=True,
+    )
+    for table in HOTEL_SCOPED_TABLES:
+        if table != "users":
+            query(f"UPDATE {table} SET hotel_id=? WHERE hotel_id IS NULL", (DEFAULT_HOTEL_ID,), commit=True)
+
+    query("UPDATE users SET role='SUPER_ADMIN' WHERE role='Super Admin'", commit=True)
+    query("UPDATE users SET role='HOTEL_ADMIN' WHERE role='Admin'", commit=True)
+    query("UPDATE users SET role='RECEPTIONIST' WHERE role='Receptionist'", commit=True)
+    query("UPDATE users SET role='HOUSEKEEPING' WHERE role='Housekeeping'", commit=True)
+    query("UPDATE users SET role='MANAGER' WHERE role='Manager'", commit=True)
+    query("UPDATE users SET role='RECEPTIONIST' WHERE role='Staff'", commit=True)
+
     # Normalize legacy booking statuses
     query("UPDATE bookings SET status='Reserved' WHERE status='Active'", commit=True)
     query("UPDATE bookings SET status='Checked-out' WHERE status='Checked Out'", commit=True)
@@ -743,22 +851,61 @@ def migrate_db():
 
 def seed_db():
     """Seed demo hotel data on first run; always ensure core login accounts exist."""
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    if query("SELECT COUNT(*) c FROM hotels", one=True)["c"] == 0:
+        query(
+            """INSERT INTO hotels(hotel_name,hotel_code,address,city,state,country,phone,email,
+               gst_number,owner_name,owner_email,subscription_plan,subscription_status,created_at)
+               VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                "GrandStay Hotel",
+                "GRANDSTAY",
+                "123 Mall Road",
+                "Dehradun",
+                "Uttarakhand",
+                "India",
+                "9876543000",
+                "info@grandstay.com",
+                "GSTIN-05AAAAA0000A1Z5",
+                "Ayush Sharma",
+                "owner@grandstay.com",
+                "Professional",
+                "Active",
+                now,
+            ),
+            commit=True,
+        )
+
     demo_users = [
-        ("superadmin", "admin123", "Super Admin User", "Super Admin", "Active"),
-        ("admin", "admin123", "Hotel Admin", "Admin", "Active"),
-        ("manager", "manager123", "Operations Manager", "Manager", "Active"),
-        ("reception", "rec123", "Front Desk Reception", "Receptionist", "Active"),
-        ("housekeeping", "hk123", "Housekeeping Lead", "Housekeeping", "Active"),
-        ("staff", "staff123", "General Staff", "Staff", "Active"),
+        ("superadmin", "admin123", "Super Admin User", "SUPER_ADMIN", "Active", None),
+        ("admin", "admin123", "Hotel Admin", "HOTEL_ADMIN", "Active", DEFAULT_HOTEL_ID),
+        ("manager", "manager123", "Operations Manager", "MANAGER", "Active", DEFAULT_HOTEL_ID),
+        ("reception", "rec123", "Front Desk Reception", "RECEPTIONIST", "Active", DEFAULT_HOTEL_ID),
+        ("housekeeping", "hk123", "Housekeeping Lead", "HOUSEKEEPING", "Active", DEFAULT_HOTEL_ID),
+        ("accountant", "acc123", "Finance Accountant", "ACCOUNTANT", "Active", DEFAULT_HOTEL_ID),
     ]
     if query("SELECT COUNT(*) c FROM users", one=True)["c"] == 0:
         for u in demo_users:
-            query("INSERT INTO users(username,password,full_name,role,status) VALUES(?,?,?,?,?)", u, commit=True)
+            query(
+                "INSERT INTO users(username,password,full_name,role,status,hotel_id) VALUES(?,?,?,?,?,?)",
+                u,
+                commit=True,
+            )
     else:
         for u in demo_users:
             if not query("SELECT id FROM users WHERE username=?", (u[0],), one=True):
-                query("INSERT INTO users(username,password,full_name,role,status) VALUES(?,?,?,?,?)", u, commit=True)
+                query(
+                    "INSERT INTO users(username,password,full_name,role,status,hotel_id) VALUES(?,?,?,?,?,?)",
+                    u,
+                    commit=True,
+                )
         query("UPDATE users SET full_name=username WHERE full_name IS NULL OR full_name=''", commit=True)
+        query("UPDATE users SET role='SUPER_ADMIN', hotel_id=NULL WHERE username='superadmin'", commit=True)
+        query(
+            "UPDATE users SET role='HOTEL_ADMIN', hotel_id=? WHERE username='admin'",
+            (DEFAULT_HOTEL_ID,),
+            commit=True,
+        )
 
     if query("SELECT COUNT(*) c FROM rooms", one=True)["c"] == 0:
         rooms = []
@@ -784,8 +931,8 @@ def seed_db():
             rooms.append((str(i), "Presidential Suite", "Presidential Suite", 5, prices["Presidential Suite"], caps["Presidential Suite"], "Available", amenities_map["Presidential Suite"]))
 
         for r in rooms:
-            query("""INSERT INTO rooms(room_no,room_type,category,floor,price,capacity,status,amenities)
-                     VALUES(?,?,?,?,?,?,?,?)""", r, commit=True)
+            query("""INSERT INTO rooms(room_no,room_type,category,floor,price,capacity,status,amenities,hotel_id)
+                     VALUES(?,?,?,?,?,?,?,?,?)""", (*r, DEFAULT_HOTEL_ID), commit=True)
 
     if query("SELECT COUNT(*) c FROM customers", one=True)["c"] == 0:
         customers = [
@@ -811,9 +958,9 @@ def seed_db():
             ("Amit Bose", "9876543229", "amit@example.com", "Kolkata", "Aadhar", "AADHAR-1020", "Male", 37),
         ]
         for c in customers:
-            query("""INSERT INTO customers(name,phone,email,address,id_proof_type,id_proof_number,gender,age,id_proof)
-                     VALUES(?,?,?,?,?,?,?,?,?)""",
-                  (*c, f"{c[4]}-{c[5]}"), commit=True)
+            query("""INSERT INTO customers(name,phone,email,address,id_proof_type,id_proof_number,gender,age,id_proof,hotel_id)
+                     VALUES(?,?,?,?,?,?,?,?,?,?)""",
+                  (*c, f"{c[4]}-{c[5]}", DEFAULT_HOTEL_ID), commit=True)
 
     if query("SELECT COUNT(*) c FROM bookings", one=True)["c"] == 0:
         today = date.today()
@@ -844,9 +991,9 @@ def seed_db():
             checkin, checkout = d(ci_off), d(co_off)
             room = query("SELECT price FROM rooms WHERE id=?", (room_id,), one=True)
             total = calc_room_charges(room["price"], checkin, checkout) if room else 0
-            query("""INSERT INTO bookings(customer_id,room_id,checkin,checkout,num_guests,status,payment_status,total_amount)
-                     VALUES(?,?,?,?,?,?,?,?)""",
-                  (customer_id, room_id, checkin, checkout, guests, status, pay_status, total), commit=True)
+            query("""INSERT INTO bookings(customer_id,room_id,checkin,checkout,num_guests,status,payment_status,total_amount,hotel_id)
+                     VALUES(?,?,?,?,?,?,?,?,?)""",
+                  (customer_id, room_id, checkin, checkout, guests, status, pay_status, total, DEFAULT_HOTEL_ID), commit=True)
             if status == "Checked-in":
                 query("UPDATE rooms SET status='Occupied' WHERE id=?", (room_id,), commit=True)
             elif status == "Reserved":
@@ -879,8 +1026,8 @@ def seed_db():
             ("Light Bulbs", "Maintenance", 30, "pcs", 80, 10, "ElectroHub", today_str),
         ]
         for i in items:
-            query("""INSERT INTO inventory(item_name,category,quantity,unit,price,reorder_level,supplier_name,last_updated)
-                     VALUES(?,?,?,?,?,?,?,?)""", i, commit=True)
+            query("""INSERT INTO inventory(item_name,category,quantity,unit,price,reorder_level,supplier_name,last_updated,hotel_id)
+                     VALUES(?,?,?,?,?,?,?,?,?)""", (*i, DEFAULT_HOTEL_ID), commit=True)
 
     if query("SELECT COUNT(*) c FROM employees", one=True)["c"] == 0:
         employees = [
@@ -893,9 +1040,9 @@ def seed_db():
             ("Vikram Das", "9876500006", "vikram@hotel.com", "Housekeeping", "Housekeeping", 19000, "Morning", "2024-08-15", "Active"),
         ]
         for e in employees:
-            query("""INSERT INTO employees(name,phone,email,role,designation,department,salary,shift,joining_date,status)
-                     VALUES(?,?,?,?,?,?,?,?,?,?)""",
-                  (e[0], e[1], e[2], e[3], e[3], e[4], e[5], e[6], e[7], e[8]), commit=True)
+            query("""INSERT INTO employees(name,phone,email,role,designation,department,salary,shift,joining_date,status,hotel_id)
+                     VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+                  (e[0], e[1], e[2], e[3], e[3], e[4], e[5], e[6], e[7], e[8], DEFAULT_HOTEL_ID), commit=True)
 
     if query("SELECT COUNT(*) c FROM housekeeping_tasks", one=True)["c"] == 0:
         cleaning_rooms = query("SELECT id FROM rooms WHERE status='Cleaning' LIMIT 3")
@@ -903,10 +1050,10 @@ def seed_db():
         staff_id = hk_staff["id"] if hk_staff else None
         now = datetime.now().strftime("%Y-%m-%d %H:%M")
         for i, room in enumerate(cleaning_rooms):
-            query("""INSERT INTO housekeeping_tasks(room_id,assigned_to,status,priority,notes,created_at)
-                     VALUES(?,?,?,?,?,?)""",
+            query("""INSERT INTO housekeeping_tasks(room_id,assigned_to,status,priority,notes,created_at,hotel_id)
+                     VALUES(?,?,?,?,?,?,?)""",
                   (room["id"], staff_id, "Pending" if i == 0 else "In Progress", "High" if i == 0 else "Medium",
-                   "Post checkout cleaning", now), commit=True)
+                   "Post checkout cleaning", now, DEFAULT_HOTEL_ID), commit=True)
 
     if query("SELECT COUNT(*) c FROM room_service_requests", one=True)["c"] == 0:
         active = query("SELECT b.id, b.room_id FROM bookings b WHERE b.status='Checked-in' LIMIT 3")
@@ -925,24 +1072,8 @@ def is_logged_in():
     return "user_id" in session
 
 
-def role_required(*roles):
-    def decorator(f):
-        @wraps(f)
-        def wrapped(*args, **kwargs):
-            if session.get("role") not in roles and session.get("role") != "Super Admin":
-                flash("Access denied.", "danger")
-                return redirect(url_for("dashboard"))
-            return f(*args, **kwargs)
-        return wrapped
-    return decorator
-
-
-def admin_roles():
-    return ["Super Admin", "Admin", "Manager"]
-
-
 def is_super_admin():
-    return session.get("role") == "Super Admin"
+    return is_super_admin_role()
 
 
 def can_login(status):
@@ -978,11 +1109,21 @@ def server_error(e):
 
 @app.context_processor
 def inject_globals():
+    hotel = get_current_hotel()
+    hotels = []
+    if is_super_admin_role():
+        hotels = query("SELECT id, hotel_name, hotel_code, subscription_status FROM hotels ORDER BY hotel_name")
+    elif session.get("user_hotel_id"):
+        hotels = query(
+            "SELECT id, hotel_name, hotel_code, subscription_status FROM hotels WHERE id=?",
+            (session["user_hotel_id"],),
+        )
     return dict(
         app_name=APP_NAME,
         current_user=session,
         active_page=request.endpoint if request else "",
         roles=ROLES,
+        role_labels=ROLE_LABELS,
         room_statuses=ROOM_STATUSES,
         booking_statuses=BOOKING_STATUSES,
         payment_statuses=PAYMENT_STATUSES,
@@ -996,7 +1137,23 @@ def inject_globals():
         user_statuses=USER_STATUSES,
         id_proof_types=ID_PROOF_TYPES,
         booking_sources=BOOKING_SOURCES,
+        subscription_plans=SUBSCRIPTION_PLANS,
+        current_hotel=hotel,
+        current_hotel_name=hotel["hotel_name"] if hotel else "GrandStay Hotel",
+        platform_hotels=hotels,
+        is_read_only=is_hotel_read_only(),
+        can_write=can_write_hotel_ops(),
+        is_platform_admin=is_super_admin_role(),
+        normalize_role=normalize_role,
+        role_label=role_label,
     )
+
+
+@app.before_request
+def tenant_security():
+    blocked = enforce_permissions(query, get_current_hotel_id, api_error)
+    if blocked:
+        return blocked
 
 
 @app.before_request
@@ -1010,6 +1167,8 @@ def require_login():
 @app.route("/", methods=["GET", "POST"])
 def login():
     if is_logged_in():
+        if is_super_admin_role():
+            return redirect(url_for("platform_dashboard"))
         return redirect(url_for("dashboard"))
     if request.method == "POST":
         user = query(
@@ -1024,7 +1183,13 @@ def login():
             session["username"] = user["username"]
             session["full_name"] = user["full_name"] or user["username"]
             session["role"] = user["role"]
-            session["hotel_id"] = DEFAULT_HOTEL_ID
+            session["user_hotel_id"] = user["hotel_id"]
+            if is_super_admin_role(user["role"]):
+                session["hotel_id"] = session.get("hotel_id") or DEFAULT_HOTEL_ID
+            else:
+                session["hotel_id"] = user["hotel_id"] or DEFAULT_HOTEL_ID
+            if is_super_admin_role(user["role"]):
+                return redirect(url_for("platform_dashboard"))
             return redirect(url_for("dashboard"))
         if user and not can_login(user["status"]):
             flash("Your account is inactive. Contact your administrator.", "danger")
@@ -1042,97 +1207,150 @@ def logout():
 @app.route("/search")
 def search():
     q = request.args.get("q", "").strip()
+    hid = get_current_hotel_id()
     results = {"rooms": [], "customers": [], "bookings": [], "payments": []}
     if q:
         like = f"%{q}%"
         results["rooms"] = query(
-            "SELECT * FROM rooms WHERE room_no LIKE ? OR room_type LIKE ? OR category LIKE ? ORDER BY room_no LIMIT 10",
-            (like, like, like)
+            "SELECT * FROM rooms WHERE hotel_id=? AND (room_no LIKE ? OR room_type LIKE ? OR category LIKE ?) ORDER BY room_no LIMIT 10",
+            (hid, like, like, like)
         )
         results["customers"] = query(
-            "SELECT * FROM customers WHERE name LIKE ? OR phone LIKE ? OR email LIKE ? ORDER BY id DESC LIMIT 10",
-            (like, like, like)
+            "SELECT * FROM customers WHERE hotel_id=? AND (name LIKE ? OR phone LIKE ? OR email LIKE ?) ORDER BY id DESC LIMIT 10",
+            (hid, like, like, like)
         )
         results["bookings"] = query("""
             SELECT b.id, c.name, r.room_no, b.checkin, b.checkout, b.status
             FROM bookings b JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
-            WHERE c.name LIKE ? OR r.room_no LIKE ? OR CAST(b.id AS TEXT) LIKE ?
+            WHERE b.hotel_id=? AND (c.name LIKE ? OR r.room_no LIKE ? OR CAST(b.id AS TEXT) LIKE ?)
             ORDER BY b.id DESC LIMIT 10
-        """, (like, like, like))
+        """, (hid, like, like, like))
         results["payments"] = query("""
             SELECT p.*, c.name, r.room_no FROM payments p
             JOIN bookings b ON p.booking_id=b.id
             JOIN customers c ON b.customer_id=c.id
             JOIN rooms r ON b.room_id=r.id
-            WHERE p.receipt_number LIKE ? OR c.name LIKE ? OR r.room_no LIKE ?
+            WHERE b.hotel_id=? AND (p.receipt_number LIKE ? OR c.name LIKE ? OR r.room_no LIKE ?)
             ORDER BY p.id DESC LIMIT 10
-        """, (like, like, like))
+        """, (hid, like, like, like))
     return render_template("search.html", q=q, results=results)
 
 
-def dashboard_stats():
+def dashboard_stats(hotel_id=None):
+    hotel_id = hotel_id or get_current_hotel_id()
     today = date.today().isoformat()
-    revenue = query("SELECT COALESCE(SUM(amount),0) t FROM payments", one=True)["t"]
-    total_rooms = query("SELECT COUNT(*) c FROM rooms", one=True)["c"]
-    occupied = query("SELECT COUNT(*) c FROM rooms WHERE status='Occupied'", one=True)["c"]
+    revenue = query(
+        """SELECT COALESCE(SUM(p.amount),0) t FROM payments p
+           JOIN bookings b ON p.booking_id=b.id WHERE b.hotel_id=?""",
+        (hotel_id,),
+        one=True,
+    )["t"]
+    total_rooms = query("SELECT COUNT(*) c FROM rooms WHERE hotel_id=?", (hotel_id,), one=True)["c"]
+    occupied = query(
+        "SELECT COUNT(*) c FROM rooms WHERE hotel_id=? AND status='Occupied'",
+        (hotel_id,),
+        one=True,
+    )["c"]
     return {
         "total_rooms": total_rooms,
-        "available": query("SELECT COUNT(*) c FROM rooms WHERE status='Available'", one=True)["c"],
+        "available": query(
+            "SELECT COUNT(*) c FROM rooms WHERE hotel_id=? AND status='Available'",
+            (hotel_id,),
+            one=True,
+        )["c"],
         "occupied": occupied,
         "occupancy_rate": round((occupied / total_rooms) * 100) if total_rooms else 0,
-        "active_bookings": query("SELECT COUNT(*) c FROM bookings WHERE status IN ('Reserved','Checked-in')", one=True)["c"],
-        "employees": query("SELECT COUNT(*) c FROM employees WHERE status='Active'", one=True)["c"],
+        "active_bookings": query(
+            "SELECT COUNT(*) c FROM bookings WHERE hotel_id=? AND status IN ('Reserved','Checked-in')",
+            (hotel_id,),
+            one=True,
+        )["c"],
+        "employees": query(
+            "SELECT COUNT(*) c FROM employees WHERE hotel_id=? AND status='Active'",
+            (hotel_id,),
+            one=True,
+        )["c"],
         "revenue": revenue,
         "today_revenue": query(
-            "SELECT COALESCE(SUM(amount),0) t FROM payments WHERE date(payment_date)=?",
-            (today,), one=True
+            """SELECT COALESCE(SUM(p.amount),0) t FROM payments p
+               JOIN bookings b ON p.booking_id=b.id
+               WHERE b.hotel_id=? AND date(p.payment_date)=?""",
+            (hotel_id, today),
+            one=True,
         )["t"],
-        "today_checkins": query("SELECT COUNT(*) c FROM bookings WHERE checkin=?", (today,), one=True)["c"],
-        "today_checkouts": query("SELECT COUNT(*) c FROM bookings WHERE checkout=?", (today,), one=True)["c"],
-        "pending_payments": query(
-            "SELECT COUNT(*) c FROM bookings WHERE payment_status IN ('Pending','Partial')", one=True
+        "today_checkins": query(
+            "SELECT COUNT(*) c FROM bookings WHERE hotel_id=? AND checkin=?",
+            (hotel_id, today),
+            one=True,
         )["c"],
-        "maintenance": query("SELECT COUNT(*) c FROM rooms WHERE status='Maintenance'", one=True)["c"],
-        "cleaning": query("SELECT COUNT(*) c FROM rooms WHERE status='Cleaning'", one=True)["c"],
+        "today_checkouts": query(
+            "SELECT COUNT(*) c FROM bookings WHERE hotel_id=? AND checkout=?",
+            (hotel_id, today),
+            one=True,
+        )["c"],
+        "pending_payments": query(
+            "SELECT COUNT(*) c FROM bookings WHERE hotel_id=? AND payment_status IN ('Pending','Partial')",
+            (hotel_id,),
+            one=True,
+        )["c"],
+        "maintenance": query(
+            "SELECT COUNT(*) c FROM rooms WHERE hotel_id=? AND status='Maintenance'",
+            (hotel_id,),
+            one=True,
+        )["c"],
+        "cleaning": query(
+            "SELECT COUNT(*) c FROM rooms WHERE hotel_id=? AND status='Cleaning'",
+            (hotel_id,),
+            one=True,
+        )["c"],
     }
 
 
 @app.route("/dashboard")
 def dashboard():
-    stats = dashboard_stats()
-    low_stock = query("SELECT * FROM inventory WHERE quantity <= reorder_level ORDER BY quantity ASC LIMIT 6")
+    hid = get_current_hotel_id()
+    stats = dashboard_stats(hid)
+    low_stock = query(
+        "SELECT * FROM inventory WHERE hotel_id=? AND quantity <= reorder_level ORDER BY quantity ASC LIMIT 6",
+        (hid,),
+    )
     recent_bookings = query("""
         SELECT b.id, c.name, r.room_no, r.room_type, b.checkin, b.checkout, b.status, b.payment_status
         FROM bookings b JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
-        ORDER BY b.id DESC LIMIT 8
-    """)
+        WHERE b.hotel_id=? ORDER BY b.id DESC LIMIT 8
+    """, (hid,))
     recent_payments = query("""
         SELECT p.id, p.amount, p.payment_mode, p.receipt_number, p.payment_date, c.name, r.room_no
         FROM payments p JOIN bookings b ON p.booking_id=b.id
         JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
-        ORDER BY p.id DESC LIMIT 8
-    """)
-    room_summary = query("SELECT status, COUNT(*) c FROM rooms GROUP BY status")
+        WHERE b.hotel_id=? ORDER BY p.id DESC LIMIT 8
+    """, (hid,))
+    room_summary = query("SELECT status, COUNT(*) c FROM rooms WHERE hotel_id=? GROUP BY status", (hid,))
     monthly_revenue = query("""
-        SELECT strftime('%Y-%m', payment_date) month, SUM(amount) total
-        FROM payments GROUP BY month ORDER BY month DESC LIMIT 6
-    """)
+        SELECT strftime('%Y-%m', p.payment_date) month, SUM(p.amount) total
+        FROM payments p JOIN bookings b ON p.booking_id=b.id
+        WHERE b.hotel_id=? GROUP BY month ORDER BY month DESC LIMIT 6
+    """, (hid,))
     monthly_revenue = list(reversed(monthly_revenue))
-    room_types = query("SELECT room_type, COUNT(*) c FROM rooms GROUP BY room_type ORDER BY c DESC")
+    room_types = query(
+        "SELECT room_type, COUNT(*) c FROM rooms WHERE hotel_id=? GROUP BY room_type ORDER BY c DESC",
+        (hid,),
+    )
     upcoming_checkins = query("""
         SELECT b.id, c.name, r.room_no, b.checkin, b.checkout, b.status
         FROM bookings b JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
-        WHERE b.checkin >= ? AND b.status IN ('Reserved','Checked-in')
+        WHERE b.hotel_id=? AND b.checkin >= ? AND b.status IN ('Reserved','Checked-in')
         ORDER BY b.checkin ASC LIMIT 6
-    """, (date.today().isoformat(),))
+    """, (hid, date.today().isoformat()))
     upcoming_checkouts = query("""
         SELECT b.id, c.name, r.room_no, b.checkin, b.checkout, b.status
         FROM bookings b JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
-        WHERE b.checkout >= ? AND b.status='Checked-in'
+        WHERE b.hotel_id=? AND b.checkout >= ? AND b.status='Checked-in'
         ORDER BY b.checkout ASC LIMIT 6
-    """, (date.today().isoformat(),))
+    """, (hid, date.today().isoformat()))
     maintenance_rooms = query(
-        "SELECT room_no, room_type, status FROM rooms WHERE status IN ('Maintenance','Cleaning') LIMIT 6"
+        "SELECT room_no, room_type, status FROM rooms WHERE hotel_id=? AND status IN ('Maintenance','Cleaning') LIMIT 6",
+        (hid,),
     )
     return render_template("dashboard.html", stats=stats, low_stock=low_stock,
                            recent_bookings=recent_bookings, recent_payments=recent_payments,
@@ -1145,7 +1363,7 @@ def dashboard():
 
 @app.route("/rooms")
 def rooms():
-    sql, params, f = rooms_query()
+    sql, params, f = rooms_query(get_current_hotel_id())
     all_rooms = query(sql, params)
     page_rows, total, page, size = paginate_rows(all_rooms, f["page"], f["size"])
     types = query("SELECT DISTINCT room_type FROM rooms ORDER BY room_type")
@@ -1161,12 +1379,13 @@ def rooms():
 @app.route("/rooms/add", methods=["POST"])
 def add_room():
     try:
-        query("""INSERT INTO rooms(room_no,room_type,category,floor,price,capacity,status,amenities,image_url)
-                 VALUES(?,?,?,?,?,?,?,?,?)""",
+        query("""INSERT INTO rooms(room_no,room_type,category,floor,price,capacity,status,amenities,image_url,hotel_id)
+                 VALUES(?,?,?,?,?,?,?,?,?,?)""",
               (request.form["room_no"], request.form["room_type"], request.form["room_type"],
                int(request.form.get("floor") or 1), float(request.form["price"]),
                int(request.form.get("capacity") or 2), request.form["status"],
-               request.form.get("amenities", ""), request.form.get("image_url", "")), commit=True)
+               request.form.get("amenities", ""), request.form.get("image_url", ""), get_current_hotel_id()), commit=True)
+        log_audit(f"Created room {request.form['room_no']}", "room")
         flash("Room added successfully.", "success")
     except Exception as e:
         flash(f"Error: {e}", "danger")
@@ -1176,11 +1395,11 @@ def add_room():
 @app.route("/rooms/update/<int:room_id>", methods=["POST"])
 def update_room(room_id):
     query("""UPDATE rooms SET room_no=?, room_type=?, category=?, floor=?, price=?, capacity=?,
-             status=?, amenities=?, image_url=? WHERE id=?""",
+             status=?, amenities=?, image_url=? WHERE id=? AND hotel_id=?""",
           (request.form["room_no"], request.form["room_type"], request.form["room_type"],
            int(request.form.get("floor") or 1), float(request.form["price"]),
            int(request.form.get("capacity") or 2), request.form["status"],
-           request.form.get("amenities", ""), request.form.get("image_url", ""), room_id), commit=True)
+           request.form.get("amenities", ""), request.form.get("image_url", ""), room_id, get_current_hotel_id()), commit=True)
     flash("Room updated.", "success")
     return redirect(url_for("rooms"))
 
@@ -1192,7 +1411,7 @@ def delete_room(room_id):
     if active:
         flash("Cannot delete room with active bookings.", "danger")
     else:
-        query("DELETE FROM rooms WHERE id=?", (room_id,), commit=True)
+        query("DELETE FROM rooms WHERE id=? AND hotel_id=?", (room_id, get_current_hotel_id()), commit=True)
         flash("Room deleted.", "success")
     return redirect(url_for("rooms"))
 
@@ -1201,7 +1420,7 @@ def delete_room(room_id):
 
 @app.route("/customers")
 def customers():
-    sql, params, f = customers_query()
+    sql, params, f = customers_query(get_current_hotel_id())
     customer_list = []
     for c in query(sql, params):
         cd = dict(c)
@@ -1343,7 +1562,7 @@ def api_available_rooms():
 
 @app.route("/api/bookings/list")
 def api_bookings_list():
-    sql, params, f = bookings_query()
+    sql, params, f = bookings_query(get_current_hotel_id())
     rows = query(sql, params)
     page_rows, total, page, size = paginate_rows(rows, f["page"], f["size"])
     return api_ok(
@@ -1463,7 +1682,7 @@ def api_create_booking():
 
 @app.route("/bookings")
 def bookings():
-    sql, params, f = bookings_query()
+    sql, params, f = bookings_query(get_current_hotel_id())
     all_bookings = query(sql, params)
     page_rows, total, page, size = paginate_rows(all_bookings, f["page"], f["size"])
     all_customers = query("SELECT id, name, phone FROM customers ORDER BY name")
@@ -1653,7 +1872,7 @@ def checkout(booking_id):
 
 @app.route("/payments")
 def payments():
-    sql, params, f = payments_query()
+    sql, params, f = payments_query(get_current_hotel_id())
     all_payments = query(sql, params)
     page_rows, total, page, size = paginate_rows(all_payments, f["page"], f["size"])
     pending_bookings = query("""
@@ -1713,7 +1932,7 @@ def receipt(payment_id):
 # ─── Employees ───────────────────────────────────────────────────────────────
 
 def _employee_list_query():
-    sql, params, f = employees_query()
+    sql, params, f = employees_query(get_current_hotel_id())
     return query(sql, params), f
 
 
@@ -1846,7 +2065,7 @@ def employees_bulk():
 
 @app.route("/housekeeping")
 def housekeeping():
-    sql, params, f = housekeeping_query()
+    sql, params, f = housekeeping_query(get_current_hotel_id())
     all_tasks = query(sql, params)
     page_rows, total, page, size = paginate_rows(all_tasks, f["page"], f["size"])
     hk_staff = query("SELECT id, name FROM employees WHERE department='Housekeeping' AND status='Active'")
@@ -1891,7 +2110,7 @@ def update_housekeeping(task_id):
 
 @app.route("/room-service")
 def room_service():
-    sql, params, f = room_service_query()
+    sql, params, f = room_service_query(hotel_id=get_current_hotel_id())
     all_requests = query(sql, params)
     page_rows, total, page, size = paginate_rows(all_requests, f["page"], f["size"])
     active_bookings = query("""
@@ -1899,7 +2118,7 @@ def room_service():
         FROM bookings b JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
         WHERE b.status='Checked-in' ORDER BY r.room_no
     """)
-    maint_sql, maint_params, _ = room_service_query(maintenance_only=True)
+    maint_sql, maint_params, _ = room_service_query(maintenance_only=True, hotel_id=get_current_hotel_id())
     maintenance = query(maint_sql, maint_params)
     return render_template(
         "room_service.html", requests=page_rows, maintenance=maintenance,
@@ -1944,7 +2163,7 @@ def update_room_service(req_id):
 
 @app.route("/inventory")
 def inventory():
-    sql, params, f = inventory_query()
+    sql, params, f = inventory_query(get_current_hotel_id())
     all_items = query(sql, params)
     page_rows, total, page, size = paginate_rows(all_items, f["page"], f["size"])
     categories = query("SELECT DISTINCT category FROM inventory WHERE category IS NOT NULL ORDER BY category")
@@ -2175,7 +2394,7 @@ def users_bulk():
 
 @app.route("/invoices")
 def invoices_list():
-    sql, params, f = invoices_query()
+    sql, params, f = invoices_query(get_current_hotel_id())
     all_invoices = query(sql, params)
     page_rows, total, page, size = paginate_rows(all_invoices, f["page"], f["size"])
     return render_template(
@@ -2304,6 +2523,204 @@ def export_reports():
     mem.write(output.getvalue().encode("utf-8"))
     mem.seek(0)
     return send_file(mem, mimetype="text/csv", as_attachment=True, download_name="hms_payments_report.csv")
+
+
+# ─── Platform (Super Admin) ───────────────────────────────────────────────────
+
+@app.route("/platform")
+@app.route("/platform/dashboard")
+@platform_admin_required
+def platform_dashboard():
+    hotels = query("SELECT * FROM hotels ORDER BY hotel_name")
+    cards = []
+    for h in hotels:
+        stats = get_hotel_stats(query, h["id"])
+        cards.append({**dict(h), **stats})
+    totals = {
+        "hotels": len(hotels),
+        "active": sum(1 for h in hotels if h["subscription_status"] == "Active"),
+        "rooms": sum(c["rooms"] for c in cards),
+        "revenue": sum(c["revenue"] for c in cards),
+    }
+    recent_logs = query(
+        """SELECT a.*, u.full_name, u.username, h.hotel_name
+           FROM audit_logs a
+           LEFT JOIN users u ON a.user_id=u.id
+           LEFT JOIN hotels h ON a.hotel_id=h.id
+           ORDER BY a.id DESC LIMIT 12"""
+    )
+    return render_template("platform/dashboard.html", hotel_cards=cards, totals=totals, recent_logs=recent_logs)
+
+
+@app.route("/platform/hotels")
+@platform_admin_required
+def platform_hotels():
+    hotels = query("SELECT * FROM hotels ORDER BY hotel_name")
+    cards = []
+    for h in hotels:
+        stats = get_hotel_stats(query, h["id"])
+        cards.append({**dict(h), **stats})
+    return render_template(
+        "platform/hotels.html",
+        hotels=cards,
+        subscription_plans=SUBSCRIPTION_PLANS,
+    )
+
+
+@app.route("/platform/hotels/add", methods=["POST"])
+@platform_admin_required
+def platform_add_hotel():
+    name = (request.form.get("hotel_name") or "").strip()
+    code = (request.form.get("hotel_code") or "").strip().upper()
+    if not name or not code:
+        flash("Hotel name and code are required.", "danger")
+        return redirect(url_for("platform_hotels"))
+    if query("SELECT id FROM hotels WHERE hotel_code=?", (code,), one=True):
+        flash("Hotel code already exists.", "danger")
+        return redirect(url_for("platform_hotels"))
+
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    owner_email = (request.form.get("owner_email") or "").strip()
+    owner_name = (request.form.get("owner_name") or "").strip()
+    hid = query(
+        """INSERT INTO hotels(hotel_name,hotel_code,address,city,state,country,phone,email,
+           gst_number,owner_name,owner_email,subscription_plan,subscription_status,created_at)
+           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+        (
+            name,
+            code,
+            request.form.get("address", ""),
+            request.form.get("city", ""),
+            request.form.get("state", ""),
+            request.form.get("country", "India"),
+            request.form.get("phone", ""),
+            request.form.get("email", ""),
+            request.form.get("gst_number", ""),
+            owner_name,
+            owner_email,
+            request.form.get("subscription_plan", "Starter"),
+            "Active",
+            now,
+        ),
+        commit=True,
+    )
+
+    admin_username = (request.form.get("admin_username") or f"admin_{code.lower()}").strip()
+    admin_password = request.form.get("admin_password") or "admin123"
+    if not query("SELECT id FROM users WHERE username=?", (admin_username,), one=True):
+        query(
+            "INSERT INTO users(username,password,full_name,role,status,hotel_id) VALUES(?,?,?,?,?,?)",
+            (admin_username, admin_password, owner_name or f"{name} Admin", "HOTEL_ADMIN", "Active", hid),
+            commit=True,
+        )
+
+    log_audit(f"Super Admin created hotel {name} ({code})", "hotel", hid, details=f"Plan: {request.form.get('subscription_plan', 'Starter')}", hotel_id=hid)
+    flash(f"Hotel {name} created. Hotel Admin login: {admin_username}", "success")
+    return redirect(url_for("platform_hotels"))
+
+
+@app.route("/platform/hotels/<int:hotel_id>/view")
+@platform_admin_required
+def platform_view_hotel(hotel_id):
+    hotel = query("SELECT * FROM hotels WHERE id=?", (hotel_id,), one=True)
+    if not hotel:
+        flash("Hotel not found.", "danger")
+        return redirect(url_for("platform_hotels"))
+    set_session_hotel(hotel_id)
+    flash(f"Viewing {hotel['hotel_name']} in read-only mode.", "success")
+    return redirect(url_for("dashboard"))
+
+
+@app.route("/platform/hotels/<int:hotel_id>/suspend", methods=["POST"])
+@platform_admin_required
+def platform_suspend_hotel(hotel_id):
+    hotel = query("SELECT * FROM hotels WHERE id=?", (hotel_id,), one=True)
+    if not hotel:
+        flash("Hotel not found.", "danger")
+        return redirect(url_for("platform_hotels"))
+    query("UPDATE hotels SET subscription_status='Suspended' WHERE id=?", (hotel_id,), commit=True)
+    log_audit(f"Super Admin suspended hotel {hotel['hotel_name']}", "hotel", hotel_id, hotel_id=hotel_id)
+    flash(f"{hotel['hotel_name']} suspended.", "success")
+    return redirect(url_for("platform_hotels"))
+
+
+@app.route("/platform/hotels/<int:hotel_id>/activate", methods=["POST"])
+@platform_admin_required
+def platform_activate_hotel(hotel_id):
+    hotel = query("SELECT * FROM hotels WHERE id=?", (hotel_id,), one=True)
+    if not hotel:
+        flash("Hotel not found.", "danger")
+        return redirect(url_for("platform_hotels"))
+    query("UPDATE hotels SET subscription_status='Active' WHERE id=?", (hotel_id,), commit=True)
+    log_audit(f"Super Admin activated hotel {hotel['hotel_name']}", "hotel", hotel_id, hotel_id=hotel_id)
+    flash(f"{hotel['hotel_name']} activated.", "success")
+    return redirect(url_for("platform_hotels"))
+
+
+@app.route("/platform/hotels/<int:hotel_id>/archive", methods=["POST"])
+@platform_admin_required
+def platform_archive_hotel(hotel_id):
+    hotel = query("SELECT * FROM hotels WHERE id=?", (hotel_id,), one=True)
+    if not hotel:
+        flash("Hotel not found.", "danger")
+        return redirect(url_for("platform_hotels"))
+    if hotel["subscription_status"] == "Active":
+        flash("Suspend the hotel before archiving.", "danger")
+        return redirect(url_for("platform_hotels"))
+    query("UPDATE hotels SET subscription_status='Archived' WHERE id=?", (hotel_id,), commit=True)
+    log_audit(f"Super Admin archived hotel {hotel['hotel_name']}", "hotel", hotel_id, hotel_id=hotel_id)
+    flash(f"{hotel['hotel_name']} archived.", "success")
+    return redirect(url_for("platform_hotels"))
+
+
+@app.route("/platform/audit-logs")
+@platform_admin_required
+def platform_audit_logs():
+    logs = query(
+        """SELECT a.*, u.full_name, u.username, h.hotel_name
+           FROM audit_logs a
+           LEFT JOIN users u ON a.user_id=u.id
+           LEFT JOIN hotels h ON a.hotel_id=h.id
+           ORDER BY a.id DESC LIMIT 200"""
+    )
+    return render_template("platform/audit_logs.html", logs=logs)
+
+
+@app.route("/platform/subscriptions")
+@platform_admin_required
+def platform_subscriptions():
+    hotels = query("SELECT * FROM hotels ORDER BY subscription_plan, hotel_name")
+    return render_template("platform/subscriptions.html", hotels=hotels, plans=SUBSCRIPTION_PLANS)
+
+
+@app.route("/platform/settings")
+@platform_admin_required
+def platform_settings():
+    return render_template("platform/settings.html")
+
+
+@app.route("/api/hotels/switch", methods=["POST"])
+def api_switch_hotel():
+    if not is_logged_in():
+        return api_error("Unauthorized", 401)
+    data = request.get_json(silent=True) or {}
+    hotel_id = int(data.get("hotelId") or data.get("hotel_id") or 0)
+    hotel = query("SELECT * FROM hotels WHERE id=?", (hotel_id,), one=True)
+    if not hotel:
+        return api_error("Hotel not found", 404)
+    if not is_super_admin_role():
+        user_hotel = session.get("user_hotel_id")
+        if user_hotel and int(user_hotel) != hotel_id:
+            return api_error("Access denied to this hotel.", 403)
+    set_session_hotel(hotel_id)
+    return api_ok(hotel=hotel_to_dict(hotel), readOnly=is_hotel_read_only())
+
+
+@app.route("/api/hotels")
+@platform_admin_required
+def api_hotels_list():
+    hotels = query("SELECT * FROM hotels ORDER BY hotel_name")
+    return api_ok(hotels=[hotel_to_dict(h) for h in hotels])
 
 
 # ─── Notifications API ───────────────────────────────────────────────────────

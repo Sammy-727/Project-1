@@ -1,0 +1,93 @@
+/* Platform & multi-tenant UI */
+.read-only-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 24px;
+  background: linear-gradient(90deg, #fef3c7, #fffbeb);
+  border-bottom: 1px solid #fcd34d;
+  color: #92400e;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.read-only-banner .icon { width: 16px; height: 16px; flex-shrink: 0; }
+
+.read-only-banner-link {
+  margin-left: auto;
+  color: #b45309;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.read-only-mode .write-action,
+.read-only-mode .modal-trigger,
+.read-only-mode button.write-action,
+.read-only-mode a.btn-primary.write-action,
+.read-only-mode form[method="post"]:not(.allow-write) {
+  display: none !important;
+}
+
+.read-only-mode .actions-menu form,
+.read-only-mode .actions-item.danger {
+  display: none !important;
+}
+
+.platform-hotel-card .entity-card-footer {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.platform-hotel-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.platform-hotel-stats span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.platform-hotel-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.platform-hotel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.hotel-switch-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.hotel-switch-item small { font-size: 11px; }
+
+.badge-Active { background: #ecfdf5; color: #047857; }
+.badge-Suspended { background: #fef2f2; color: #b91c1c; }
+.badge-Archived { background: #f1f5f9; color: #64748b; }
+.badge-Trial { background: #eff6ff; color: #1d4ed8; }
+
+[data-theme="dark"] .read-only-banner {
+  background: linear-gradient(90deg, #422006, #1f2937);
+  border-color: #92400e;
+  color: #fcd34d;
+}

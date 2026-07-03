@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% from "macros/ui.html" import breadcrumb, page_header, icon, status_badge %}
+{% set title = "Platform Hotels" %}
+{% block content %}
+
+{{ breadcrumb([{"label": "Platform", "url": url_for('platform_dashboard')}, {"label": "Hotels"}]) }}
+{{ page_header("Hotels", "Manage properties on the platform") }}
+
+<div class="page-header-actions-bar">
+    <button type="button" class="btn btn-primary write-action modal-trigger" data-target="#addHotelModal">
+        {{ icon('plus', 16) }} Add Hotel
+    </button>
+</div>
+
+<div class="entity-grid wide">
+    {% for h in hotels %}
+    <article class="entity-card platform-hotel-card">
+        <div class="entity-card-header gradient">
+            <div class="platform-hotel-logo">{{ (h.hotel_name[0] if h.hotel_name else 'H')|upper }}</div>
+            <div style="flex:1;min-width:0">
+                <div class="entity-card-sub">{{ h.hotel_code }}</div>
+                <div class="entity-card-title">{{ h.hotel_name }}</div>
+                <div class="entity-card-sub">{{ h.owner_name or '—' }} · {{ h.city }}, {{ h.state }}</div>
+            </div>
+            {{ status_badge(h.subscription_status) }}
+        </div>
+        <div class="entity-card-body">
+            <div class="platform-hotel-stats">
+                <span>{{ icon('bed-double', 14) }} {{ h.rooms }} rooms</span>
+                <span>{{ icon('users', 14) }} {{ h.employees }} staff</span>
+                <span>{{ icon('percent', 14) }} {{ h.occupancy }}% occ.</span>
+                <span>{{ icon('indian-rupee', 14) }} ₹{{ "{:,.0f}".format(h.revenue) }}</span>
+            </div>
+            <div class="entity-card-sub">Plan: {{ h.subscription_plan }}</div>
+        </div>
+        <div class="entity-card-footer platform-hotel-actions">
+            <a href="{{ url_for('platform_view_hotel', hotel_id=h.id) }}" class="btn btn-sm btn-primary">View Dashboard</a>
+            {% if h.subscription_status == 'Active' %}
+            <form method="post" action="{{ url_for('platform_suspend_hotel', hotel_id=h.id) }}" data-confirm="Suspend {{ h.hotel_name }}?">
+                <button type="submit" class="btn btn-sm btn-outline write-action">Suspend</button>
+            </form>
+            {% elif h.subscription_status == 'Suspended' %}
+            <form method="post" action="{{ url_for('platform_activate_hotel', hotel_id=h.id) }}">
+                <button type="submit" class="btn btn-sm btn-outline write-action">Activate</button>
+            </form>
+            <form method="post" action="{{ url_for('platform_archive_hotel', hotel_id=h.id) }}" data-confirm="Archive {{ h.hotel_name }}?">
+                <button type="submit" class="btn btn-sm btn-ghost danger write-action">Archive</button>
+            </form>
+            {% endif %}
+        </div>
+    </article>
+    {% else %}
+    <p class="muted">No hotels registered yet.</p>
+    {% endfor %}
+</div>
+
+<div class="modal" id="addHotelModal">
+    <div class="modal-overlay modal-close"></div>
+    <div class="modal-content modal-lg">
+        <div class="modal-header">
+            <h3>Add Hotel</h3>
+            <button type="button" class="modal-close icon-btn-round" aria-label="Close">{{ icon('x', 18) }}</button>
+        </div>
+        <form method="post" action="{{ url_for('platform_add_hotel') }}" class="modal-body form-grid">
+            <label>Hotel Name<input name="hotel_name" required placeholder="GrandStay Dehradun"></label>
+            <label>Hotel Code<input name="hotel_code" required placeholder="GRAND-DDN" style="text-transform:uppercase"></label>
+            <label>Owner Name<input name="owner_name" placeholder="Owner full name"></label>
+            <label>Owner Email<input name="owner_email" type="email" placeholder="owner@hotel.com"></label>
+            <label>Phone<input name="phone" placeholder="+91 ..."></label>
+            <label>Email<input name="email" type="email" placeholder="info@hotel.com"></label>
+            <label>Address<input name="address" placeholder="Street address"></label>
+            <label>City<input name="city"></label>
+            <label>State<input name="state"></label>
+            <label>Country<input name="country" value="India"></label>
+            <label>GST Number<input name="gst_number" placeholder="GSTIN..."></label>
+            <label>Subscription Plan
+                <select name="subscription_plan">
+                    {% for p in subscription_plans %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+                </select>
+            </label>
+            <label>Admin Username<input name="admin_username" placeholder="admin_HOTELCODE"></label>
+            <label>Admin Password<input name="admin_password" value="admin123"></label>
+            <div class="modal-footer" style="grid-column:1/-1">
+                <button type="button" class="btn btn-ghost modal-close">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create Hotel</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

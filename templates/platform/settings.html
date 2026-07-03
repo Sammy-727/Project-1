@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% from "macros/ui.html" import breadcrumb, page_header %}
+{% set title = "Platform Settings" %}
+{% block content %}
+
+{{ breadcrumb([{"label": "Platform", "url": url_for('platform_dashboard')}, {"label": "Settings"}]) }}
+{{ page_header("Platform Settings", "GrandStay SaaS platform configuration") }}
+
+<div class="panel saas-panel">
+    <p class="muted">Platform-wide settings and billing integrations can be configured here.</p>
+</div>
+{% endblock %}

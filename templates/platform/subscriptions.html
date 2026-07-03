@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% from "macros/ui.html" import breadcrumb, page_header, status_badge %}
+{% set title = "Subscriptions" %}
+{% block content %}
+
+{{ breadcrumb([{"label": "Platform", "url": url_for('platform_dashboard')}, {"label": "Subscriptions"}]) }}
+{{ page_header("Subscriptions", "Hotel subscription plans and status") }}
+
+<div class="entity-grid wide">
+    {% for h in hotels %}
+    <article class="entity-card">
+        <div class="entity-card-header">
+            <div>
+                <div class="entity-card-title">{{ h.hotel_name }}</div>
+                <div class="entity-card-sub">{{ h.hotel_code }}</div>
+            </div>
+            {{ status_badge(h.subscription_status) }}
+        </div>
+        <div class="entity-card-body">
+            <p class="entity-card-sub">Plan: <strong>{{ h.subscription_plan }}</strong></p>
+            <p class="entity-card-sub">Owner: {{ h.owner_email or h.owner_name or '—' }}</p>
+        </div>
+    </article>
+    {% endfor %}
+</div>
+{% endblock %}
