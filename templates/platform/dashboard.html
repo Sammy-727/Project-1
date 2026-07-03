@@ -1,55 +1,72 @@
 {% extends "base.html" %}
-{% from "macros/ui.html" import breadcrumb, page_header, kpi_card, icon %}
+{% from "macros/ui.html" import breadcrumb, page_header, icon %}
 {% set title = "Platform Dashboard" %}
 {% block content %}
 
 {{ breadcrumb([{"label": "Platform", "url": url_for('platform_dashboard')}, {"label": "Dashboard"}]) }}
 {{ page_header("Platform Dashboard", "Monitor all hotels on the GrandStay platform") }}
 
-<div class="kpi-grid">
-    {{ kpi_card("Total Hotels", totals.hotels, "building-2", "indigo") }}
-    {{ kpi_card("Active Hotels", totals.active, "badge-check", "emerald") }}
-    {{ kpi_card("Total Rooms", totals.rooms, "bed-double", "blue") }}
-    {{ kpi_card("Platform Revenue", "₹" ~ "{:,.0f}".format(totals.revenue), "indian-rupee", "purple") }}
-</div>
-
-<div class="page-header-actions-bar">
-    <a href="{{ url_for('platform_hotels') }}" class="btn btn-primary write-action">{{ icon('plus', 16) }} Add Hotel</a>
-</div>
-
-<div class="panel saas-panel">
-    <div class="panel-head">
-        <h3>Hotels Overview</h3>
-        <a href="{{ url_for('platform_hotels') }}" class="btn btn-ghost btn-sm">Manage all</a>
+<div id="platformDashboardRoot" data-view-hotel-base="/platform/hotels/">
+    <div class="kpi-grid" id="platformKpiGrid">
+        <div class="kpi-card indigo">
+            <div class="kpi-icon-wrap">{{ icon('building-2', 22) }}</div>
+            <div class="kpi-body">
+                <span class="kpi-label">Total Hotels</span>
+                <strong class="kpi-value" id="platformKpiTotalHotels"><span class="skeleton" style="display:inline-block;width:2rem;height:1.4rem"></span></strong>
+            </div>
+        </div>
+        <div class="kpi-card emerald">
+            <div class="kpi-icon-wrap">{{ icon('badge-check', 22) }}</div>
+            <div class="kpi-body">
+                <span class="kpi-label">Active Hotels</span>
+                <strong class="kpi-value" id="platformKpiActiveHotels"><span class="skeleton" style="display:inline-block;width:2rem;height:1.4rem"></span></strong>
+            </div>
+        </div>
+        <div class="kpi-card blue">
+            <div class="kpi-icon-wrap">{{ icon('bed-double', 22) }}</div>
+            <div class="kpi-body">
+                <span class="kpi-label">Total Rooms</span>
+                <strong class="kpi-value" id="platformKpiTotalRooms"><span class="skeleton" style="display:inline-block;width:3rem;height:1.4rem"></span></strong>
+            </div>
+        </div>
+        <div class="kpi-card purple">
+            <div class="kpi-icon-wrap">{{ icon('indian-rupee', 22) }}</div>
+            <div class="kpi-body">
+                <span class="kpi-label">Platform Revenue</span>
+                <strong class="kpi-value" id="platformKpiPlatformRevenue"><span class="skeleton" style="display:inline-block;width:5rem;height:1.4rem"></span></strong>
+            </div>
+        </div>
     </div>
-    <div class="entity-grid wide">
-        {% for h in hotel_cards %}
-        <article class="entity-card platform-hotel-card">
-            <div class="entity-card-header gradient">
-                <div>
-                    <div class="entity-card-sub">{{ h.hotel_code }}</div>
-                    <div class="entity-card-title">{{ h.hotel_name }}</div>
-                    <div class="entity-card-sub">{{ h.city }}, {{ h.state }}</div>
+
+    <div class="page-header-actions-bar">
+        <a href="{{ url_for('platform_hotels') }}" class="btn btn-primary write-action">{{ icon('plus', 16) }} Add Hotel</a>
+    </div>
+
+    <div class="panel saas-panel">
+        <div class="panel-head">
+            <h3>Hotels Overview</h3>
+            <a href="{{ url_for('platform_hotels') }}" class="btn btn-ghost btn-sm">Manage all</a>
+        </div>
+
+        <div id="platformHotelsLoading" class="entity-grid wide">
+            {% for _ in range(3) %}
+            <article class="entity-card platform-hotel-card platform-hotel-skeleton">
+                <div class="skeleton" style="height:88px;border-radius:12px 12px 0 0"></div>
+                <div class="entity-card-body" style="display:grid;gap:10px">
+                    <div class="skeleton" style="height:14px;width:70%"></div>
+                    <div class="skeleton" style="height:14px;width:90%"></div>
+                    <div class="skeleton" style="height:14px;width:50%"></div>
                 </div>
-                <span class="badge badge-{{ h.subscription_status }}">{{ h.subscription_status }}</span>
-            </div>
-            <div class="entity-card-body">
-                <div class="platform-hotel-stats">
-                    <span>{{ icon('bed-double', 14) }} {{ h.rooms }} rooms</span>
-                    <span>{{ icon('users', 14) }} {{ h.employees }} staff</span>
-                    <span>{{ icon('percent', 14) }} {{ h.occupancy }}%</span>
-                    <span>{{ icon('indian-rupee', 14) }} ₹{{ "{:,.0f}".format(h.revenue) }}</span>
-                </div>
-                <div class="entity-card-sub">Plan: {{ h.subscription_plan }} · Owner: {{ h.owner_name or '—' }}</div>
-            </div>
-            <div class="entity-card-footer">
-                <a href="{{ url_for('platform_view_hotel', hotel_id=h.id) }}" class="btn btn-sm btn-primary">View Dashboard</a>
-                <a href="{{ url_for('platform_hotels') }}" class="btn btn-sm btn-ghost">Details</a>
-            </div>
-        </article>
-        {% else %}
-        <p class="muted">No hotels yet. <a href="{{ url_for('platform_hotels') }}">Add your first hotel</a>.</p>
-        {% endfor %}
+            </article>
+            {% endfor %}
+        </div>
+
+        <div class="entity-grid wide" id="platformHotelsGrid" hidden></div>
+
+        <div id="platformHotelsEmpty" class="platform-empty-state" hidden>
+            <p class="muted">No hotels registered yet.</p>
+            <a href="{{ url_for('platform_hotels') }}" class="btn btn-primary btn-sm">Add your first hotel</a>
+        </div>
     </div>
 </div>
 
@@ -71,4 +88,9 @@
         {% endfor %}
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/platform-dashboard.js') }}"></script>
 {% endblock %}
