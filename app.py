@@ -16,6 +16,7 @@ from list_filters import (
 )
 from chart_data import (
     get_revenue_trend,
+    get_revenue_daily_7d,
     get_occupancy_status,
     get_booking_trend,
     with_fallback,
@@ -1077,9 +1078,135 @@ def api_search():
     return api_ok(data=global_search_results(q, get_current_hotel_id()))
 
 
+def pending_payment_summary(hotel_id):
+    """Outstanding balance count and amount for active bookings."""
+    rows = query(
+        """
+        SELECT b.id, COALESCE(b.total_amount, 0) total_amount
+        FROM bookings b
+        WHERE b.hotel_id=? AND b.payment_status IN ('Pending','Partial')
+          AND b.status IN ('Reserved','Checked-in')
+        """,
+        (hotel_id,),
+    )
+    count = 0
+    amount = 0.0
+    for row in rows:
+        paid = booking_paid_amount(row["id"])
+        balance = max(float(row["total_amount"] or 0) - paid, 0)
+        if balance > 0:
+            count += 1
+            amount += balance
+    return count, round(amount, 2)
+
+
+def build_dashboard_activity(hotel_id, limit=8):
+    """Unified recent activity feed sorted by recency."""
+    activities = []
+
+    bookings = query(
+        """
+        SELECT b.id, c.name, r.room_no, b.checkin, b.checkout, b.status
+        FROM bookings b
+        JOIN customers c ON b.customer_id=c.id
+        JOIN rooms r ON b.room_id=r.id
+        WHERE b.hotel_id=?
+        ORDER BY b.id DESC
+        LIMIT 20
+        """,
+        (hotel_id,),
+    )
+    for b in bookings:
+        status = b["status"]
+        if status == "Checked-in":
+            kind, title, ts = "checkin", "Check-in", b["checkin"]
+        elif status == "Checked-out":
+            kind, title, ts = "checkout", "Check-out", b["checkout"]
+        else:
+            kind, title, ts = "new_booking", "New Booking", b["checkin"]
+        activities.append({
+            "kind": kind,
+            "title": title,
+            "detail": f"#{b['id']} · {b['name']} · Room {b['room_no']}",
+            "date_label": ts,
+            "sort_key": f"{ts}-{b['id']:08d}",
+            "url": url_for("bookings", q=b["id"]),
+        })
+
+    payments = query(
+        """
+        SELECT p.id, p.amount, p.payment_date, c.name, r.room_no
+        FROM payments p
+        JOIN bookings b ON p.booking_id=b.id
+        JOIN customers c ON b.customer_id=c.id
+        JOIN rooms r ON b.room_id=r.id
+        WHERE b.hotel_id=?
+        ORDER BY p.id DESC
+        LIMIT 15
+        """,
+        (hotel_id,),
+    )
+    for p in payments:
+        activities.append({
+            "kind": "payment",
+            "title": "Payment Received",
+            "detail": f"{p['name']} · ₹{float(p['amount']):,.0f}",
+            "date_label": p["payment_date"],
+            "sort_key": f"{p['payment_date']}-{p['id']:08d}",
+            "url": url_for("payments"),
+        })
+
+    cleaned = query(
+        """
+        SELECT h.id, h.completed_at, r.room_no
+        FROM housekeeping_tasks h
+        JOIN rooms r ON h.room_id=r.id
+        WHERE r.hotel_id=? AND h.status='Completed' AND h.completed_at IS NOT NULL
+        ORDER BY h.completed_at DESC
+        LIMIT 10
+        """,
+        (hotel_id,),
+    )
+    for h in cleaned:
+        activities.append({
+            "kind": "room_cleaned",
+            "title": "Room Cleaned",
+            "detail": f"Room {h['room_no']}",
+            "date_label": (h["completed_at"] or "")[:10],
+            "sort_key": f"{(h['completed_at'] or '')[:10]}-{h['id']:08d}",
+            "url": url_for("housekeeping"),
+        })
+
+    maintenance_done = query(
+        """
+        SELECT rs.id, rs.created_at, r.room_no
+        FROM room_service_requests rs
+        JOIN rooms r ON rs.room_id=r.id
+        WHERE r.hotel_id=? AND rs.request_type='Maintenance' AND rs.status='Completed'
+        ORDER BY rs.id DESC
+        LIMIT 10
+        """,
+        (hotel_id,),
+    )
+    for m in maintenance_done:
+        ts = (m["created_at"] or "")[:10]
+        activities.append({
+            "kind": "maintenance_completed",
+            "title": "Maintenance Completed",
+            "detail": f"Room {m['room_no']}",
+            "date_label": ts,
+            "sort_key": f"{ts}-{m['id']:08d}",
+            "url": url_for("room_service"),
+        })
+
+    activities.sort(key=lambda a: a["sort_key"], reverse=True)
+    return activities[:limit]
+
+
 def dashboard_stats(hotel_id=None):
     hotel_id = hotel_id or get_current_hotel_id()
     today = date.today().isoformat()
+    pending_count, pending_amount = pending_payment_summary(hotel_id)
     revenue = query(
         """SELECT COALESCE(SUM(p.amount),0) t FROM payments p
            JOIN bookings b ON p.booking_id=b.id WHERE b.hotel_id=?""",
@@ -1129,11 +1256,8 @@ def dashboard_stats(hotel_id=None):
             (hotel_id, today),
             one=True,
         )["c"],
-        "pending_payments": query(
-            "SELECT COUNT(*) c FROM bookings WHERE hotel_id=? AND payment_status IN ('Pending','Partial')",
-            (hotel_id,),
-            one=True,
-        )["c"],
+        "pending_payments": pending_count,
+        "pending_payment_amount": pending_amount,
         "maintenance": query(
             "SELECT COUNT(*) c FROM rooms WHERE hotel_id=? AND status='Maintenance'",
             (hotel_id,),
@@ -1145,6 +1269,20 @@ def dashboard_stats(hotel_id=None):
             one=True,
         )["c"],
     }
+
+
+@app.route("/api/dashboard/charts/revenue-daily")
+def api_chart_revenue_daily():
+    if not is_logged_in():
+        return api_error("Unauthorized", 401)
+    hotel_id = get_current_hotel_id()
+    data = get_revenue_daily_7d(query, hotel_id)
+    stats = dashboard_stats(hotel_id)
+    return api_ok(
+        data=data,
+        hotelId=hotel_id,
+        todayRevenue=stats["today_revenue"],
+    )
 
 
 @app.route("/api/dashboard/charts/revenue-trend")
@@ -1182,17 +1320,7 @@ def dashboard():
         "SELECT * FROM inventory WHERE hotel_id=? AND quantity <= reorder_level ORDER BY quantity ASC LIMIT 6",
         (hid,),
     )
-    recent_bookings = query("""
-        SELECT b.id, c.name, r.room_no, r.room_type, b.checkin, b.checkout, b.status, b.payment_status
-        FROM bookings b JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
-        WHERE b.hotel_id=? ORDER BY b.id DESC LIMIT 8
-    """, (hid,))
-    recent_payments = query("""
-        SELECT p.id, p.amount, p.payment_mode, p.receipt_number, p.payment_date, c.name, r.room_no
-        FROM payments p JOIN bookings b ON p.booking_id=b.id
-        JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
-        WHERE b.hotel_id=? ORDER BY p.id DESC LIMIT 8
-    """, (hid,))
+    recent_activity = build_dashboard_activity(hid, limit=8)
     upcoming_checkins = query("""
         SELECT b.id, c.name, r.room_no, b.checkin, b.checkout, b.status
         FROM bookings b JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
@@ -1225,8 +1353,7 @@ def dashboard():
         "dashboard.html",
         stats=stats,
         low_stock=low_stock,
-        recent_bookings=recent_bookings,
-        recent_payments=recent_payments,
+        recent_activity=recent_activity,
         upcoming_checkins=upcoming_checkins,
         upcoming_checkouts=upcoming_checkouts,
         maintenance_rooms=maintenance_rooms,

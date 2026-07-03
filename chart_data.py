@@ -1,6 +1,6 @@
 """Hotel-scoped dashboard chart data helpers."""
 from calendar import month_abbr
-from datetime import date
+from datetime import date, timedelta
 
 
 MONTH_NAMES = [month_abbr[i] for i in range(1, 13)]
@@ -51,6 +51,34 @@ def get_occupancy_status(query_fn, hotel_id):
     order = ["Available", "Occupied", "Reserved", "Maintenance", "Dirty"]
     data.sort(key=lambda x: order.index(x["name"]) if x["name"] in order else 99)
     return data
+
+
+def get_revenue_daily_7d(query_fn, hotel_id):
+    """Daily revenue for the last 7 calendar days (including today)."""
+    today = date.today()
+    start = today - timedelta(days=6)
+    rows = query_fn(
+        """
+        SELECT date(p.payment_date) day_key, COALESCE(SUM(p.amount), 0) total
+        FROM payments p
+        JOIN bookings b ON p.booking_id = b.id
+        WHERE b.hotel_id = ? AND date(p.payment_date) BETWEEN date(?) AND date(?)
+        GROUP BY day_key
+        """,
+        (hotel_id, start.isoformat(), today.isoformat()),
+    )
+    by_day = {r["day_key"]: float(r["total"] or 0) for r in rows}
+    result = []
+    for offset in range(7):
+        d = start + timedelta(days=offset)
+        key = d.isoformat()
+        result.append({
+            "date": key,
+            "label": d.strftime("%a"),
+            "revenue": round(by_day.get(key, 0), 2),
+            "isToday": d == today,
+        })
+    return result
 
 
 def get_booking_trend(query_fn, hotel_id):

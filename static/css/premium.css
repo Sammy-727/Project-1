@@ -650,6 +650,65 @@ textarea:focus {
   color: var(--text-muted);
 }
 
+.kpi-sub {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.revenue-today-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  background: #ecfdf5;
+  color: #047857;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.revenue-today-pill strong {
+  color: #065f46;
+}
+
+.panel-head-inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.dash-activity-feed-compact {
+  max-height: 280px;
+}
+
+.dash-activity-item {
+  text-decoration: none;
+  color: inherit;
+}
+
+.dash-activity-date {
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.dash-activity-icon.checkin { background: #eef2ff; color: #6366f1; }
+.dash-activity-icon.checkout { background: #fff7ed; color: #d97706; }
+.dash-activity-icon.new_booking { background: #f5f3ff; color: #7c3aed; }
+.dash-activity-icon.room_cleaned { background: #ecfeff; color: #0891b2; }
+.dash-activity-icon.maintenance_completed { background: #fef3c7; color: #b45309; }
+
+.chart-empty .saas-empty {
+  padding: 16px 8px;
+}
+
+.chart-empty .empty-illustration-img {
+  width: 120px;
+  height: auto;
+}
+
 @media (max-width: 1024px) {
   .dashboard-ops-grid,
   .dashboard-split {
