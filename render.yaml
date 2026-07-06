@@ -1,0 +1,12 @@
+# Deploy Hyrlo: https://render.com/deploy
+services:
+  - type: web
+    name: hyrlo
+    runtime: python
+    plan: free
+    branch: main
+    buildCommand: npm ci && npm run build && pip install -r backend/requirements.txt
+    startCommand: cd backend && gunicorn app:application --bind 0.0.0.0:$PORT --workers 1 --timeout 120
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
