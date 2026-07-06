@@ -1,98 +1,37 @@
-# Safe Stays — Hotel Management Platform
+# Hyrlo — Hyperlocal Hiring Platform
 
-**Secure. Smart. Seamless Hospitality.**
+This repository contains **Hyrlo**, a mobile-first hyperlocal hiring platform, in the `hyrlo-app/` directory.
 
-Multi-Hotel SaaS Hotel Management Platform (PMS)
-
-## WINDOWS — Follow These Steps
-
-### Step 1: Install Python
-1. Go to https://www.python.org/downloads/
-2. Download **Python 3.10** or newer
-3. Run installer → **CHECK** ✅ **"Add python.exe to PATH"**
-4. Click **Install Now**
-5. **Restart your computer**
-
-### Step 2: Run the App
-1. Unzip the project folder (e.g. `Safe-Stays-PMS`)
-2. Double-click **`START.bat`**
-3. Wait for "Installing dependencies..." (first time only, 1-2 min)
-4. Browser opens automatically → **http://127.0.0.1:5000**
-5. Login: **`admin`** / **`password123`**
-
-> ⚠️ **Keep the black command window open** while using the app. Closing it stops the server.
-
-### Step 3: If Something Fails
-1. Double-click **`TEST_SETUP.bat`** — shows what is broken
-2. Double-click **`RESET_DATABASE.bat`** — fixes database errors
-3. Double-click **`START.bat`** again
-
----
-
-## Windows Files
-
-| File | Purpose |
-|------|---------|
-| **START.bat** | ⭐ Main launcher — use this! |
-| TEST_SETUP.bat | Check if Python/Flask/DB work |
-| RESET_DATABASE.bat | Delete corrupt database |
-| run_hms_v2.bat | Same as START.bat |
-
----
-
-## Common Windows Errors
-
-| Error | Fix |
-|-------|-----|
-| `python is not recognized` | Reinstall Python with "Add to PATH" checked, restart PC |
-| `database is locked` | Run RESET_DATABASE.bat, then START.bat |
-| Port 5000 busy | START.bat auto-finds free port |
-| Window closes instantly | Use START.bat (not app.py) |
-| Blank page | Wait 30 sec after first run, refresh browser |
-
----
-
-## Mac / Linux
+## Run Hyrlo
 
 ```bash
-cd Safe-Stays-PMS
-python3 -m pip install -r requirements.txt
-python3 run.py
+cd hyrlo-app
+npm install
+npm run dev
 ```
 
-Open: http://127.0.0.1:5000
+Open **http://localhost:5173** (best in mobile view).
+
+### Demo Login
+
+| Role | Phone |
+|------|-------|
+| Worker (Electrician) | `9876543210` |
+| Worker (Cook) | `9876543214` |
+| Employer (Medical Store) | `9988776655` |
+| Employer (Cafe) | `9988776657` |
+
+Or register via **Find Work** / **Hire Workers** on the landing page.
+
+See [hyrlo-app/README.md](hyrlo-app/README.md) for full documentation.
 
 ---
 
-## Login Accounts
+## Legacy: Safe Stays (Hotel PMS)
 
-| Username | Password | Role |
-|----------|----------|------|
-| superadmin | admin123 | Super Admin (platform only) |
-
-Hotel Admin and staff accounts are created manually from **User Management** after setup.
-
-To start with a completely clean database (no demo data), run **`RESET_DATABASE.bat`** then **`START.bat`**.
-
----
-
-## Deploy Online (Live Web Link)
-
-**One-click free hosting on Render:**
-
-👉 **[Deploy Safe Stays PMS to the Web](https://render.com/deploy?repo=https://github.com/Sammy-727/Project-1)**
-
-After deploy (~3 min), open your live URL (e.g. `https://grandstay-hms.onrender.com`).
-
-Login: **`admin`** / **`password123`**
-
-See `DEPLOY_WEB.md` for details.
-
----
-
-## Deploy (Manual / Render)
+The root-level Flask app (`app.py`) is the original Safe Stays hotel management system.
 
 ```bash
 pip install -r requirements.txt
-gunicorn app:application --workers 1 --bind 0.0.0.0:$PORT
+python3 run.py
 ```
