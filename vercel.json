@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "cd hyrlo-app && npm ci && npm run build",
+  "outputDirectory": "hyrlo-app/dist",
+  "installCommand": "cd hyrlo-app && npm ci",
+  "framework": "vite",
+  "rewrites": [
+    { "source": "/((?!assets/).*)", "destination": "/index.html" }
+  ]
+}
