@@ -150,6 +150,96 @@
 .notification-type-yellow .notification-card-accent { background: #f59e0b; }
 .notification-type-green .notification-card-accent { background: #10b981; }
 .notification-type-blue .notification-card-accent { background: #3b82f6; }
+.notification-type-orange .notification-card-accent { background: #f97316; }
+
+.notification-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-light);
+  flex-shrink: 0;
+}
+
+.notification-tab {
+  border: 1px solid var(--border-light);
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.notification-tab:hover {
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.notification-tab.active {
+  background: var(--primary-light, rgba(99, 102, 241, 0.12));
+  border-color: var(--primary, #6366f1);
+  color: var(--primary, #6366f1);
+}
+
+.notification-group {
+  margin-bottom: 14px;
+}
+
+.notification-group-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin: 0 0 8px 4px;
+}
+
+.notification-group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.notification-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 0;
+}
+
+.notification-skeleton-card {
+  height: 96px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, var(--bg-subtle) 25%, var(--border-light) 50%, var(--bg-subtle) 75%);
+  background-size: 200% 100%;
+  animation: notification-shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes notification-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.notification-error {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--text-muted);
+}
+
+.notification-error .icon {
+  width: 36px;
+  height: 36px;
+  margin-bottom: 10px;
+  opacity: 0.5;
+}
+
+.notification-error p {
+  margin: 0 0 12px;
+  font-size: 13px;
+}
 
 .notification-card-body {
   flex: 1;

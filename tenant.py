@@ -281,7 +281,7 @@ def is_hotel_write_request():
         if path.startswith(prefix):
             return False
     if path.startswith("/api/notifications"):
-        return request.method != "GET"
+        return False
     if path.startswith("/api/"):
         return request.method in ("POST", "PUT", "PATCH", "DELETE")
     return request.method == "POST"

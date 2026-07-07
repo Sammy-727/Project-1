@@ -40,8 +40,8 @@ export class NotificationCard {
         <div class="notification-card-actions">
           ${actionBtn}
           ${n.isRead ? '' : `<button type="button" class="btn btn-sm btn-ghost notification-mark-read">Mark as read</button>`}
-          <button type="button" class="btn btn-sm btn-ghost notification-dismiss" title="Dismiss" aria-label="Dismiss">
-            <i data-lucide="x" class="icon"></i>
+          <button type="button" class="btn btn-sm btn-ghost notification-dismiss" title="Delete" aria-label="Delete notification">
+            <i data-lucide="trash-2" class="icon"></i>
           </button>
         </div>
       </div>

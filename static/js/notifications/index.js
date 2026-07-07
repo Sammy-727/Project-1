@@ -9,6 +9,7 @@ import {
   markAllNotificationsRead,
   deleteNotification,
   clearAllNotifications,
+  getCachedNotifications,
 } from './NotificationService.js';
 
 function initNotifications() {
@@ -21,6 +22,11 @@ function initNotifications() {
   const bell = new NotificationBell(bellBtn, countEl);
   const drawer = new NotificationDrawer(panel, backdrop);
 
+  const syncUi = (data) => {
+    bell.setCount(data?.unreadCount ?? 0);
+    if (drawer.open) drawer.render(data);
+  };
+
   bell.onToggle = () => {
     drawer.toggle();
     if (drawer.open) load();
@@ -28,17 +34,21 @@ function initNotifications() {
 
   drawer.onMarkRead = async (id) => {
     try {
-      await markNotificationRead(id);
+      const data = await markNotificationRead(id);
+      syncUi(data);
     } catch (err) {
       window.showToast?.(err.message, 'danger');
+      load();
     }
   };
 
   drawer.onDelete = async (id) => {
     try {
-      await deleteNotification(id);
+      const data = await deleteNotification(id);
+      syncUi(data);
     } catch (err) {
       window.showToast?.(err.message, 'danger');
+      load();
     }
   };
 
@@ -46,37 +56,37 @@ function initNotifications() {
     if (!confirm('Clear all notifications?')) return;
     try {
       const data = await clearAllNotifications();
-      bell.setCount(data.unreadCount);
-      drawer.render(data);
+      syncUi(data);
       window.showToast?.('All notifications cleared.', 'success');
     } catch (err) {
       window.showToast?.(err.message, 'danger');
+      load();
     }
   };
 
   drawer.onMarkAllRead = async () => {
     try {
-      await markAllNotificationsRead();
+      const data = await markAllNotificationsRead();
+      syncUi(data);
     } catch (err) {
       window.showToast?.(err.message, 'danger');
+      load();
     }
   };
 
-  subscribeNotifications((data) => {
-    bell.setCount(data.unreadCount);
-    if (drawer.open) drawer.render(data);
-  });
+  drawer.onRetry = () => load();
+
+  subscribeNotifications(syncUi);
 
   async function load() {
+    drawer.setError(false);
     drawer.setLoading(true);
     try {
       const data = await fetchNotifications();
-      bell.setCount(data.unreadCount);
-      drawer.render(data);
-    } catch (_) {
-      if (drawer.listEl) {
-        drawer.listEl.innerHTML = '<p class="notification-empty-msg">Unable to load notifications.</p>';
-      }
+      syncUi(data);
+    } catch (err) {
+      drawer.setError(true);
+      bell.setCount(getCachedNotifications()?.unreadCount ?? 0);
     } finally {
       drawer.setLoading(false);
     }

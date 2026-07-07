@@ -685,15 +685,15 @@ def seed_hotel_demo_notifications(query, hotel_id, hotel_name, city):
         (
             f"demo_pay_{hotel_id}",
             "Payment Pending",
-            f"Outstanding guest balance pending at {hotel_name}.",
+            "Booking #15 has ₹8,000 pending.",
             "RED",
             "PENDING_PAYMENTS",
-            "/payments",
+            "/payments?booking_id=15",
         ),
         (
             f"demo_low_stock_{hotel_id}",
             "Low Inventory",
-            f"Linens stock is below minimum level at {city} property.",
+            "Towels stock is below minimum.",
             "RED",
             "LOW_INVENTORY",
             "/inventory?stockStatus=low",
@@ -701,10 +701,10 @@ def seed_hotel_demo_notifications(query, hotel_id, hotel_name, city):
         (
             f"demo_checkin_{hotel_id}",
             "Upcoming Check-in",
-            f"Guest arriving today at {hotel_name}.",
+            "Guest arriving today for Room 403.",
             "YELLOW",
             "UPCOMING_CHECKINS",
-            "/bookings",
+            "/bookings?q=403",
         ),
     ]
     for source_key, title, message, ntype, category, action_url in demos:

@@ -244,7 +244,25 @@
             </button>
         </div>
     </header>
+    <div class="notification-tabs" data-notification-tabs role="tablist" aria-label="Filter notifications">
+        <button type="button" class="notification-tab active" data-tab="all" role="tab">All</button>
+        <button type="button" class="notification-tab" data-tab="unread" role="tab">Unread</button>
+        <button type="button" class="notification-tab" data-tab="payments" role="tab">Payments</button>
+        <button type="button" class="notification-tab" data-tab="inventory" role="tab">Inventory</button>
+        <button type="button" class="notification-tab" data-tab="bookings" role="tab">Bookings</button>
+        <button type="button" class="notification-tab" data-tab="maintenance" role="tab">Maintenance</button>
+    </div>
     <div class="notification-drawer-body">
+        <div class="notification-skeleton" data-notification-skeleton hidden aria-hidden="true">
+            <div class="notification-skeleton-card"></div>
+            <div class="notification-skeleton-card"></div>
+            <div class="notification-skeleton-card"></div>
+        </div>
+        <div class="notification-error" data-notification-error hidden>
+            <i data-lucide="alert-circle" class="icon"></i>
+            <p>Unable to load notifications.</p>
+            <button type="button" class="btn btn-sm btn-primary" data-notification-retry>Retry</button>
+        </div>
         <div class="notification-empty" data-notification-empty hidden>
             <i data-lucide="bell-off" class="icon" style="width:40px;height:40px;margin-bottom:12px;opacity:0.4"></i>
             <p>No notifications right now.</p>

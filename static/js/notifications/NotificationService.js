@@ -19,45 +19,95 @@ export function getCachedNotifications() {
   return _cache;
 }
 
+function setCache(data) {
+  _cache = data;
+  notify(data);
+  return data;
+}
+
+function applyLocalUpdate(mutator) {
+  const base = _cache || { notifications: [], unreadCount: 0 };
+  const next = mutator({ ...base, notifications: [...(base.notifications || [])] });
+  next.unreadCount = Number.isFinite(next.unreadCount)
+    ? next.unreadCount
+    : (next.notifications || []).filter((n) => !n.isRead).length;
+  return setCache(next);
+}
+
 export async function fetchNotifications() {
   const res = await axios.get(NOTIFICATIONS_API);
   const data = res.data;
   if (!data?.ok) {
     throw new Error(data?.error || 'Failed to load notifications');
   }
-  _cache = data;
-  notify(data);
-  return data;
+  return setCache(data);
+}
+
+export async function fetchUnreadCount() {
+  const res = await axios.get(`${NOTIFICATIONS_API}/unread-count`);
+  const data = res.data;
+  if (!data?.ok) throw new Error(data?.error || 'Failed to load unread count');
+  if (_cache) {
+    setCache({ ..._cache, unreadCount: data.unreadCount });
+  } else {
+    setCache({ notifications: [], unreadCount: data.unreadCount });
+  }
+  return data.unreadCount;
+}
+
+export async function generateAlerts() {
+  const res = await axios.post(`${NOTIFICATIONS_API}/generate-alerts`);
+  const data = res.data;
+  if (!data?.ok) throw new Error(data?.error || 'Failed to generate alerts');
+  return setCache(data);
 }
 
 export async function markNotificationRead(id) {
+  applyLocalUpdate((c) => ({
+    ...c,
+    notifications: c.notifications.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
+    unreadCount: Math.max(0, (c.unreadCount || 0) - (c.notifications.find((n) => n.id === id && !n.isRead) ? 1 : 0)),
+  }));
   const res = await axios.patch(`${NOTIFICATIONS_API}/${id}/read`);
   const data = res.data;
   if (!data?.ok) throw new Error(data?.error || 'Failed to mark as read');
-  return fetchNotifications();
+  if (_cache) setCache({ ..._cache, unreadCount: data.unreadCount });
+  return _cache;
 }
 
 export async function markAllNotificationsRead() {
+  applyLocalUpdate((c) => ({
+    ...c,
+    notifications: c.notifications.map((n) => ({ ...n, isRead: true })),
+    unreadCount: 0,
+  }));
   const res = await axios.patch(`${NOTIFICATIONS_API}/read-all`);
   const data = res.data;
   if (!data?.ok) throw new Error(data?.error || 'Failed to mark all as read');
-  return fetchNotifications();
+  if (_cache) setCache({ ..._cache, unreadCount: data.unreadCount });
+  return _cache;
 }
 
 export async function deleteNotification(id) {
+  const wasUnread = _cache?.notifications?.find((n) => n.id === id && !n.isRead);
+  applyLocalUpdate((c) => ({
+    ...c,
+    notifications: c.notifications.filter((n) => n.id !== id),
+    unreadCount: Math.max(0, (c.unreadCount || 0) - (wasUnread ? 1 : 0)),
+  }));
   const res = await axios.delete(`${NOTIFICATIONS_API}/${id}`);
   const data = res.data;
   if (!data?.ok) throw new Error(data?.error || 'Failed to delete notification');
-  return fetchNotifications();
+  if (_cache) setCache({ ..._cache, unreadCount: data.unreadCount });
+  return _cache;
 }
 
 export async function clearAllNotifications() {
+  setCache({ notifications: [], unreadCount: 0 });
   const res = await axios.delete(`${NOTIFICATIONS_API}/clear-all`);
   const data = res.data;
   if (!data?.ok) throw new Error(data?.error || 'Failed to clear notifications');
-  _cache = { notifications: [], unreadCount: 0 };
-  notify(_cache);
-  return _cache;
+  return setCache({ notifications: [], unreadCount: data.unreadCount || 0 });
 }
 
 export function startNotificationsPolling() {
@@ -75,7 +125,7 @@ export function stopNotificationsPolling() {
 }
 
 export function refreshNotifications() {
-  return fetchNotifications();
+  return generateAlerts().catch(() => fetchNotifications());
 }
 
 export function formatRelativeTime(isoOrLocal) {
@@ -97,15 +147,46 @@ export const ACTION_LABELS = {
   LOW_INVENTORY: 'Update Stock',
   UPCOMING_CHECKINS: 'View Booking',
   UPCOMING_CHECKOUTS: 'Generate Bill',
-  MAINTENANCE: 'View Room',
+  MAINTENANCE: 'View Request',
   HOUSEKEEPING: 'View Tasks',
 };
 
 export const CATEGORY_LABELS = {
-  PENDING_PAYMENTS: 'Pending Payments',
-  LOW_INVENTORY: 'Low Inventory',
-  UPCOMING_CHECKINS: 'Upcoming Check-ins',
-  UPCOMING_CHECKOUTS: 'Upcoming Check-outs',
+  PENDING_PAYMENTS: 'Payments',
+  LOW_INVENTORY: 'Inventory',
+  UPCOMING_CHECKINS: 'Bookings',
+  UPCOMING_CHECKOUTS: 'Bookings',
   MAINTENANCE: 'Maintenance',
   HOUSEKEEPING: 'Housekeeping',
 };
+
+export const TAB_FILTERS = {
+  all: () => true,
+  unread: (n) => !n.isRead,
+  payments: (n) => n.category === 'PENDING_PAYMENTS',
+  inventory: (n) => n.category === 'LOW_INVENTORY',
+  bookings: (n) => n.category === 'UPCOMING_CHECKINS' || n.category === 'UPCOMING_CHECKOUTS',
+  maintenance: (n) => n.category === 'MAINTENANCE' || n.category === 'HOUSEKEEPING',
+};
+
+export const GROUP_ORDER = [
+  { key: 'urgent', label: 'Urgent' },
+  { key: 'upcoming', label: 'Upcoming' },
+  { key: 'general', label: 'General' },
+];
+
+export function groupNotifications(notifications) {
+  const groups = { urgent: [], upcoming: [], general: [] };
+  (notifications || []).forEach((n) => {
+    const priority = n.priority || 'general';
+    if (priority === 'urgent') groups.urgent.push(n);
+    else if (priority === 'upcoming') groups.upcoming.push(n);
+    else groups.general.push(n);
+  });
+  return groups;
+}
+
+export function filterNotifications(notifications, tab) {
+  const fn = TAB_FILTERS[tab] || TAB_FILTERS.all;
+  return (notifications || []).filter(fn);
+}
