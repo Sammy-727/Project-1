@@ -287,8 +287,12 @@ def booking_row_to_dict(row):
     }
 
 
-def get_available_rooms(checkin, checkout, num_guests=1):
-    rooms = query("SELECT * FROM rooms ORDER BY CAST(room_no AS INTEGER), room_no")
+def get_available_rooms(checkin, checkout, num_guests=1, hotel_id=None):
+    hid = hotel_id or get_current_hotel_id()
+    rooms = query(
+        "SELECT * FROM rooms WHERE hotel_id=? ORDER BY CAST(room_no AS INTEGER), room_no",
+        (hid,),
+    )
     available = []
     for room in rooms:
         if room["status"] in UNAVAILABLE_ROOM_STATUSES:
@@ -336,6 +340,21 @@ def ensure_entity_hotel(row, hotel_id=None):
     if "hotel_id" in row.keys() and row["hotel_id"] is not None:
         return int(row["hotel_id"]) == int(hid)
     return True
+
+
+def scoped_customer(customer_id, hotel_id=None):
+    hid = hotel_id or get_current_hotel_id()
+    return query("SELECT * FROM customers WHERE id=? AND hotel_id=?", (customer_id, hid), one=True)
+
+
+def scoped_room(room_id, hotel_id=None):
+    hid = hotel_id or get_current_hotel_id()
+    return query("SELECT * FROM rooms WHERE id=? AND hotel_id=?", (room_id, hid), one=True)
+
+
+def scoped_booking(booking_id, hotel_id=None):
+    hid = hotel_id or get_current_hotel_id()
+    return query("SELECT * FROM bookings WHERE id=? AND hotel_id=?", (booking_id, hid), one=True)
 
 
 def log_audit(action, entity_type=None, entity_id=None, details=None, hotel_id=None):
@@ -942,6 +961,38 @@ def migrate_db():
     # Sync room_type from category
     query("UPDATE rooms SET room_type=category WHERE room_type IS NULL OR room_type=''", commit=True)
 
+    query(
+        """
+        UPDATE bookings SET hotel_id=(
+            SELECT r.hotel_id FROM rooms r WHERE r.id=bookings.room_id
+        ) WHERE hotel_id IS NULL
+        """,
+        commit=True,
+    )
+    query(
+        """
+        UPDATE customers SET hotel_id=(
+            SELECT b.hotel_id FROM bookings b WHERE b.customer_id=customers.id LIMIT 1
+        ) WHERE hotel_id IS NULL
+        """,
+        commit=True,
+    )
+    query("UPDATE customers SET hotel_id=? WHERE hotel_id IS NULL", (DEFAULT_HOTEL_ID,), commit=True)
+    query(
+        """
+        UPDATE employees SET hotel_id=? WHERE hotel_id IS NULL
+        """,
+        (DEFAULT_HOTEL_ID,),
+        commit=True,
+    )
+    query(
+        """
+        UPDATE inventory SET hotel_id=? WHERE hotel_id IS NULL
+        """,
+        (DEFAULT_HOTEL_ID,),
+        commit=True,
+    )
+
 
 def seed_db():
     """Seed multi-hotel demo data idempotently; always ensure super admin exists."""
@@ -1447,7 +1498,10 @@ def rooms():
     sql, params, f = rooms_query(get_current_hotel_id())
     all_rooms = query(sql, params)
     page_rows, total, page, size = paginate_rows(all_rooms, f["page"], f["size"])
-    types = query("SELECT DISTINCT room_type FROM rooms ORDER BY room_type")
+    types = query(
+        "SELECT DISTINCT room_type FROM rooms WHERE hotel_id=? ORDER BY room_type",
+        (get_current_hotel_id(),),
+    )
     return render_template(
         "rooms.html", rooms=page_rows, types=types, list_total=total,
         list_showing=len(page_rows), list_page=page, list_size=size,
@@ -1526,14 +1580,20 @@ def customers():
 
 @app.route("/customers/add", methods=["POST"])
 def add_customer():
-    cid = query("""INSERT INTO customers(name,phone,email,address,id_proof_type,id_proof_number,gender,age,id_proof,emergency_contact,image_url)
-                   VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
-                (request.form["name"], request.form["phone"], request.form.get("email"),
-                 request.form.get("address"), request.form.get("id_proof_type"),
-                 request.form.get("id_proof_number"), request.form.get("gender"),
-                 int(request.form["age"]) if request.form.get("age") else None,
-                 f"{request.form.get('id_proof_type','')}-{request.form.get('id_proof_number','')}",
-                 request.form.get("emergency_contact"), request.form.get("image_url", "")), commit=True)
+    hid = get_current_hotel_id()
+    cid = query(
+        """INSERT INTO customers(name,phone,email,address,id_proof_type,id_proof_number,gender,age,id_proof,emergency_contact,image_url,hotel_id)
+           VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
+        (
+            request.form["name"], request.form["phone"], request.form.get("email"),
+            request.form.get("address"), request.form.get("id_proof_type"),
+            request.form.get("id_proof_number"), request.form.get("gender"),
+            int(request.form["age"]) if request.form.get("age") else None,
+            f"{request.form.get('id_proof_type','')}-{request.form.get('id_proof_number','')}",
+            request.form.get("emergency_contact"), request.form.get("image_url", ""), hid,
+        ),
+        commit=True,
+    )
     guest_names = request.form.getlist("guest_name")
     for i, gn in enumerate(guest_names):
         if gn.strip():
@@ -1550,6 +1610,10 @@ def add_customer():
 
 @app.route("/customers/update/<int:customer_id>", methods=["POST"])
 def update_customer(customer_id):
+    customer = scoped_customer(customer_id)
+    if not customer:
+        flash("Customer not found.", "danger")
+        return redirect(url_for("customers"))
     query("""UPDATE customers SET name=?, phone=?, email=?, address=?, id_proof_type=?,
              id_proof_number=?, gender=?, age=?, id_proof=?, image_url=? WHERE id=?""",
           (request.form["name"], request.form["phone"], request.form.get("email"),
@@ -1568,6 +1632,10 @@ def update_customer(customer_id):
 
 @app.route("/customers/delete/<int:customer_id>", methods=["POST"])
 def delete_customer(customer_id):
+    customer = scoped_customer(customer_id)
+    if not customer:
+        flash("Customer not found.", "danger")
+        return redirect(url_for("customers"))
     active = query("SELECT COUNT(*) c FROM bookings WHERE customer_id=? AND status IN ('Reserved','Checked-in')",
                    (customer_id,), one=True)["c"]
     if active:
@@ -1583,14 +1651,22 @@ def delete_customer(customer_id):
 
 @app.route("/api/customers/search")
 def api_search_customers():
+    hid = get_current_hotel_id()
     q = request.args.get("q", "").strip()
     if not q:
-        rows = query("SELECT * FROM customers ORDER BY name LIMIT 20")
+        rows = query(
+            "SELECT * FROM customers WHERE hotel_id=? ORDER BY name LIMIT 20",
+            (hid,),
+        )
     else:
         like = f"%{q}%"
         rows = query(
-            "SELECT * FROM customers WHERE name LIKE ? OR phone LIKE ? OR email LIKE ? ORDER BY name LIMIT 20",
-            (like, like, like),
+            """
+            SELECT * FROM customers
+            WHERE hotel_id=? AND (name LIKE ? OR phone LIKE ? OR email LIKE ?)
+            ORDER BY name LIMIT 20
+            """,
+            (hid, like, like, like),
         )
     return api_ok(customers=[customer_to_dict(r) for r in rows])
 
@@ -1603,8 +1679,9 @@ def api_create_customer():
     if not name or not phone:
         return api_error("Name and phone are required.")
 
+    hid = get_current_hotel_id()
     cid = query(
-        """INSERT INTO customers(name,phone,email,address,id_proof_type,id_proof_number,gender,age,id_proof,emergency_contact)
+        """INSERT INTO customers(name,phone,email,address,id_proof_type,id_proof_number,gender,age,id_proof,emergency_contact,hotel_id)
            VALUES(?,?,?,?,?,?,?,?,?,?)""",
         (
             name,
@@ -1617,6 +1694,7 @@ def api_create_customer():
             int(data["age"]) if data.get("age") else None,
             f"{data.get('id_proof_type', '')}-{data.get('id_proof_number', '')}",
             data.get("emergency_contact"),
+            hid,
         ),
         commit=True,
     )
@@ -1638,7 +1716,7 @@ def api_available_rooms():
     except ValueError:
         return api_error("Invalid date format.")
 
-    rooms = get_available_rooms(checkin, checkout, num_guests)
+    rooms = get_available_rooms(checkin, checkout, num_guests, get_current_hotel_id())
     return api_ok(rooms=rooms, nights=nights_between(checkin, checkout))
 
 
@@ -1680,9 +1758,14 @@ def api_create_booking():
     except ValueError:
         return api_error("Invalid date format.")
 
-    room = query("SELECT * FROM rooms WHERE id=?", (room_id,), one=True)
+    hid = get_current_hotel_id()
+    customer = scoped_customer(int(customer_id), hid)
+    if not customer:
+        return api_error("Customer not found for this hotel.", 404)
+
+    room = scoped_room(int(room_id), hid)
     if not room:
-        return api_error("Room not found.", 404)
+        return api_error("Room not found for this hotel.", 404)
     if room["status"] in UNAVAILABLE_ROOM_STATUSES:
         return api_error(f"Room {room['room_no']} is not available ({room['status']}).")
     if room_has_overlap(int(room_id), checkin, checkout):
@@ -1699,8 +1782,8 @@ def api_create_booking():
 
     bid = query(
         """INSERT INTO bookings(customer_id,room_id,checkin,checkout,num_guests,adults,children,
-           booking_source,special_request,total_amount,status,payment_status,notes)
-           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+           booking_source,special_request,total_amount,status,payment_status,notes,hotel_id)
+           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         (
             customer_id,
             room_id,
@@ -1715,6 +1798,7 @@ def api_create_booking():
             "Reserved",
             payment_status,
             special_request,
+            hid,
         ),
         commit=True,
     )
@@ -1767,8 +1851,15 @@ def bookings():
     sql, params, f = bookings_query(get_current_hotel_id())
     all_bookings = query(sql, params)
     page_rows, total, page, size = paginate_rows(all_bookings, f["page"], f["size"])
-    all_customers = query("SELECT id, name, phone FROM customers ORDER BY name")
-    all_rooms = query("SELECT * FROM rooms ORDER BY room_no")
+    hid = get_current_hotel_id()
+    all_customers = query(
+        "SELECT id, name, phone FROM customers WHERE hotel_id=? ORDER BY name",
+        (hid,),
+    )
+    all_rooms = query(
+        "SELECT * FROM rooms WHERE hotel_id=? ORDER BY room_no",
+        (hid,),
+    )
     new_customer = request.args.get("new_customer", type=int)
     return render_template(
         "bookings.html", bookings=page_rows, customers=all_customers, rooms=all_rooms,
@@ -1785,6 +1876,7 @@ def bookings():
 
 @app.route("/bookings/add", methods=["POST"])
 def add_booking():
+    hid = get_current_hotel_id()
     customer_id = request.form.get("customer_id")
     room_id = request.form.get("room_id")
     checkin = request.form.get("checkin")
@@ -1795,6 +1887,15 @@ def add_booking():
         flash("Please fill all required fields.", "danger")
         return redirect(url_for("bookings"))
 
+    if not scoped_customer(int(customer_id), hid):
+        flash("Customer not found for this hotel.", "danger")
+        return redirect(url_for("bookings"))
+
+    room = scoped_room(int(room_id), hid)
+    if not room:
+        flash("Room not found for this hotel.", "danger")
+        return redirect(url_for("bookings"))
+
     if datetime.strptime(checkout, "%Y-%m-%d") <= datetime.strptime(checkin, "%Y-%m-%d"):
         flash("Check-out must be after check-in.", "danger")
         return redirect(url_for("bookings"))
@@ -1803,15 +1904,17 @@ def add_booking():
         flash("Room is already booked for overlapping dates.", "danger")
         return redirect(url_for("bookings"))
 
-    room = query("SELECT * FROM rooms WHERE id=?", (room_id,), one=True)
     if num_guests > room["capacity"]:
         flash(f"Room capacity is {room['capacity']} guests.", "danger")
         return redirect(url_for("bookings"))
 
     total = calc_room_charges(room["price"], checkin, checkout)
-    bid = query("""INSERT INTO bookings(customer_id,room_id,checkin,checkout,num_guests,total_amount,status,payment_status)
-                   VALUES(?,?,?,?,?,?,?,?)""",
-                (customer_id, room_id, checkin, checkout, num_guests, total, "Reserved", "Pending"), commit=True)
+    bid = query(
+        """INSERT INTO bookings(customer_id,room_id,checkin,checkout,num_guests,total_amount,status,payment_status,hotel_id)
+           VALUES(?,?,?,?,?,?,?,?,?)""",
+        (customer_id, room_id, checkin, checkout, num_guests, total, "Reserved", "Pending", hid),
+        commit=True,
+    )
 
     for gn in request.form.getlist("guest_name"):
         if gn.strip():
@@ -1826,6 +1929,10 @@ def add_booking():
 
 @app.route("/bookings/update/<int:booking_id>", methods=["POST"])
 def update_booking(booking_id):
+    booking = scoped_booking(booking_id)
+    if not booking:
+        flash("Booking not found.", "danger")
+        return redirect(url_for("bookings"))
     checkin = request.form["checkin"]
     checkout = request.form["checkout"]
     room_id = int(request.form["room_id"])
@@ -1849,7 +1956,7 @@ def update_booking(booking_id):
 
 @app.route("/bookings/cancel/<int:booking_id>", methods=["POST"])
 def cancel_booking(booking_id):
-    booking = query("SELECT * FROM bookings WHERE id=?", (booking_id,), one=True)
+    booking = scoped_booking(booking_id)
     if booking and booking["status"] in ("Reserved", "Checked-in"):
         query("UPDATE bookings SET status='Cancelled' WHERE id=?", (booking_id,), commit=True)
         sync_room_status_from_bookings(booking["room_id"])
@@ -1863,16 +1970,23 @@ def cancel_booking(booking_id):
 @app.route("/checkin-out")
 def checkin_out():
     today = date.today().isoformat()
-    arrivals = query("""
+    hid = get_current_hotel_id()
+    arrivals = query(
+        """
         SELECT b.*, c.name customer_name, c.phone, r.room_no, r.room_type, r.price
         FROM bookings b JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
-        WHERE b.checkin <= ? AND b.status='Reserved' ORDER BY b.checkin
-    """, (today,))
-    active_stays = query("""
+        WHERE b.hotel_id=? AND b.checkin <= ? AND b.status='Reserved' ORDER BY b.checkin
+        """,
+        (hid, today),
+    )
+    active_stays = query(
+        """
         SELECT b.*, c.name customer_name, c.phone, r.room_no, r.room_type, r.price
         FROM bookings b JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
-        WHERE b.status='Checked-in' ORDER BY b.checkin
-    """)
+        WHERE b.hotel_id=? AND b.status='Checked-in' ORDER BY b.checkin
+        """,
+        (hid,),
+    )
     stays = []
     for b in active_stays:
         bd = dict(b)
@@ -1885,7 +1999,7 @@ def checkin_out():
 
 @app.route("/checkin/<int:booking_id>", methods=["POST"])
 def checkin(booking_id):
-    booking = query("SELECT * FROM bookings WHERE id=?", (booking_id,), one=True)
+    booking = scoped_booking(booking_id)
     if not booking or booking["status"] != "Reserved":
         flash("Invalid booking for check-in.", "danger")
         return redirect(url_for("checkin_out"))
@@ -1899,9 +2013,15 @@ def checkin(booking_id):
 
 @app.route("/checkout/<int:booking_id>", methods=["POST"])
 def checkout(booking_id):
-    booking = query("""
-        SELECT b.*, r.price, r.id room_id FROM bookings b JOIN rooms r ON b.room_id=r.id WHERE b.id=?
-    """, (booking_id,), one=True)
+    booking = query(
+        """
+        SELECT b.*, r.price, r.id room_id FROM bookings b
+        JOIN rooms r ON b.room_id=r.id
+        WHERE b.id=? AND b.hotel_id=?
+        """,
+        (booking_id, get_current_hotel_id()),
+        one=True,
+    )
     if not booking or booking["status"] != "Checked-in":
         flash("Invalid booking for check-out.", "danger")
         return redirect(url_for("checkin_out"))
@@ -1941,7 +2061,11 @@ def checkout(booking_id):
           (total, "Paid" if balance <= 0 else "Partial", booking_id), commit=True)
     query("UPDATE rooms SET status='Cleaning' WHERE id=?", (booking["room_id"],), commit=True)
 
-    hk_staff = query("SELECT id FROM employees WHERE department='Housekeeping' AND status='Active' LIMIT 1", one=True)
+    hk_staff = query(
+        "SELECT id FROM employees WHERE hotel_id=? AND department='Housekeeping' AND status='Active' LIMIT 1",
+        (get_current_hotel_id(),),
+        one=True,
+    )
     query("""INSERT INTO housekeeping_tasks(room_id,assigned_to,status,priority,notes,created_at)
              VALUES(?,?,?,?,?,?)""",
           (booking["room_id"], hk_staff["id"] if hk_staff else None, "Pending", "High",
@@ -1959,19 +2083,31 @@ def payments():
     sql, params, f = payments_query(get_current_hotel_id())
     all_payments = query(sql, params)
     page_rows, total, page, size = paginate_rows(all_payments, f["page"], f["size"])
-    pending_bookings = query("""
+    hid = get_current_hotel_id()
+    pending_bookings = query(
+        """
         SELECT b.id, c.name, r.room_no, b.total_amount, b.payment_status, b.checkin, b.checkout
         FROM bookings b JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
-        WHERE b.payment_status IN ('Pending','Partial') AND b.status IN ('Reserved','Checked-in')
+        WHERE b.hotel_id=? AND b.payment_status IN ('Pending','Partial')
+          AND b.status IN ('Reserved','Checked-in')
         ORDER BY b.id DESC
-    """)
+        """,
+        (hid,),
+    )
     pending = []
     for pb in pending_bookings:
         pd = dict(pb)
         pd["paid"] = booking_paid_amount(pb["id"])
         pd["balance"] = max(float(pb["total_amount"] or 0) - pd["paid"], 0)
         pending.append(pd)
-    total_revenue = query("SELECT COALESCE(SUM(amount),0) t FROM payments", one=True)["t"]
+    total_revenue = query(
+        """
+        SELECT COALESCE(SUM(p.amount),0) t FROM payments p
+        JOIN bookings b ON p.booking_id=b.id WHERE b.hotel_id=?
+        """,
+        (hid,),
+        one=True,
+    )["t"]
     return render_template(
         "payments.html", payments=page_rows, pending_bookings=pending,
         total_revenue=total_revenue, list_total=total, list_showing=len(page_rows),
@@ -1985,6 +2121,10 @@ def payments():
 @app.route("/payments/add", methods=["POST"])
 def add_payment():
     booking_id = int(request.form["booking_id"])
+    booking = scoped_booking(booking_id)
+    if not booking:
+        flash("Booking not found for this hotel.", "danger")
+        return redirect(url_for("payments"))
     amount = float(request.form["amount"])
     if amount <= 0:
         flash("Payment amount must be positive.", "danger")
@@ -2039,12 +2179,18 @@ def add_employee():
     status = request.form.get("status", "Active")
     if status not in EMPLOYEE_STATUSES:
         status = "Active"
-    query("""INSERT INTO employees(name,phone,email,role,designation,department,salary,shift,joining_date,status,image_url)
-             VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
-          (request.form["name"], request.form.get("phone"), request.form.get("email"),
-           request.form["role"], request.form["role"], request.form.get("department"),
-           float(request.form.get("salary") or 0), request.form.get("shift"),
-           request.form.get("joining_date"), status, request.form.get("image_url", "")), commit=True)
+    query(
+        """INSERT INTO employees(name,phone,email,role,designation,department,salary,shift,joining_date,status,image_url,hotel_id)
+           VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
+        (
+            request.form["name"], request.form.get("phone"), request.form.get("email"),
+            request.form["role"], request.form["role"], request.form.get("department"),
+            float(request.form.get("salary") or 0), request.form.get("shift"),
+            request.form.get("joining_date"), status, request.form.get("image_url", ""),
+            get_current_hotel_id(),
+        ),
+        commit=True,
+    )
     flash("Employee added successfully.", "success")
     return redirect(url_for("employees"))
 
@@ -2153,8 +2299,14 @@ def housekeeping():
     sql, params, f = housekeeping_query(get_current_hotel_id())
     all_tasks = query(sql, params)
     page_rows, total, page, size = paginate_rows(all_tasks, f["page"], f["size"])
-    hk_staff = query("SELECT id, name FROM employees WHERE department='Housekeeping' AND status='Active'")
-    cleaning_rooms = query("SELECT id, room_no FROM rooms WHERE status IN ('Cleaning','Occupied') ORDER BY room_no")
+    hk_staff = query(
+        "SELECT id, name FROM employees WHERE hotel_id=? AND department='Housekeeping' AND status='Active'",
+        (get_current_hotel_id(),),
+    )
+    cleaning_rooms = query(
+        "SELECT id, room_no FROM rooms WHERE hotel_id=? AND status IN ('Cleaning','Occupied') ORDER BY room_no",
+        (get_current_hotel_id(),),
+    )
     return render_template(
         "housekeeping.html", tasks=page_rows, hk_staff=hk_staff,
         cleaning_rooms=cleaning_rooms, list_total=total, list_showing=len(page_rows),
@@ -2200,11 +2352,14 @@ def room_service():
     sql, params, f = room_service_query(hotel_id=get_current_hotel_id())
     all_requests = query(sql, params)
     page_rows, total, page, size = paginate_rows(all_requests, f["page"], f["size"])
-    active_bookings = query("""
+    active_bookings = query(
+        """
         SELECT b.id, c.name, r.room_no, r.id room_id
         FROM bookings b JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
-        WHERE b.status='Checked-in' ORDER BY r.room_no
-    """)
+        WHERE b.hotel_id=? AND b.status='Checked-in' ORDER BY r.room_no
+        """,
+        (get_current_hotel_id(),),
+    )
     maint_sql, maint_params, _ = room_service_query(maintenance_only=True, hotel_id=get_current_hotel_id())
     maintenance = query(maint_sql, maint_params)
     return render_template(
@@ -2270,12 +2425,17 @@ def inventory():
 def add_inventory():
     try:
         today_str = datetime.now().strftime("%Y-%m-%d")
-        query("""INSERT INTO inventory(item_name,category,quantity,unit,price,reorder_level,supplier_name,last_updated)
-                 VALUES(?,?,?,?,?,?,?,?)""",
-              (request.form["item_name"], request.form["category"], int(request.form["quantity"]),
-               request.form["unit"], float(request.form.get("price") or 0),
-               int(request.form.get("reorder_level") or 10), request.form.get("supplier_name", ""),
-               today_str), commit=True)
+        query(
+            """INSERT INTO inventory(item_name,category,quantity,unit,price,reorder_level,supplier_name,last_updated,hotel_id)
+               VALUES(?,?,?,?,?,?,?,?,?)""",
+            (
+                request.form["item_name"], request.form["category"], int(request.form["quantity"]),
+                request.form["unit"], float(request.form.get("price") or 0),
+                int(request.form.get("reorder_level") or 10), request.form.get("supplier_name", ""),
+                today_str, get_current_hotel_id(),
+            ),
+            commit=True,
+        )
         sync_notifications_from_data(get_current_hotel_id())
         flash("Inventory item added.", "success")
     except Exception as e:
@@ -2322,9 +2482,16 @@ def _user_list_query():
     status_filter = request.args.get("status", "all")
     role = request.args.get("role", "")
     search_q = request.args.get("q", "").strip()
+    hid = get_current_hotel_id()
 
     sql = "SELECT id, username, full_name, role, status, last_login, archived_at FROM users WHERE 1=1"
     params = []
+
+    if is_super_admin_role():
+        sql += " AND (hotel_id IS NULL OR role='SUPER_ADMIN')"
+    else:
+        sql += " AND hotel_id=?"
+        params.append(hid)
 
     if status_filter == "archived":
         sql += " AND status='Archived'"
@@ -2364,10 +2531,15 @@ def add_user():
         status = request.form.get("status", "Active")
         if status not in USER_STATUSES:
             status = "Active"
-        query("INSERT INTO users(username,password,full_name,role,status) VALUES(?,?,?,?,?)",
-              (request.form["username"], request.form["password"],
-               request.form.get("full_name", request.form["username"]),
-               request.form["role"], status), commit=True)
+        query(
+            "INSERT INTO users(username,password,full_name,role,status,hotel_id) VALUES(?,?,?,?,?,?)",
+            (
+                request.form["username"], request.form["password"],
+                request.form.get("full_name", request.form["username"]),
+                request.form["role"], status, get_current_hotel_id(),
+            ),
+            commit=True,
+        )
         flash("User added successfully.", "success")
     except Exception as e:
         flash(f"Error: {e}", "danger")
@@ -2497,18 +2669,27 @@ def invoices_list():
 
 @app.route("/invoice/<int:booking_id>")
 def invoice(booking_id):
-    bill = query("""
+    hid = get_current_hotel_id()
+    bill = query(
+        """
         SELECT bills.*, c.name, c.phone, c.email, c.address, r.room_no, r.room_type, b.checkin, b.checkout
         FROM bills JOIN bookings b ON bills.booking_id=b.id
         JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
-        WHERE bills.booking_id=?
-    """, (booking_id,), one=True)
+        WHERE bills.booking_id=? AND b.hotel_id=?
+        """,
+        (booking_id, hid),
+        one=True,
+    )
     if not bill:
-        booking = query("""
+        booking = query(
+            """
             SELECT b.*, c.name, c.phone, c.email, c.address, r.room_no, r.room_type, r.price
             FROM bookings b JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
-            WHERE b.id=?
-        """, (booking_id,), one=True)
+            WHERE b.id=? AND b.hotel_id=?
+            """,
+            (booking_id, hid),
+            one=True,
+        )
         if booking:
             rc = booking_room_charges(booking)
             sc = booking_service_charges(booking_id)
@@ -2540,15 +2721,17 @@ def invoice(booking_id):
 @app.route("/reports")
 @role_required(*admin_roles())
 def reports_page():
-    stats = dashboard_stats()
+    hid = get_current_hotel_id()
+    stats = dashboard_stats(hid)
     date_from = request.args.get("from", "")
     date_to = request.args.get("to", "")
     payment_sql = """
         SELECT p.id, p.receipt_number, c.name customer_name, r.room_no, p.amount, p.payment_mode, p.payment_date
         FROM payments p JOIN bookings b ON p.booking_id=b.id
-        JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id WHERE 1=1
+        JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
+        WHERE b.hotel_id=?
     """
-    params = []
+    params = [hid]
     if date_from:
         payment_sql += " AND date(p.payment_date) >= ?"
         params.append(date_from)
@@ -2558,20 +2741,27 @@ def reports_page():
     payment_sql += " ORDER BY p.id DESC LIMIT 100"
     payment_rows = query(payment_sql, params)
     monthly_sql = """
-        SELECT strftime('%Y-%m', payment_date) month, SUM(amount) total
-        FROM payments WHERE 1=1
+        SELECT strftime('%Y-%m', p.payment_date) month, SUM(p.amount) total
+        FROM payments p JOIN bookings b ON p.booking_id=b.id
+        WHERE b.hotel_id=?
     """
-    mparams = []
+    mparams = [hid]
     if date_from:
-        monthly_sql += " AND date(payment_date) >= ?"
+        monthly_sql += " AND date(p.payment_date) >= ?"
         mparams.append(date_from)
     if date_to:
-        monthly_sql += " AND date(payment_date) <= ?"
+        monthly_sql += " AND date(p.payment_date) <= ?"
         mparams.append(date_to)
     monthly_sql += " GROUP BY month ORDER BY month DESC LIMIT 12"
     monthly_revenue = list(reversed(query(monthly_sql, mparams)))
-    booking_status = query("SELECT status, COUNT(*) c FROM bookings GROUP BY status")
-    room_types = query("SELECT room_type, COUNT(*) c FROM rooms GROUP BY room_type")
+    booking_status = query(
+        "SELECT status, COUNT(*) c FROM bookings WHERE hotel_id=? GROUP BY status",
+        (hid,),
+    )
+    room_types = query(
+        "SELECT room_type, COUNT(*) c FROM rooms WHERE hotel_id=? GROUP BY room_type",
+        (hid,),
+    )
     return render_template(
         "reports.html", stats=stats, monthly_revenue=monthly_revenue,
         booking_status=booking_status, room_types=room_types,
@@ -2625,14 +2815,16 @@ def upload_image():
 
 @app.route("/reports/export")
 def export_reports():
+    hid = get_current_hotel_id()
     date_from = request.args.get("from", "")
     date_to = request.args.get("to", "")
     sql = """
         SELECT p.id, p.receipt_number, c.name, r.room_no, p.amount, p.payment_mode, p.payment_date
         FROM payments p JOIN bookings b ON p.booking_id=b.id
-        JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id WHERE 1=1
+        JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
+        WHERE b.hotel_id=?
     """
-    params = []
+    params = [hid]
     if date_from:
         sql += " AND date(p.payment_date) >= ?"
         params.append(date_from)

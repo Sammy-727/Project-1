@@ -1,27 +1,16 @@
 {% extends "base.html" %}
-{% from "macros/ui.html" import breadcrumb, page_header, icon %}
+{% from "macros/ui.html" import breadcrumb, page_header, icon, empty_state %}
 {% set title = "Settings" %}
 {% set cover_default = url_for('static', filename='images/placeholders/hotel-cover-default.svg') %}
 {% set logo_default = url_for('static', filename='images/placeholders/hotel-logo-default.svg') %}
 {% block content %}
 
 {{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Settings"}]) }}
-{{ page_header("Settings", "Configure your hotel profile, branding, and preferences") }}
-
-<div class="settings-tabs">
-    <button class="settings-tab active" data-tab="tab-hotel">Hotel Profile</button>
-    <button class="settings-tab" data-tab="tab-branding">Branding</button>
-    <button class="settings-tab" data-tab="tab-taxes">Taxes</button>
-    <button class="settings-tab" data-tab="tab-currency">Currency</button>
-    <button class="settings-tab" data-tab="tab-payments">Payment Methods</button>
-    <button class="settings-tab" data-tab="tab-permissions">Staff Permissions</button>
-    <button class="settings-tab" data-tab="tab-email">Email Templates</button>
-    <button class="settings-tab" data-tab="tab-plan">Subscription</button>
-</div>
+{{ page_header("Settings", "Hotel profile, logo, and cover image for " ~ current_hotel_name) }}
 
 <div class="settings-panel active" id="tab-hotel">
     <form method="post" action="{{ url_for('save_hotel_settings') }}">
-        <div class="panel">
+        <div class="panel saas-panel">
             <div class="hotel-profile-cover">
                 <img src="{{ hotel.cover_url or cover_default }}" alt="" id="hotelCoverPreview" loading="lazy" width="960" height="240">
                 <div class="hotel-profile-logo-wrap">
@@ -57,65 +46,20 @@
                     <input type="hidden" name="cover_url" data-upload-url value="{{ hotel.cover_url or '' }}">
                 </div>
             </div>
-            <button type="submit" class="btn btn-primary" style="margin-top:16px">Save Changes</button>
+            <button type="submit" class="btn btn-primary write-action" style="margin-top:16px">{{ icon('save', 16) }} Save Changes</button>
         </div>
     </form>
-</div>
 
-<div class="settings-panel" id="tab-branding">
-    <div class="panel">
-        <h3 style="margin-bottom:16px">Branding</h3>
-        <div class="form-group"><label>Primary Color</label><input type="color" value="#6366f1"></div>
-        <p style="color:var(--text-muted);font-size:13px;margin-top:12px">Upload your hotel logo and cover image in the <strong>Hotel Profile</strong> tab.</p>
-    </div>
-</div>
-
-<div class="settings-panel" id="tab-taxes">
-    <div class="panel">
-        <h3 style="margin-bottom:16px">Tax Configuration</h3>
-        <div class="form-grid">
-            <div class="form-group"><label>GST / Tax Rate (%)</label><input type="number" value="12"></div>
-            <div class="form-group"><label>Service Charge (%)</label><input type="number" value="0"></div>
-        </div>
-    </div>
-</div>
-
-<div class="settings-panel" id="tab-currency">
-    <div class="panel">
-        <div class="form-group"><label>Currency</label>
-            <select><option>INR — Indian Rupee (₹)</option><option>USD — US Dollar ($)</option><option>EUR — Euro (€)</option></select>
-        </div>
-    </div>
-</div>
-
-<div class="settings-panel" id="tab-payments">
-    <div class="panel">
-        <p style="color:var(--text-muted);margin-bottom:12px">Accepted payment methods for billing.</p>
-        <label style="display:flex;gap:8px;margin-bottom:8px"><input type="checkbox" checked> Cash</label>
-        <label style="display:flex;gap:8px;margin-bottom:8px"><input type="checkbox" checked> UPI</label>
-        <label style="display:flex;gap:8px;margin-bottom:8px"><input type="checkbox" checked> Card</label>
-        <label style="display:flex;gap:8px"><input type="checkbox" checked> Bank Transfer</label>
-    </div>
-</div>
-
-<div class="settings-panel" id="tab-permissions">
-    <div class="panel">
-        <p style="color:var(--text-muted)">Manage role-based access from <a href="{{ url_for('admin') }}">User Management</a>.</p>
-    </div>
-</div>
-
-<div class="settings-panel" id="tab-email">
-    <div class="panel">
-        <div class="form-group"><label>Booking Confirmation Template</label><textarea rows="4" placeholder="Email template..."></textarea></div>
-    </div>
-</div>
-
-<div class="settings-panel" id="tab-plan">
-    <div class="panel">
-        <div class="kpi-card" style="max-width:360px">
-            <div class="kpi-label">Current Plan</div>
-            <div class="kpi-value" style="font-size:22px">Safe Stays Pro</div>
-            <p style="color:var(--text-muted);font-size:13px;margin-top:8px">Full hotel management features included.</p>
+    <div class="panel saas-panel" style="margin-top:16px">
+        <h3 style="margin-bottom:8px">Staff &amp; subscription</h3>
+        <p style="color:var(--text-muted);font-size:13px;margin:0 0 12px">
+            Manage users and roles from <a href="{{ url_for('admin') }}">User Management</a>.
+            Subscription and billing are managed by the platform administrator.
+        </p>
+        <div class="kpi-card" style="max-width:320px">
+            <div class="kpi-label">Current plan</div>
+            <div class="kpi-value" style="font-size:20px">{{ hotel.subscription_plan or 'Professional' }}</div>
+            <p style="color:var(--text-muted);font-size:12px;margin-top:6px">Status: {{ hotel.subscription_status or 'Active' }}</p>
         </div>
     </div>
 </div>

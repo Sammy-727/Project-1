@@ -168,10 +168,6 @@ def customers_query(hotel_id=None):
     if f["id_proof_type"]:
         sql += " AND id_proof_type=?"
         params.append(f["id_proof_type"])
-    if f["from"]:
-        sql += " AND id >= (SELECT MIN(id) FROM customers)"
-    if f["to"]:
-        sql += " AND id <= (SELECT MAX(id) FROM customers)"
     allowed = {"id": "id", "name": "name", "phone": "phone", "email": "email", "date": "id"}
     sql += build_order(f["sort_by"], f["sort_dir"], allowed, "id")
     return sql, params, f
