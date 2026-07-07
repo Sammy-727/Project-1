@@ -15,6 +15,7 @@
     <link href="{{ url_for('static', filename='css/platform.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/images.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/premium.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/enterprise.css') }}" rel="stylesheet">
 </head>
 <body class="{% if current_user.get('user_id') %}app-body{% if is_read_only %} read-only-mode{% endif %}{% else %}auth-body{% endif %}">
 
@@ -67,6 +68,9 @@
             </a>
             <a href="{{ url_for('bookings') }}" class="nav-link {% if active_page == 'bookings' %}active{% endif %}">
                 <i data-lucide="calendar-days" class="nav-icon-svg"></i><span class="nav-label">Bookings</span>
+            </a>
+            <a href="{{ url_for('calendar_page') }}" class="nav-link {% if active_page == 'calendar_page' %}active{% endif %}">
+                <i data-lucide="calendar-range" class="nav-icon-svg"></i><span class="nav-label">Calendar</span>
             </a>
             <a href="{{ url_for('customers') }}" class="nav-link {% if active_page == 'customers' %}active{% endif %}">
                 <i data-lucide="users" class="nav-icon-svg"></i><span class="nav-label">Guests</span>
@@ -283,6 +287,8 @@
 {% if current_user.get("user_id") %}
 <script type="module" src="{{ url_for('static', filename='js/notifications/index.js') }}"></script>
 <script src="{{ url_for('static', filename='js/command-palette.js') }}"></script>
+<script src="{{ url_for('static', filename='js/quick-actions.js') }}"></script>
+<script src="{{ url_for('static', filename='js/guest-profile.js') }}"></script>
 {% endif %}
 
 </body>

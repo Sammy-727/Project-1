@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "macros/ui.html" import breadcrumb, page_header, icon %}
+{% set title = "Calendar" %}
+{% block content %}
+
+{{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Calendar"}]) }}
+{{ page_header("Booking Calendar", "Visual room occupancy and reservations") }}
+
+<div class="calendar-toolbar">
+  <div class="calendar-view-tabs" id="calendarViewTabs">
+    <button type="button" data-view="week" class="active">Week</button>
+    <button type="button" data-view="day">Day</button>
+    <button type="button" data-view="month" disabled title="Coming soon">Month</button>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <button type="button" class="btn btn-ghost btn-sm" id="calPrev">{{ icon('chevron-left', 16) }}</button>
+    <span id="calRangeLabel" class="muted" style="font-size:13px;min-width:140px;text-align:center"></span>
+    <button type="button" class="btn btn-ghost btn-sm" id="calNext">{{ icon('chevron-right', 16) }}</button>
+    <button type="button" class="btn btn-outline btn-sm" id="calToday">Today</button>
+    <a href="{{ url_for('bookings', **{'new': 1}) }}" class="btn btn-primary btn-sm write-action">{{ icon('plus', 14) }} New Booking</a>
+  </div>
+</div>
+
+<div class="calendar-grid-wrap">
+  <div id="calendarGrid" class="calendar-grid" aria-live="polite">
+    <p class="ops-empty" style="padding:24px">Loading calendar…</p>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/calendar.js') }}"></script>
+{% endblock %}

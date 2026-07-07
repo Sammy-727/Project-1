@@ -23,8 +23,64 @@
 <div class="kpi-grid">
     <div class="kpi-card"><div class="kpi-label">Total Revenue</div><div class="kpi-value">₹{{ "{:,.0f}".format(stats.revenue) }}</div></div>
     <div class="kpi-card"><div class="kpi-label">Occupancy</div><div class="kpi-value">{{ stats.occupancy_rate }}%</div></div>
-    <div class="kpi-card"><div class="kpi-label">Active Bookings</div><div class="kpi-value">{{ stats.active_bookings }}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Total Rooms</div><div class="kpi-value">{{ stats.total_rooms }}</div></div>
+    <div class="kpi-card"><div class="kpi-label">ADR (30d)</div><div class="kpi-value">₹{{ "{:,.0f}".format(analytics.adr) }}</div></div>
+    <div class="kpi-card"><div class="kpi-label">RevPAR (30d)</div><div class="kpi-value">₹{{ "{:,.0f}".format(analytics.revpar) }}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Cancellation Rate</div><div class="kpi-value">{{ analytics.cancellationRate }}%</div></div>
+    <div class="kpi-card"><div class="kpi-label">Available Rooms</div><div class="kpi-value">{{ analytics.availableRooms }}</div></div>
+</div>
+
+<div class="grid-2" style="margin-bottom:20px">
+  <div class="panel saas-panel">
+    <div class="panel-head"><h3>Booking Sources</h3><span>Last 30 days</span></div>
+    {% if analytics.bookingSources %}
+    <ul class="analytics-mini-list">
+      {% for s in analytics.bookingSources %}
+      <li><span>{{ s.source }}</span><strong>{{ s.count }}</strong></li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    {{ empty_state("pie-chart", "No source data", "Booking sources appear as reservations are created.") }}
+    {% endif %}
+  </div>
+  <div class="panel saas-panel">
+    <div class="panel-head"><h3>Payment Modes</h3><span>Last 30 days</span></div>
+    {% if analytics.paymentModes %}
+    <ul class="analytics-mini-list">
+      {% for p in analytics.paymentModes %}
+      <li><span>{{ p.mode }}</span><strong>₹{{ "{:,.0f}".format(p.total) }}</strong></li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    {{ empty_state("credit-card", "No payments", "Payment breakdown appears after collections.") }}
+    {% endif %}
+  </div>
+</div>
+
+<div class="grid-2" style="margin-bottom:20px">
+  <div class="panel saas-panel">
+    <div class="panel-head"><h3>Top Rooms</h3><span>By bookings</span></div>
+    {% if analytics.topRooms %}
+    <ul class="analytics-mini-list">
+      {% for r in analytics.topRooms %}
+      <li><span>Room {{ r.roomNo }} · {{ r.roomType }}</span><strong>{{ r.bookings }} stays</strong></li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="ops-empty" style="padding:16px">No room performance data yet.</p>
+    {% endif %}
+  </div>
+  <div class="panel saas-panel">
+    <div class="panel-head"><h3>Top Guests</h3><span>By lifetime spend</span></div>
+    {% if analytics.topGuests %}
+    <ul class="analytics-mini-list">
+      {% for g in analytics.topGuests %}
+      <li><a href="{{ url_for('customers', q=g.name) }}" style="color:inherit;text-decoration:none"><span>{{ g.name }}</span></a><strong>₹{{ "{:,.0f}".format(g.lifetimeSpend) }}</strong></li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="ops-empty" style="padding:16px">No guest spend data yet.</p>
+    {% endif %}
+  </div>
 </div>
 
 <div class="grid-2">

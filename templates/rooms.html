@@ -11,6 +11,10 @@
     <p class="page-description">Manage inventory, pricing, and availability</p>
   </div>
   <div class="page-header-actions">
+    <div class="floor-view-toggle" role="tablist" aria-label="Room view">
+      <button type="button" class="btn btn-sm btn-primary" data-room-view="cards" aria-pressed="true">Cards</button>
+      <button type="button" class="btn btn-sm btn-ghost" data-room-view="floor" aria-pressed="false">Floor View</button>
+    </div>
     <button class="btn btn-primary modal-trigger" data-target="#addRoomModal">{{ icon('plus', 16) }} Add Room</button>
   </div>
 </div>
@@ -106,6 +110,32 @@
   </aside>
   {% endfor %}
 </div>
+
+<div id="floorView" class="floor-view" hidden>
+  {% set floors = rooms|groupby('floor')|list|sort(attribute='grouper') %}
+  {% for floor, floor_rooms in floors %}
+  <section class="floor-section">
+    <h3 class="floor-section-title">Floor {{ floor or 1 }}</h3>
+    <div class="entity-grid wide">
+      {% for r in floor_rooms|sort(attribute='room_no') %}
+      <article class="entity-card status-{{ r.status|css_class }} floor-room-card" data-card-drawer="#drawerRoom{{ r.id }}">
+        {{ room_image(r.image_url, r.room_no) }}
+        <div class="entity-card-header">
+          <div>
+            <div class="entity-card-title">Room {{ r.room_no }}</div>
+            <div class="entity-card-sub">{{ r.room_type or r.category }}</div>
+          </div>
+          {{ status_badge(r.status) }}
+        </div>
+        <div class="entity-card-footer">
+          <span class="booking-card-amount">₹{{ "{:,.0f}".format(r.price) }}/night</span>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+</div>
 </div>
 {% else %}
 {{ empty_state("bed-double", "No rooms yet", "Add your first room to start managing availability.", "Add Room", "#addRoomModal", illustration="rooms") }}
@@ -181,4 +211,19 @@
 {% block scripts %}
 {{ super() }}
 <script src="{{ url_for('static', filename='js/image-upload.js') }}"></script>
+<script>
+document.querySelectorAll('[data-room-view]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const view = btn.dataset.roomView;
+    document.getElementById('roomCardGrid')?.toggleAttribute('hidden', view === 'floor');
+    document.getElementById('floorView')?.toggleAttribute('hidden', view !== 'floor');
+    document.querySelectorAll('[data-room-view]').forEach((b) => {
+      const active = b.dataset.roomView === view;
+      b.classList.toggle('btn-primary', active);
+      b.classList.toggle('btn-ghost', !active);
+      b.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+  });
+});
+</script>
 {% endblock %}

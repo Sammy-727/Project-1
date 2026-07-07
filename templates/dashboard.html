@@ -5,228 +5,153 @@
 {% set maint_rooms = maintenance_rooms|selectattr('status', 'equalto', 'Maintenance')|list %}
 {% block content %}
 
-<div class="dashboard-page dashboard-simple">
-{{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Dashboard"}]) }}
-{{ page_header("Dashboard", current_hotel_name ~ " · " ~ today) }}
+<div class="dashboard-page ops-control-center">
+{{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Operations Center"}]) }}
 
-{# 1. KPI Cards #}
-<section class="dashboard-section" aria-label="Key metrics">
-  <div class="kpi-grid">
-    {{ kpi_card("Occupancy Rate", stats.occupancy_rate, "percent", "emerald", "%") }}
-    {{ kpi_card("Available Rooms", stats.available, "bed-double", "blue") }}
-    {{ kpi_card("Today's Check-ins", stats.today_checkins, "log-in", "purple") }}
-    {{ kpi_card("Today's Check-outs", stats.today_checkouts, "log-out", "amber") }}
-    <div class="kpi-card kpi-red">
-      <div class="kpi-decor" aria-hidden="true"></div>
-      <div class="kpi-top">
-        <div class="kpi-icon-wrap kpi-icon-red">{{ icon("clock", 20) }}</div>
-      </div>
-      <div class="kpi-label">Pending Payments</div>
-      <div class="kpi-value">₹{{ "{:,.0f}".format(stats.pending_payment_amount) }}</div>
-      <div class="kpi-sub">{{ stats.pending_payments }} booking{{ 's' if stats.pending_payments != 1 else '' }}</div>
-    </div>
-    {{ kpi_card("Today's Revenue", "₹" ~ "{:,.0f}".format(stats.today_revenue), "indian-rupee", "indigo") }}
+<header class="ops-center-header">
+  <div>
+    <h1 class="page-title">Operations Center</h1>
+    <p class="page-description">{{ current_hotel_name }} · {{ today }} · Live property overview</p>
+  </div>
+  <div class="ops-center-header-actions">
+    <button type="button" class="btn btn-ghost btn-sm" id="dashOpenNotifications">{{ icon('bell', 14) }} Alerts</button>
+    <a href="{{ url_for('calendar_page') }}" class="btn btn-outline btn-sm">{{ icon('calendar-range', 14) }} Calendar</a>
+  </div>
+</header>
+
+{# Quick Actions #}
+<section class="ops-section" aria-label="Quick actions">
+  <div class="quick-actions-bar">
+    <a href="{{ url_for('bookings', **{'new': 1}) }}" class="quick-action-chip primary write-action">{{ icon('calendar-plus', 16) }} New Booking</a>
+    <a href="{{ url_for('checkin_out') }}" class="quick-action-chip">{{ icon('log-in', 16) }} Quick Check-in</a>
+    <a href="{{ url_for('checkin_out') }}" class="quick-action-chip">{{ icon('log-out', 16) }} Quick Checkout</a>
+    <a href="{{ url_for('customers', add=1) }}" class="quick-action-chip write-action">{{ icon('user-plus', 16) }} Add Guest</a>
+    <a href="{{ url_for('employees') }}" class="quick-action-chip write-action">{{ icon('user-cog', 16) }} Add Employee</a>
+    <a href="{{ url_for('payments') }}" class="quick-action-chip">{{ icon('credit-card', 16) }} Record Payment</a>
   </div>
 </section>
 
-{# 2. Today's Operations #}
-<section class="dashboard-section" aria-label="Today's operations">
-  <h2 class="dashboard-section-title">{{ icon('calendar-clock', 16) }} Today's Operations</h2>
-  <div class="dashboard-ops-grid">
-    <div class="panel saas-panel ops-panel ops-panel-compact">
-      <div class="panel-head">
-        <h3>{{ icon('log-in', 15) }} Upcoming Check-ins</h3>
-        <span class="ops-count">{{ upcoming_checkins|length }}</span>
-      </div>
-      {% if upcoming_checkins %}
-      <div class="ops-queue ops-queue-compact">
-        {% for b in upcoming_checkins[:5] %}
-        <a href="{{ url_for('bookings', q=b.id) }}" class="ops-queue-item">
-          <div class="ops-queue-icon arrival">{{ icon('log-in', 14) }}</div>
-          <div class="ops-queue-body">
+<div class="ops-control-grid">
+  {# Today's Operations #}
+  <section class="ops-section ops-section-ops" aria-label="Today's operations">
+    <h2 class="ops-section-title">{{ icon('activity', 16) }} Today's Operations</h2>
+    <div class="ops-queues-grid">
+      <div class="ops-queue-card">
+        <div class="ops-queue-head"><span>{{ icon('log-in', 14) }} Today's Arrivals</span><span class="ops-badge">{{ today_arrivals|length }}</span></div>
+        {% if today_arrivals %}
+        <div class="ops-queue-list">
+          {% for b in today_arrivals[:5] %}
+          <a href="{{ url_for('checkin_out') }}" class="ops-queue-row">
             <strong>{{ b.name }}</strong>
-            <span>Room {{ b.room_no }} · {{ b.checkin }}</span>
-          </div>
-          {{ status_badge(b.status) }}
-        </a>
-        {% endfor %}
-      </div>
-      {% else %}
-      <p class="dash-inline-empty">No upcoming check-ins today.</p>
-      {% endif %}
-    </div>
-
-    <div class="panel saas-panel ops-panel ops-panel-compact">
-      <div class="panel-head">
-        <h3>{{ icon('log-out', 15) }} Upcoming Check-outs</h3>
-        <span class="ops-count">{{ upcoming_checkouts|length }}</span>
-      </div>
-      {% if upcoming_checkouts %}
-      <div class="ops-queue ops-queue-compact">
-        {% for b in upcoming_checkouts[:5] %}
-        <a href="{{ url_for('bookings', q=b.id) }}" class="ops-queue-item">
-          <div class="ops-queue-icon departure">{{ icon('log-out', 14) }}</div>
-          <div class="ops-queue-body">
-            <strong>{{ b.name }}</strong>
-            <span>Room {{ b.room_no }} · {{ b.checkout }}</span>
-          </div>
-          {{ status_badge(b.status) }}
-        </a>
-        {% endfor %}
-      </div>
-      {% else %}
-      <p class="dash-inline-empty">No upcoming check-outs today.</p>
-      {% endif %}
-    </div>
-
-    <div class="panel saas-panel ops-panel ops-panel-compact">
-      <div class="panel-head">
-        <h3>{{ icon('sparkles', 15) }} Rooms Pending Cleaning</h3>
-        <span class="ops-count">{{ cleaning_rooms|length }}</span>
-      </div>
-      {% if cleaning_rooms %}
-      <div class="ops-queue ops-queue-compact">
-        {% for r in cleaning_rooms[:5] %}
-        <a href="{{ url_for('housekeeping') }}" class="ops-queue-item">
-          <div class="ops-queue-icon arrival">{{ icon('sparkles', 14) }}</div>
-          <div class="ops-queue-body">
-            <strong>Room {{ r.room_no }}</strong>
-            <span>{{ r.room_type }}</span>
-          </div>
-          {{ status_badge(r.status) }}
-        </a>
-        {% endfor %}
-      </div>
-      {% else %}
-      <p class="dash-inline-empty">All rooms are clean.</p>
-      {% endif %}
-    </div>
-
-    <div class="panel saas-panel ops-panel ops-panel-compact">
-      <div class="panel-head">
-        <h3>{{ icon('wrench', 15) }} Rooms Under Maintenance</h3>
-        <span class="ops-count">{{ maint_rooms|length }}</span>
-      </div>
-      {% if maint_rooms %}
-      <div class="ops-queue ops-queue-compact">
-        {% for r in maint_rooms[:5] %}
-        <a href="{{ url_for('rooms', q=r.room_no) }}" class="ops-queue-item">
-          <div class="ops-queue-icon departure">{{ icon('wrench', 14) }}</div>
-          <div class="ops-queue-body">
-            <strong>Room {{ r.room_no }}</strong>
-            <span>{{ r.room_type }}</span>
-          </div>
-          {{ status_badge(r.status) }}
-        </a>
-        {% endfor %}
-      </div>
-      {% else %}
-      <p class="dash-inline-empty">No rooms under maintenance.</p>
-      {% endif %}
-    </div>
-  </div>
-</section>
-
-{# 3. Revenue Overview #}
-<section class="dashboard-section" aria-label="Revenue overview" id="dashboardChartsRoot">
-  <h2 class="dashboard-section-title">{{ icon('trending-up', 16) }} Revenue Overview</h2>
-  <div class="panel saas-panel chart-panel chart-panel-compact">
-    <div class="panel-head">
-      <h3>Last 7 days</h3>
-      <div class="revenue-today-pill" id="revenueTodayPill" hidden>
-        {{ icon('indian-rupee', 14) }}
-        <span>Today: <strong id="revenueTodayAmount">—</strong></span>
-      </div>
-    </div>
-    <div class="chart-skeleton" id="revenueChartSkeleton" aria-hidden="true"></div>
-    <div class="chart-container chart-container-compact" id="revenueChartWrap" hidden>
-      <canvas id="revenueChart" height="140"></canvas>
-    </div>
-    <div class="chart-empty" id="revenueChartEmpty" hidden>
-      {{ empty_state('trending-up', 'No revenue yet', 'Payments recorded today and over the past week will appear here.', action_label='', action_target='') }}
-    </div>
-  </div>
-</section>
-
-{# 4. Recent Activity #}
-<section class="dashboard-section" aria-label="Recent activity">
-  <h2 class="dashboard-section-title">{{ icon('activity', 16) }} Recent Activity</h2>
-  <div class="panel saas-panel ops-panel-compact">
-    {% if recent_activity %}
-    <div class="dash-activity-feed dash-activity-feed-compact">
-      {% for a in recent_activity %}
-      <a href="{{ a.url }}" class="dash-activity-item">
-        <div class="dash-activity-icon {{ a.kind }}">
-          {% if a.kind == 'checkin' %}{{ icon('log-in', 14) }}
-          {% elif a.kind == 'checkout' %}{{ icon('log-out', 14) }}
-          {% elif a.kind == 'payment' %}{{ icon('credit-card', 14) }}
-          {% elif a.kind == 'room_cleaned' %}{{ icon('sparkles', 14) }}
-          {% elif a.kind == 'maintenance_completed' %}{{ icon('wrench', 14) }}
-          {% else %}{{ icon('calendar-plus', 14) }}{% endif %}
+            <span>Room {{ b.room_no }} · {{ b.phone or '—' }}</span>
+            {{ status_badge(b.status) }}
+          </a>
+          {% endfor %}
         </div>
-        <div class="dash-activity-body">
+        {% else %}<p class="ops-empty">No arrivals scheduled.</p>{% endif %}
+      </div>
+
+      <div class="ops-queue-card">
+        <div class="ops-queue-head"><span>{{ icon('log-out', 14) }} Today's Departures</span><span class="ops-badge">{{ today_departures|length }}</span></div>
+        {% if today_departures %}
+        <div class="ops-queue-list">
+          {% for b in today_departures[:5] %}
+          <a href="{{ url_for('checkin_out') }}" class="ops-queue-row">
+            <strong>{{ b.name }}</strong>
+            <span>Room {{ b.room_no }} · Checkout {{ b.checkout }}</span>
+            {{ status_badge(b.status) }}
+          </a>
+          {% endfor %}
+        </div>
+        {% else %}<p class="ops-empty">No departures today.</p>{% endif %}
+      </div>
+
+      <div class="ops-queue-card">
+        <div class="ops-queue-head"><span>{{ icon('clock', 14) }} Pending Payments</span><span class="ops-badge danger">{{ pending_list|length }}</span></div>
+        {% if pending_list %}
+        <div class="ops-queue-list">
+          {% for b in pending_list[:5] %}
+          <a href="{{ url_for('payments') }}" class="ops-queue-row">
+            <strong>{{ b.name }}</strong>
+            <span>Room {{ b.room_no }} · ₹{{ "{:,.0f}".format(b.balance) }} due</span>
+          </a>
+          {% endfor %}
+        </div>
+        {% else %}<p class="ops-empty">All balances cleared.</p>{% endif %}
+      </div>
+
+      <div class="ops-queue-card">
+        <div class="ops-queue-head"><span>{{ icon('sparkles', 14) }} Housekeeping Queue</span><span class="ops-badge">{{ hk_queue|length }}</span></div>
+        {% if hk_queue %}
+        <div class="ops-queue-list">
+          {% for t in hk_queue[:5] %}
+          <a href="{{ url_for('housekeeping') }}" class="ops-queue-row">
+            <strong>Room {{ t.room_no }}</strong>
+            <span>{{ t.priority }} · {{ t.status }}{% if t.staff_name %} · {{ t.staff_name }}{% endif %}</span>
+          </a>
+          {% endfor %}
+        </div>
+        {% else %}<p class="ops-empty">Housekeeping queue is clear.</p>{% endif %}
+      </div>
+
+      <div class="ops-queue-card ops-queue-card-wide">
+        <div class="ops-queue-head"><span>{{ icon('wrench', 14) }} Maintenance Queue</span><span class="ops-badge warning">{{ maint_rooms|length }}</span></div>
+        {% if maint_rooms %}
+        <div class="ops-queue-list ops-queue-list-horizontal">
+          {% for r in maint_rooms[:6] %}
+          <a href="{{ url_for('room_service') }}" class="ops-queue-pill">{{ icon('wrench', 12) }} Room {{ r.room_no }}</a>
+          {% endfor %}
+        </div>
+        {% else %}<p class="ops-empty">No maintenance issues.</p>{% endif %}
+      </div>
+    </div>
+  </section>
+
+  {# Business Overview #}
+  <section class="ops-section" aria-label="Business overview">
+    <h2 class="ops-section-title">{{ icon('bar-chart-3', 16) }} Business Overview</h2>
+    <div class="kpi-grid kpi-grid-compact">
+      {{ kpi_card("Today's Revenue", "₹" ~ "{:,.0f}".format(stats.today_revenue), "indian-rupee", "indigo") }}
+      {{ kpi_card("Occupancy", stats.occupancy_rate, "percent", "emerald", "%") }}
+      {{ kpi_card("ADR (30d)", "₹" ~ "{:,.0f}".format(stats.adr), "trending-up", "blue") }}
+      {{ kpi_card("RevPAR (30d)", "₹" ~ "{:,.0f}".format(stats.revpar), "gauge", "purple") }}
+      {{ kpi_card("Avg Room Rate", "₹" ~ "{:,.0f}".format(stats.avg_room_rate), "bed-double", "amber") }}
+      {{ kpi_card("Available Rooms", stats.available, "door-open", "teal") }}
+    </div>
+    <div class="panel saas-panel chart-panel-compact" id="dashboardChartsRoot" style="margin-top:12px">
+      <div class="panel-head">
+        <h3>{{ icon('trending-up', 15) }} Revenue · Last 7 days</h3>
+        <div class="revenue-today-pill" id="revenueTodayPill" hidden>
+          {{ icon('indian-rupee', 14) }} Today: <strong id="revenueTodayAmount">—</strong>
+        </div>
+      </div>
+      <div class="chart-skeleton" id="revenueChartSkeleton"></div>
+      <div class="chart-container chart-container-compact" id="revenueChartWrap" hidden><canvas id="revenueChart" height="120"></canvas></div>
+      <div class="chart-empty" id="revenueChartEmpty" hidden><p class="ops-empty">No revenue data yet.</p></div>
+    </div>
+  </section>
+</div>
+
+{# Activity Timeline #}
+<section class="ops-section" aria-label="Recent activity">
+  <h2 class="ops-section-title">{{ icon('history', 16) }} Recent Activity</h2>
+  <div class="panel saas-panel">
+    {% if recent_activity %}
+    <div class="activity-timeline">
+      {% for a in recent_activity %}
+      <a href="{{ a.url }}" class="activity-timeline-item">
+        <div class="activity-timeline-dot {{ a.kind }}"></div>
+        <div class="activity-timeline-body">
           <strong>{{ a.title }}</strong>
           <span>{{ a.detail }}</span>
         </div>
-        <span class="muted dash-activity-date">{{ a.date_label }}</span>
+        <time>{{ a.date_label }}</time>
       </a>
       {% endfor %}
     </div>
     {% else %}
-    {{ empty_state('activity', 'No recent activity', 'Bookings, payments, and housekeeping updates will show up here as they happen.') }}
+    {{ empty_state('activity', 'No recent activity', 'Operational events will appear here in real time.') }}
     {% endif %}
-  </div>
-</section>
-
-{# 5. Alerts #}
-<section class="dashboard-section" aria-label="Priority alerts">
-  <h2 class="dashboard-section-title">{{ icon('bell', 16) }} Alerts</h2>
-  <div class="panel saas-panel ops-panel-compact">
-    <div class="panel-head panel-head-inline">
-      <span class="muted" style="font-size:12px">High-priority items requiring attention</span>
-      <button type="button" class="btn btn-ghost btn-sm" id="dashOpenNotifications">All notifications</button>
-    </div>
-    <div class="dash-alerts-list">
-      {% if stats.pending_payments > 0 %}
-      <a href="{{ url_for('payments') }}" class="dash-alert-row danger">
-        {{ icon('clock', 16) }}
-        <div>
-          <strong>Pending Payments</strong>
-          <span>₹{{ "{:,.0f}".format(stats.pending_payment_amount) }} outstanding · {{ stats.pending_payments }} booking{{ 's' if stats.pending_payments != 1 else '' }}</span>
-        </div>
-      </a>
-      {% endif %}
-      {% for i in low_stock[:4] %}
-      <a href="{{ url_for('inventory') }}" class="dash-alert-row warning">
-        {{ icon('package', 16) }}
-        <div>
-          <strong>Low Inventory</strong>
-          <span>{{ i.item_name }} — {{ i.quantity }} left (reorder at {{ i.reorder_level }})</span>
-        </div>
-      </a>
-      {% endfor %}
-      {% for r in maint_rooms[:4] %}
-      <a href="{{ url_for('rooms', q=r.room_no) }}" class="dash-alert-row warning">
-        {{ icon('wrench', 16) }}
-        <div>
-          <strong>Maintenance Request</strong>
-          <span>Room {{ r.room_no }} · {{ r.room_type }}</span>
-        </div>
-      </a>
-      {% endfor %}
-      {% for b in today_arrivals[:4] %}
-      <a href="{{ url_for('checkin_out') }}" class="dash-alert-row">
-        {{ icon('log-in', 16) }}
-        <div>
-          <strong>Today's Arrival</strong>
-          <span>{{ b.name }} · Room {{ b.room_no }}</span>
-        </div>
-      </a>
-      {% endfor %}
-      {% if stats.pending_payments == 0 and not low_stock and not maint_rooms and not today_arrivals %}
-      <p class="dash-inline-empty">No urgent alerts — operations look clear.</p>
-      {% endif %}
-    </div>
   </div>
 </section>
 </div>
