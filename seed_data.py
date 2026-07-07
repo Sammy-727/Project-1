@@ -1,8 +1,17 @@
 """Idempotent multi-hotel demo seed data for Safe Stays PMS."""
 from datetime import date, datetime, timedelta
 
-HOTEL_ADMIN_PASSWORD = "password123"
-MANAGER_PASSWORD = "password123"
+HOTEL_ADMIN_PASSWORD = "admin123"
+MANAGER_PASSWORD = "manager123"
+
+DEMO_PASSWORDS_BY_USERNAME = {
+    "superadmin": "admin123",
+    "admin": "admin123",
+    "manager": "manager123",
+    "reception": "rec123",
+    "housekeeping": "hk123",
+    "staff": "staff123",
+}
 
 
 HOTEL_DEFINITIONS = [
@@ -98,14 +107,21 @@ def ensure_super_admin(query):
             )
         else:
             query(
-                "UPDATE users SET role='SUPER_ADMIN', hotel_id=NULL, status='Active' WHERE username=?",
-                (u[0],),
+                """UPDATE users SET role='SUPER_ADMIN', hotel_id=NULL, status='Active',
+                   password=? WHERE username=?""",
+                (u[1], u[0]),
                 commit=True,
             )
 
 
-def ensure_hotel_admin_manager_passwords(query):
-    """Reset seeded HOTEL_ADMIN and MANAGER passwords (plaintext — no BCrypt in this app)."""
+def ensure_demo_passwords(query):
+    """Reset known demo account passwords so login hints match the database."""
+    for username, password in DEMO_PASSWORDS_BY_USERNAME.items():
+        query(
+            "UPDATE users SET password=? WHERE username=?",
+            (password, username),
+            commit=True,
+        )
     query(
         "UPDATE users SET password=? WHERE role IN ('HOTEL_ADMIN', 'Admin')",
         (HOTEL_ADMIN_PASSWORD,),
@@ -116,6 +132,21 @@ def ensure_hotel_admin_manager_passwords(query):
         (MANAGER_PASSWORD,),
         commit=True,
     )
+    query(
+        "UPDATE users SET password=? WHERE username LIKE '%_admin'",
+        (HOTEL_ADMIN_PASSWORD,),
+        commit=True,
+    )
+    query(
+        "UPDATE users SET password=? WHERE username LIKE '%_manager'",
+        (MANAGER_PASSWORD,),
+        commit=True,
+    )
+
+
+def ensure_hotel_admin_manager_passwords(query):
+    """Backward-compatible alias — resets demo passwords on each startup."""
+    ensure_demo_passwords(query)
 
 
 def ensure_hotel(query, definition):
