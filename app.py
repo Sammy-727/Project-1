@@ -24,6 +24,7 @@ from chart_data import (
     DEMO_OCCUPANCY_STATUS,
     DEMO_BOOKING_TREND,
 )
+from analytics import hotel_analytics
 from seed_data import seed_multi_hotel_demo, seed_hotel_demo_notifications
 from tenant import (
     ROLES,
@@ -1152,7 +1153,10 @@ def search():
 
 
 def global_search_results(q, hotel_id):
-    results = {"rooms": [], "customers": [], "bookings": [], "payments": [], "employees": [], "invoices": []}
+    results = {
+        "rooms": [], "customers": [], "bookings": [], "payments": [],
+        "employees": [], "invoices": [], "inventory": [], "hotels": [],
+    }
     if not q:
         return results
     like = f"%{q}%"
@@ -1195,6 +1199,23 @@ def global_search_results(q, hotel_id):
            ORDER BY bills.id DESC LIMIT 8""",
         (hotel_id, like, like, like),
     )
+    results["inventory"] = query(
+        """SELECT id, item_name, category, quantity, unit FROM inventory
+           WHERE hotel_id=? AND (item_name LIKE ? OR category LIKE ?)
+           ORDER BY item_name LIMIT 8""",
+        (hotel_id, like, like),
+    )
+    if is_super_admin_role():
+        results["hotels"] = query(
+            """SELECT id, hotel_name, hotel_code, city FROM hotels
+               WHERE hotel_name LIKE ? OR hotel_code LIKE ? OR city LIKE ?
+               ORDER BY hotel_name LIMIT 6""",
+            (like, like, like),
+        )
+    else:
+        results["hotels"] = []
+    for key in results:
+        results[key] = [dict(r) for r in results[key]]
     return results
 
 
@@ -1347,7 +1368,7 @@ def dashboard_stats(hotel_id=None):
         (hotel_id,),
         one=True,
     )["c"]
-    return {
+    stats = {
         "total_rooms": total_rooms,
         "available": query(
             "SELECT COUNT(*) c FROM rooms WHERE hotel_id=? AND status='Available'",
@@ -1397,6 +1418,119 @@ def dashboard_stats(hotel_id=None):
             one=True,
         )["c"],
     }
+    analytics = hotel_analytics(query, hotel_id, days=30)
+    stats["adr"] = analytics["adr"]
+    stats["revpar"] = analytics["revpar"]
+    stats["avg_room_rate"] = analytics["avgRoomRate"]
+    return stats
+
+
+@app.route("/api/analytics/overview")
+def api_analytics_overview():
+    if not is_logged_in():
+        return api_error("Unauthorized", 401)
+    days = request.args.get("days", 30, type=int)
+    days = max(7, min(days, 365))
+    return api_ok(analytics=hotel_analytics(query, get_current_hotel_id(), days=days))
+
+
+@app.route("/api/customers/<int:customer_id>/profile")
+def api_customer_profile(customer_id):
+    if not is_logged_in():
+        return api_error("Unauthorized", 401)
+    hid = get_current_hotel_id()
+    customer = scoped_customer(customer_id, hid)
+    if not customer:
+        return api_error("Guest not found.", 404)
+    bookings = query(
+        """
+        SELECT b.id, b.checkin, b.checkout, b.status, b.payment_status, b.total_amount,
+               r.room_no, r.room_type
+        FROM bookings b JOIN rooms r ON b.room_id = r.id
+        WHERE b.customer_id = ? AND b.hotel_id = ?
+        ORDER BY b.id DESC LIMIT 20
+        """,
+        (customer_id, hid),
+    )
+    lifetime_spend = float(
+        query(
+            """
+            SELECT COALESCE(SUM(p.amount), 0) t FROM payments p
+            JOIN bookings b ON p.booking_id = b.id
+            WHERE b.customer_id = ? AND b.hotel_id = ?
+            """,
+            (customer_id, hid),
+            one=True,
+        )["t"]
+        or 0
+    )
+    payments = query(
+        """
+        SELECT p.id, p.amount, p.payment_mode, p.payment_date, p.receipt_number, b.id booking_id
+        FROM payments p JOIN bookings b ON p.booking_id = b.id
+        WHERE b.customer_id = ? AND b.hotel_id = ?
+        ORDER BY p.id DESC LIMIT 15
+        """,
+        (customer_id, hid),
+    )
+    timeline = []
+    for b in bookings:
+        timeline.append({
+            "type": "booking",
+            "title": f"Booking #{b['id']} · Room {b['room_no']}",
+            "detail": f"{b['checkin']} → {b['checkout']} · {b['status']}",
+            "date": b["checkin"],
+        })
+    for p in payments[:8]:
+        timeline.append({
+            "type": "payment",
+            "title": f"Payment ₹{float(p['amount']):,.0f}",
+            "detail": f"Receipt {p['receipt_number']} · {p['payment_mode']}",
+            "date": (p["payment_date"] or "")[:10],
+        })
+    timeline.sort(key=lambda x: x["date"], reverse=True)
+    return api_ok(profile={
+        "customer": customer_to_dict(customer),
+        "bookings": [dict(b) for b in bookings],
+        "payments": [dict(p) for p in payments],
+        "lifetimeSpend": round(lifetime_spend, 2),
+        "stayCount": len(bookings),
+        "timeline": timeline[:12],
+    })
+
+
+@app.route("/api/calendar/bookings")
+def api_calendar_bookings():
+    if not is_logged_in():
+        return api_error("Unauthorized", 401)
+    hid = get_current_hotel_id()
+    start = request.args.get("start", date.today().isoformat())
+    end = request.args.get("end", (date.today() + timedelta(days=6)).isoformat())
+    rows = query(
+        """
+        SELECT b.id, b.checkin, b.checkout, b.status, c.name guest_name,
+               r.id room_id, r.room_no, r.room_type, r.floor
+        FROM bookings b
+        JOIN customers c ON b.customer_id = c.id
+        JOIN rooms r ON b.room_id = r.id
+        WHERE b.hotel_id = ?
+          AND b.status NOT IN ('Cancelled')
+          AND date(b.checkin) <= date(?)
+          AND date(b.checkout) >= date(?)
+        ORDER BY r.room_no, b.checkin
+        """,
+        (hid, end, start),
+    )
+    rooms = query(
+        "SELECT id, room_no, room_type, floor, status FROM rooms WHERE hotel_id=? ORDER BY floor, room_no",
+        (hid,),
+    )
+    return api_ok(bookings=[dict(r) for r in rows], rooms=[dict(r) for r in rooms], start=start, end=end)
+
+
+@app.route("/calendar")
+def calendar_page():
+    return render_template("calendar.html", today=date.today().isoformat())
 
 
 @app.route("/api/dashboard/charts/revenue-daily")
@@ -1477,9 +1611,42 @@ def dashboard():
         WHERE b.hotel_id=? AND b.checkout=? AND b.status='Checked-in'
         ORDER BY b.checkout ASC LIMIT 8
     """, (hid, date.today().isoformat()))
+    hk_queue = query(
+        """
+        SELECT h.id, r.room_no, r.room_type, h.priority, h.status, e.name staff_name
+        FROM housekeeping_tasks h
+        JOIN rooms r ON h.room_id = r.id
+        LEFT JOIN employees e ON h.assigned_to = e.id
+        WHERE r.hotel_id = ? AND h.status IN ('Pending', 'In Progress')
+        ORDER BY CASE h.priority WHEN 'High' THEN 0 WHEN 'Medium' THEN 1 ELSE 2 END, h.id DESC
+        LIMIT 8
+        """,
+        (hid,),
+    )
+    pending_payment_rows = query(
+        """
+        SELECT b.id, c.name, r.room_no, b.total_amount, b.payment_status, b.checkin
+        FROM bookings b
+        JOIN customers c ON b.customer_id = c.id
+        JOIN rooms r ON b.room_id = r.id
+        WHERE b.hotel_id = ? AND b.payment_status IN ('Pending', 'Partial')
+          AND b.status IN ('Reserved', 'Checked-in')
+        ORDER BY b.checkin ASC LIMIT 6
+        """,
+        (hid,),
+    )
+    pending_list = []
+    for row in pending_payment_rows:
+        pd = dict(row)
+        paid = booking_paid_amount(row["id"])
+        pd["balance"] = max(float(row["total_amount"] or 0) - paid, 0)
+        if pd["balance"] > 0:
+            pending_list.append(pd)
+    analytics = hotel_analytics(query, hid, days=30)
     return render_template(
         "dashboard.html",
         stats=stats,
+        analytics=analytics,
         low_stock=low_stock,
         recent_activity=recent_activity,
         upcoming_checkins=upcoming_checkins,
@@ -1487,6 +1654,8 @@ def dashboard():
         maintenance_rooms=maintenance_rooms,
         today_arrivals=today_arrivals,
         today_departures=today_departures,
+        hk_queue=hk_queue,
+        pending_list=pending_list,
         today=date.today().isoformat(),
     )
 
@@ -2723,6 +2892,7 @@ def invoice(booking_id):
 def reports_page():
     hid = get_current_hotel_id()
     stats = dashboard_stats(hid)
+    analytics = hotel_analytics(query, hid, days=30)
     date_from = request.args.get("from", "")
     date_to = request.args.get("to", "")
     payment_sql = """
@@ -2763,7 +2933,7 @@ def reports_page():
         (hid,),
     )
     return render_template(
-        "reports.html", stats=stats, monthly_revenue=monthly_revenue,
+        "reports.html", stats=stats, analytics=analytics, monthly_revenue=monthly_revenue,
         booking_status=booking_status, room_types=room_types,
         payment_rows=payment_rows, date_from=date_from, date_to=date_to,
         list_total=len(payment_rows), list_showing=len(payment_rows),

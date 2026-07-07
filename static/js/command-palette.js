@@ -1,9 +1,10 @@
 /**
- * Enhanced command palette — navigation + live entity search
+ * Enhanced command palette — navigation, actions, and live entity search
  */
 (function () {
   const NAV_COMMANDS = [
     { label: 'Dashboard', url: '/dashboard', icon: 'layout-dashboard', group: 'Pages' },
+    { label: 'Calendar', url: '/calendar', icon: 'calendar-range', group: 'Pages' },
     { label: 'Rooms', url: '/rooms', icon: 'bed-double', group: 'Pages' },
     { label: 'Bookings', url: '/bookings', icon: 'calendar-days', group: 'Pages' },
     { label: 'Guests', url: '/customers', icon: 'users', group: 'Pages' },
@@ -16,7 +17,14 @@
     { label: 'Invoices', url: '/invoices', icon: 'file-text', group: 'Pages' },
     { label: 'Reports', url: '/reports', icon: 'bar-chart-3', group: 'Pages' },
     { label: 'Settings', url: '/settings', icon: 'settings', group: 'Pages' },
-    { label: 'New Booking', url: '/bookings?new=1', icon: 'plus-circle', group: 'Actions' },
+    { label: 'New Booking', url: '/bookings?new=1', icon: 'calendar-plus', group: 'Actions' },
+    { label: 'New Guest', url: '/customers?add=1', icon: 'user-plus', group: 'Actions' },
+    { label: 'Quick Check-in', url: '/checkin-out', icon: 'log-in', group: 'Actions' },
+    { label: 'Quick Checkout', url: '/checkin-out', icon: 'log-out', group: 'Actions' },
+    { label: 'Record Payment', url: '/payments', icon: 'wallet', group: 'Actions' },
+    { label: 'Generate Invoice', url: '/invoices', icon: 'file-plus', group: 'Actions' },
+    { label: 'Search Guest', url: '/customers', icon: 'search', group: 'Actions' },
+    { label: 'Search Booking', url: '/bookings', icon: 'search', group: 'Actions' },
   ];
 
   let activeIndex = 0;
@@ -85,6 +93,15 @@
         });
         (results.invoices || []).forEach((inv) => {
           out.push({ label: `Invoice #${inv.invoice_id}`, meta: inv.customer_name, url: `/invoices?q=${inv.invoice_id}`, icon: 'file-text', group: 'Invoices' });
+        });
+        (results.payments || []).forEach((p) => {
+          out.push({ label: p.receipt_number || `Payment #${p.id}`, meta: `${p.name || ''} · ₹${Number(p.amount || 0).toLocaleString('en-IN')}`, url: `/payments?q=${p.id}`, icon: 'credit-card', group: 'Payments' });
+        });
+        (results.inventory || []).forEach((inv) => {
+          out.push({ label: inv.item_name, meta: `${inv.category || 'Stock'} · Qty ${inv.quantity}`, url: `/inventory?q=${encodeURIComponent(inv.item_name)}`, icon: 'package', group: 'Inventory' });
+        });
+        (results.hotels || []).forEach((h) => {
+          out.push({ label: h.hotel_name, meta: h.hotel_code || h.city || 'Hotel', url: `/platform/hotels`, icon: 'building-2', group: 'Hotels' });
         });
         return out;
       } catch (_) {

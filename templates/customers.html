@@ -77,7 +77,7 @@
     </div>
   </article>
 
-  <aside class="drawer detail-drawer" id="drawerGuest{{ c.id }}">
+  <aside class="drawer detail-drawer" id="drawerGuest{{ c.id }}" data-guest-profile="{{ c.id }}">
     <button class="modal-close drawer-close" type="button">{{ icon('x', 18) }}</button>
     <div style="text-align:center;margin:16px 0">
       <div style="text-align:center;margin-bottom:12px">{{ avatar(c.name, c.image_url, 'lg') }}</div>
@@ -90,6 +90,7 @@
       <div><span>Total Bookings</span><strong>{{ c.booking_count }}</strong></div>
       <div><span>Loyalty</span><strong>{{ loyalty }}</strong></div>
     </div>
+    <div data-profile-mount></div>
     <div class="card-quick-actions">
       <button type="button" class="btn btn-secondary btn-sm modal-trigger" data-target="#editCustomer{{ c.id }}">Edit</button>
       <a href="{{ url_for('bookings', new_customer=c.id) }}" class="btn btn-primary btn-sm">New Booking</a>
@@ -168,4 +169,9 @@
 {% block scripts %}
 {{ super() }}
 <script src="{{ url_for('static', filename='js/image-upload.js') }}"></script>
+<script>
+if (new URLSearchParams(window.location.search).get('add') === '1') {
+  document.getElementById('addCustomerModal')?.classList.add('show');
+}
+</script>
 {% endblock %}

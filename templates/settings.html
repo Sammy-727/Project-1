@@ -6,55 +6,79 @@
 {% block content %}
 
 {{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Settings"}]) }}
-{{ page_header("Settings", "Hotel profile, logo, and cover image for " ~ current_hotel_name) }}
+{{ page_header("Settings", "Hotel profile, branding, users, and subscription") }}
 
-<div class="settings-panel active" id="tab-hotel">
-    <form method="post" action="{{ url_for('save_hotel_settings') }}">
-        <div class="panel saas-panel">
-            <div class="hotel-profile-cover">
-                <img src="{{ hotel.cover_url or cover_default }}" alt="" id="hotelCoverPreview" loading="lazy" width="960" height="240">
-                <div class="hotel-profile-logo-wrap">
-                    <img src="{{ hotel.logo or logo_default }}" alt="" id="hotelLogoPreview" loading="lazy" width="96" height="96">
-                </div>
-            </div>
-            <h3 style="margin-bottom:16px">Hotel Profile</h3>
-            <div class="form-grid">
-                <div class="form-group"><label>Hotel Name</label><input name="hotel_name" value="{{ hotel.hotel_name or current_hotel_name }}" placeholder="Hotel name" required></div>
-                <div class="form-group"><label>Email</label><input type="email" name="email" value="{{ hotel.email or '' }}" placeholder="contact@hotel.com"></div>
-                <div class="form-group"><label>Phone</label><input name="phone" value="{{ hotel.phone or '' }}" placeholder="+91 00000 00000"></div>
-                <div class="form-group"><label>Address</label><input name="address" value="{{ hotel.address or '' }}" placeholder="Full address"></div>
-            </div>
-            <div class="image-upload-row" style="margin-top:20px">
-                <div class="form-group">
-                    <label>Hotel Logo</label>
-                    <div class="image-upload-zone" data-image-upload>
-                        <input type="file" accept="image/jpeg,image/png,image/webp" aria-label="Upload hotel logo">
-                        <p>{{ icon('image', 20) }} Drop logo or click to upload</p>
-                        <small data-upload-status>JPG, PNG, WebP · max 2 MB</small>
-                        <div class="image-upload-preview" data-upload-preview></div>
-                    </div>
-                    <input type="hidden" name="logo" data-upload-url value="{{ hotel.logo or '' }}">
-                </div>
-                <div class="form-group">
-                    <label>Cover / Banner</label>
-                    <div class="image-upload-zone" data-image-upload>
-                        <input type="file" accept="image/jpeg,image/png,image/webp" aria-label="Upload cover image">
-                        <p>{{ icon('image', 20) }} Drop banner or click to upload</p>
-                        <small data-upload-status>JPG, PNG, WebP · max 2 MB</small>
-                        <div class="image-upload-preview" data-upload-preview></div>
-                    </div>
-                    <input type="hidden" name="cover_url" data-upload-url value="{{ hotel.cover_url or '' }}">
-                </div>
-            </div>
-            <button type="submit" class="btn btn-primary write-action" style="margin-top:16px">{{ icon('save', 16) }} Save Changes</button>
+<nav class="settings-tabs" role="tablist" aria-label="Settings sections">
+  <button type="button" class="settings-tab active" data-settings-tab="hotel" role="tab">Hotel</button>
+  <button type="button" class="settings-tab" data-settings-tab="branding" role="tab">Branding</button>
+  <button type="button" class="settings-tab" data-settings-tab="users" role="tab">Users</button>
+  <button type="button" class="settings-tab" data-settings-tab="subscription" role="tab">Subscription</button>
+</nav>
+
+<form method="post" action="{{ url_for('save_hotel_settings') }}" id="settingsForm">
+<div class="settings-panel active" id="tab-hotel" data-settings-panel="hotel">
+    <div class="panel saas-panel">
+        <h3 style="margin-bottom:16px">Hotel Profile</h3>
+        <div class="form-grid">
+            <div class="form-group"><label>Hotel Name</label><input name="hotel_name" value="{{ hotel.hotel_name or current_hotel_name }}" placeholder="Hotel name" required></div>
+            <div class="form-group"><label>Email</label><input type="email" name="email" value="{{ hotel.email or '' }}" placeholder="contact@hotel.com"></div>
+            <div class="form-group"><label>Phone</label><input name="phone" value="{{ hotel.phone or '' }}" placeholder="+91 00000 00000"></div>
+            <div class="form-group"><label>Address</label><input name="address" value="{{ hotel.address or '' }}" placeholder="Full address"></div>
         </div>
-    </form>
+    </div>
+</div>
 
-    <div class="panel saas-panel" style="margin-top:16px">
-        <h3 style="margin-bottom:8px">Staff &amp; subscription</h3>
+<div class="settings-panel" id="tab-branding" data-settings-panel="branding" hidden>
+    <div class="panel saas-panel">
+        <div class="hotel-profile-cover">
+            <img src="{{ hotel.cover_url or cover_default }}" alt="" id="hotelCoverPreview" loading="lazy" width="960" height="240">
+            <div class="hotel-profile-logo-wrap">
+                <img src="{{ hotel.logo or logo_default }}" alt="" id="hotelLogoPreview" loading="lazy" width="96" height="96">
+            </div>
+        </div>
+        <h3 style="margin-bottom:16px">Branding &amp; Media</h3>
+        <div class="image-upload-row" style="margin-top:8px">
+            <div class="form-group">
+                <label>Hotel Logo</label>
+                <div class="image-upload-zone" data-image-upload>
+                    <input type="file" accept="image/jpeg,image/png,image/webp" aria-label="Upload hotel logo">
+                    <p>{{ icon('image', 20) }} Drop logo or click to upload</p>
+                    <small data-upload-status>JPG, PNG, WebP · max 2 MB</small>
+                    <div class="image-upload-preview" data-upload-preview></div>
+                </div>
+                <input type="hidden" name="logo" data-upload-url value="{{ hotel.logo or '' }}">
+            </div>
+            <div class="form-group">
+                <label>Cover / Banner</label>
+                <div class="image-upload-zone" data-image-upload>
+                    <input type="file" accept="image/jpeg,image/png,image/webp" aria-label="Upload cover image">
+                    <p>{{ icon('image', 20) }} Drop banner or click to upload</p>
+                    <small data-upload-status>JPG, PNG, WebP · max 2 MB</small>
+                    <div class="image-upload-preview" data-upload-preview></div>
+                </div>
+                <input type="hidden" name="cover_url" data-upload-url value="{{ hotel.cover_url or '' }}">
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="settings-panel" id="tab-users" data-settings-panel="users" hidden>
+    <div class="panel saas-panel">
+        <h3 style="margin-bottom:8px">Users &amp; Permissions</h3>
+        <p style="color:var(--text-muted);font-size:13px;margin:0 0 16px">
+            Manage staff accounts, roles, and access from User Management.
+            Receptionists can operate front desk; managers access reports and settings.
+        </p>
+        <a href="{{ url_for('admin') }}" class="btn btn-primary">{{ icon('shield', 16) }} Open User Management</a>
+        <a href="{{ url_for('employees') }}" class="btn btn-outline" style="margin-left:8px">{{ icon('briefcase', 16) }} Employees</a>
+    </div>
+</div>
+
+<div class="settings-panel" id="tab-subscription" data-settings-panel="subscription" hidden>
+    <div class="panel saas-panel">
+        <h3 style="margin-bottom:8px">Subscription</h3>
         <p style="color:var(--text-muted);font-size:13px;margin:0 0 12px">
-            Manage users and roles from <a href="{{ url_for('admin') }}">User Management</a>.
-            Subscription and billing are managed by the platform administrator.
+            Billing and plan changes are managed by the platform administrator.
         </p>
         <div class="kpi-card" style="max-width:320px">
             <div class="kpi-label">Current plan</div>
@@ -64,12 +88,28 @@
     </div>
 </div>
 
+<div class="settings-save-bar">
+    <button type="submit" class="btn btn-primary write-action">{{ icon('save', 16) }} Save Changes</button>
+</div>
+</form>
+
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
 <script src="{{ url_for('static', filename='js/image-upload.js') }}"></script>
 <script>
+document.querySelectorAll('[data-settings-tab]').forEach(function (tab) {
+  tab.addEventListener('click', function () {
+    var id = tab.dataset.settingsTab;
+    document.querySelectorAll('[data-settings-tab]').forEach(function (t) { t.classList.toggle('active', t === tab); });
+    document.querySelectorAll('[data-settings-panel]').forEach(function (panel) {
+      var show = panel.dataset.settingsPanel === id;
+      panel.classList.toggle('active', show);
+      panel.hidden = !show;
+    });
+  });
+});
 document.querySelectorAll('[data-upload-url]').forEach(function (input) {
   input.addEventListener('change', function () {
     if (input.name === 'logo') {

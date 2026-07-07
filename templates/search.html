@@ -10,7 +10,7 @@
 {{ empty_state("search", "Search anything", "Press Ctrl+K or use the search bar to find guests, rooms, bookings, employees, and invoices.") }}
 {% else %}
 
-{% set total = results.rooms|length + results.customers|length + results.bookings|length + results.employees|length + results.invoices|length + results.payments|length %}
+{% set total = results.rooms|length + results.customers|length + results.bookings|length + results.employees|length + results.invoices|length + results.payments|length + results.inventory|length + results.hotels|length %}
 
 {% if total == 0 %}
 {{ empty_state("search", "No results", 'Nothing matched "' ~ q ~ '". Try a different term.', illustration="reports") }}
@@ -110,6 +110,38 @@
     </div>
     <div class="entity-card-body">
       <div class="entity-card-sub">{{ p.name }} · ₹{{ "{:,.0f}".format(p.amount) }}</div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if results.inventory %}
+<h3 class="search-section-title">{{ icon('package', 16) }} Inventory ({{ results.inventory|length }})</h3>
+<div class="search-results-grid">
+  {% for item in results.inventory %}
+  <a href="{{ url_for('inventory', q=item.item_name) }}" class="entity-card">
+    <div class="entity-card-header">
+      <div class="entity-card-title" style="font-size:16px">{{ item.item_name }}</div>
+    </div>
+    <div class="entity-card-body">
+      <div class="entity-card-sub">{{ item.category or 'Stock' }} · Qty {{ item.quantity }} {{ item.unit or '' }}</div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if results.hotels %}
+<h3 class="search-section-title">{{ icon('building-2', 16) }} Hotels ({{ results.hotels|length }})</h3>
+<div class="search-results-grid">
+  {% for h in results.hotels %}
+  <a href="{{ url_for('platform_hotels') }}" class="entity-card">
+    <div class="entity-card-header">
+      <div class="entity-card-title" style="font-size:16px">{{ h.hotel_name }}</div>
+    </div>
+    <div class="entity-card-body">
+      <div class="entity-card-sub">{{ h.hotel_code or '' }} · {{ h.city or '—' }}</div>
     </div>
   </a>
   {% endfor %}
