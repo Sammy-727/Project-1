@@ -2,6 +2,8 @@
 {% from "macros/ui.html" import breadcrumb, page_header, empty_state, status_badge, card_menu, icon, filter_meta, filter_empty, sort_controls %}
 {% set title = "Bookings" %}
 {% block content %}
+<link href="{{ url_for('static', filename='css/booking-views.css') }}" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet">
 
 {{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Front Desk"}, {"label": "Bookings"}]) }}
 {{ page_header("Bookings", "Manage reservations and guest stays") }}
@@ -11,27 +13,30 @@
     <button type="button" class="btn btn-primary" id="newBookingBtn">{{ icon('plus', 16) }} New Booking</button>
 </div>
 
-<div class="list-filter-shell">
-<form class="filter-toolbar-basic" method="get" id="bookingsFilterForm" data-list-filters data-card-filter="#bookingCardGrid" data-auto-search="true">
-    <div class="table-search-wrap filter-search">
-        {{ icon('search', 16) }}
-        <input type="search" name="q" placeholder="Search guest, room, ID, phone..." value="{{ search_q }}" data-local-search>
-    </div>
-    {{ sort_controls(sort_by|default('id'), sort_dir|default('desc'), [
-        ('id', 'Booking ID'), ('guest', 'Guest'), ('room', 'Room'), ('checkin', 'Check-in'),
-        ('checkout', 'Check-out'), ('amount', 'Amount'), ('status', 'Status'), ('payment', 'Payment')
-    ]) }}
-    <button type="button" class="btn btn-ghost btn-sm filter-advanced-toggle" data-advanced-toggle>
-        {{ icon('sliders-horizontal', 14) }} Advanced
-    </button>
-    <div class="filter-toolbar-actions">
-        <button type="button" class="btn btn-ghost btn-sm" data-clear-filters>Clear All</button>
-        <button type="submit" class="btn btn-primary btn-sm">Apply</button>
-    </div>
-    <div class="filter-advanced-panel" data-advanced-panel style="width:100%">
-        <div class="filter-advanced-grid">
+<div class="booking-module" id="bookingModule" {% if not bookings %}hidden{% endif %}>
+  <div class="booking-filter-toolbar-row">
+    <div class="list-filter-shell">
+      <form class="filter-toolbar-basic" method="get" id="bookingsFilterForm" data-list-filters data-auto-search="false">
+        <div class="table-search-wrap filter-search">
+          {{ icon('search', 16) }}
+          <input type="search" name="q" placeholder="Search guest, room, ID, phone..." value="{{ search_q }}">
+        </div>
+        {{ sort_controls(sort_by|default('id'), sort_dir|default('desc'), [
+            ('id', 'Booking ID'), ('guest', 'Guest'), ('room', 'Room'), ('checkin', 'Check-in'),
+            ('checkout', 'Check-out'), ('amount', 'Amount'), ('status', 'Status'), ('payment', 'Payment')
+        ]) }}
+        <button type="button" class="btn btn-ghost btn-sm filter-advanced-toggle" data-advanced-toggle>
+          {{ icon('sliders-horizontal', 14) }} Advanced
+        </button>
+        <div class="filter-toolbar-actions">
+          <button type="button" class="btn btn-ghost btn-sm" data-reset-booking-filters>Reset Filters</button>
+          <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+        </div>
+        <div class="filter-advanced-panel" data-advanced-panel style="width:100%">
+          <div class="filter-advanced-grid">
             <label>Status<select name="status"><option value="">All</option>{% for s in booking_statuses %}<option value="{{ s }}" {% if filter_status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
             <label>Payment<select name="payment_status"><option value="">All</option>{% for s in ['Pending','Partial','Paid'] %}<option value="{{ s }}" {% if payment_status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
+            <label>Room Type<select name="room_type"><option value="">All</option>{% for t in room_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}</select></label>
             <label>Phone<input type="text" name="phone" value="{{ phone or '' }}" placeholder="Phone"></label>
             <label>Room<input type="text" name="room_no" value="{{ room_no or '' }}" placeholder="Room no"></label>
             <label>Source<select name="booking_source"><option value="">All</option>{% for s in booking_sources %}<option value="{{ s }}" {% if booking_source == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
@@ -41,83 +46,43 @@
             <label>Check-out to<input type="date" name="checkout_to" value="{{ checkout_to or '' }}"></label>
             <label>Min amount<input type="number" name="amount_min" value="{{ amount_min or '' }}" min="0" step="1"></label>
             <label>Max amount<input type="number" name="amount_max" value="{{ amount_max or '' }}" min="0" step="1"></label>
+          </div>
         </div>
+      </form>
+      <div class="filter-chips-row" data-filter-chips></div>
+      {{ filter_empty() }}
     </div>
-</form>
-{{ filter_meta(list_showing|default(bookings|length), list_total|default(bookings|length)) }}
-{{ filter_empty() }}
+    <div id="bookingViewSwitcher"></div>
+  </div>
+
+  <div id="bookingToolbar"></div>
+
+  <div class="booking-views-container" data-list-results>
+    <div id="bookingCardView" class="booking-view-panel"></div>
+    <div id="bookingTableView" class="booking-view-panel" hidden></div>
+    <div id="bookingCalendarView" class="booking-view-panel" hidden></div>
+  </div>
 </div>
 
-{% if bookings %}
-<div data-list-results>
-<div class="entity-grid wide" id="bookingCardGrid" data-view-panel="cards" data-page="bookings">
-  {% for b in bookings %}
-  <article class="entity-card status-{{ b.status|css_class }}" data-searchable
-       data-search="#{{ b.id }} {{ b.customer_name }} {{ b.room_no }} {{ b.status }}"
-       data-status="{{ b.status }}" data-payment="{{ b.payment_status }}"
-       data-card-drawer="#drawerBooking{{ b.id }}">
-    <div class="entity-card-header gradient">
-      <div>
-        <div class="entity-card-sub">Booking #{{ b.id }}</div>
-        <div class="entity-card-title">{{ b.customer_name }}</div>
-        <div class="entity-card-sub">Room {{ b.room_no }} · {{ b.room_type }}</div>
-      </div>
-      {{ card_menu([
-        {'type': 'button', 'label': 'View', 'icon': 'eye', 'drawer': '#drawerBooking' ~ b.id},
-        {'type': 'link', 'label': 'Invoice', 'icon': 'file-text', 'url': url_for('invoice', booking_id=b.id)},
-      ] + ([{'type': 'link', 'label': 'Check-in', 'icon': 'log-in', 'url': url_for('checkin_out')}] if b.status == 'Reserved' else [])
-        + ([{'type': 'link', 'label': 'Check-out', 'icon': 'log-out', 'url': url_for('checkin_out')}] if b.status == 'Checked-in' else [])
-        + ([{'type': 'form', 'label': 'Cancel', 'icon': 'x-circle', 'url': url_for('cancel_booking', booking_id=b.id), 'danger': true, 'confirm': 'Cancel booking #' ~ b.id ~ '?'}] if b.status in ['Reserved','Checked-in'] else [])) }}
-    </div>
-    <div class="entity-card-body">
-      <div class="entity-card-stats">
-        <div class="entity-stat">Check-in<strong>{{ b.checkin }}</strong></div>
-        <div class="entity-stat">Check-out<strong>{{ b.checkout }}</strong></div>
-        <div class="entity-stat">Guests<strong>{{ b.num_guests or 1 }}</strong></div>
-        <div class="entity-stat">Phone<strong>{{ b.phone or '—' }}</strong></div>
-      </div>
-    </div>
-    <div class="entity-card-footer">
-      <div style="display:flex;gap:6px;flex-wrap:wrap">{{ status_badge(b.status) }} {{ status_badge(b.payment_status) }}</div>
-      <span class="booking-card-amount">₹{{ "{:,.0f}".format(b.total_amount or 0) }}</span>
-    </div>
-  </article>
-
-  <aside class="drawer detail-drawer" id="drawerBooking{{ b.id }}">
-    <button class="modal-close drawer-close" type="button">{{ icon('x', 18) }}</button>
-    <div class="drawer-section">
-      <div class="entity-card-sub">#{{ b.id }}</div>
-      <h3>{{ b.customer_name }}</h3>
-      <p class="muted">Room {{ b.room_no }} · {{ b.checkin }} → {{ b.checkout }}</p>
-      <div style="display:flex;gap:8px;margin-top:8px">{{ status_badge(b.status) }} {{ status_badge(b.payment_status) }}</div>
-    </div>
-    <div class="drawer-section detail-grid">
-      <div><span>Guests</span><strong>{{ b.num_guests or 1 }}</strong></div>
-      <div><span>Total</span><strong>₹{{ "{:,.0f}".format(b.total_amount or 0) }}</strong></div>
-      <div><span>Phone</span><strong>{{ b.phone or '—' }}</strong></div>
-      <div><span>Room type</span><strong>{{ b.room_type }}</strong></div>
-    </div>
-    <div class="card-quick-actions">
-      <a href="{{ url_for('invoice', booking_id=b.id) }}" class="btn btn-primary btn-sm">Invoice</a>
-      <a href="{{ url_for('checkin_out') }}" class="btn btn-outline btn-sm">Check-in/out</a>
-    </div>
-  </aside>
-  {% endfor %}
+{% if not bookings %}
+<div id="bookingEmptyFallback" class="booking-empty-fallback">
+  {{ empty_state("calendar-days", "No bookings yet", "Create your first booking.", "New Booking", "", "newBookingBtnEmpty", illustration="bookings") }}
 </div>
-</div>
-{% else %}
-{{ empty_state("calendar-days", "No bookings yet", "Create your first booking.", "New Booking", "", "newBookingBtnEmpty", illustration="bookings") }}
 {% endif %}
+
+<div id="bookingDrawerTemplates" aria-hidden="true"></div>
 
 <aside class="drawer drawer-booking" id="bookingDrawer"
        data-sources='{{ booking_sources|tojson }}'
        data-payment-modes='{{ payment_modes|tojson }}'></aside>
 <div class="modal" id="quickAddCustomerModal"></div>
 
+<script type="application/json" id="bookingsBootstrap">{{ {'bookings': bookings_bootstrap, 'total': list_total|default(0)}|tojson }}</script>
+
 {% endblock %}
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/axios@1.7.9/dist/axios.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
 <script type="module" src="{{ url_for('static', filename='js/booking/index.js') }}"></script>
-<script>document.getElementById('newBookingBtnEmpty')?.addEventListener('click', () => document.getElementById('newBookingBtn')?.click());</script>
 {% endblock %}
