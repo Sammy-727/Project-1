@@ -91,8 +91,13 @@ function initHotelSwitcher() {
 
 function initModals() {
   document.querySelectorAll('.modal-trigger').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const target = document.querySelector(btn.getAttribute('data-target'));
+    btn.addEventListener('click', (e) => {
+      const sel = btn.getAttribute('data-target');
+      if (window.AppDrawer?.openFromModal(sel)) {
+        e.preventDefault();
+        return;
+      }
+      const target = document.querySelector(sel);
       if (target) target.classList.add('show');
     });
   });
@@ -108,8 +113,10 @@ function initModals() {
   });
 }
 
-function initDropdowns() {
-  document.querySelectorAll('.actions-toggle').forEach((btn) => {
+function initDropdowns(root) {
+  (root || document).querySelectorAll('.actions-toggle').forEach((btn) => {
+    if (btn.dataset.dropdownBound) return;
+    btn.dataset.dropdownBound = '1';
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const parent = btn.closest('.actions-dropdown');
@@ -299,13 +306,14 @@ function initTables() {
 }
 
 function initDrawers() {
+  if (window.AppDrawer) return;
   document.querySelectorAll('[data-drawer]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const drawer = document.querySelector(btn.getAttribute('data-drawer'));
-      const backdrop = document.getElementById('drawerBackdrop');
+      const bd = document.getElementById('drawerBackdrop');
       if (drawer) {
         drawer.classList.add('open');
-        backdrop?.classList.add('show');
+        bd?.classList.add('show');
       }
     });
   });
@@ -474,3 +482,4 @@ function addGuestRow(containerId) {
 
 window.showToast = showToast;
 window.refreshIcons = refreshIcons;
+window.initDropdowns = initDropdowns;

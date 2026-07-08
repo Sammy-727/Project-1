@@ -7,6 +7,8 @@ const CardUI = {
     document.querySelectorAll('[data-card-filter]').forEach((form) => this.initCardFilter(form));
     document.querySelectorAll('[data-kanban]').forEach((el) => this.initKanban(el));
     document.querySelectorAll('[data-card-drawer]').forEach((card) => {
+      if (card.dataset.cardDrawerBound) return;
+      card.dataset.cardDrawerBound = '1';
       card.addEventListener('click', (e) => {
         if (e.target.closest('a, button, form, .actions-dropdown, input, label')) return;
         const drawer = card.dataset.cardDrawer;
@@ -121,10 +123,11 @@ const CardUI = {
   openDrawer(selector) {
     const drawer = document.querySelector(selector);
     const backdrop = document.getElementById('drawerBackdrop');
+    if (global.AppDrawer?.openDrawerSelector(selector)) return;
     if (drawer) {
       drawer.classList.add('open');
       backdrop?.classList.add('show');
-      window.refreshIcons?.(drawer);
+      global.refreshIcons?.(drawer);
     }
   },
 

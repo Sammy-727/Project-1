@@ -105,5 +105,18 @@
     });
   }
 
-  document.querySelectorAll('[data-image-upload]').forEach(bindZone);
+  function bindAll(root) {
+    (root || document).querySelectorAll('[data-image-upload]').forEach((zone) => {
+      if (zone.dataset.uploadBound) return;
+      zone.dataset.uploadBound = '1';
+      bindZone(zone);
+    });
+  }
+
+  bindAll();
+  document.addEventListener('app-drawer:content', () => {
+    bindAll(document.getElementById('appShellDrawerBody'));
+  });
+
+  window.ImageUpload = { bind: bindAll };
 })();

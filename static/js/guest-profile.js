@@ -1,15 +1,25 @@
 (function initGuestProfiles() {
   if (typeof axios === 'undefined') return;
 
-  document.querySelectorAll('[data-guest-profile]').forEach((drawer) => {
+  function bindGuestProfile(drawer, loadImmediately) {
+    if (drawer.dataset.guestProfileBound) return;
+    drawer.dataset.guestProfileBound = '1';
+
     const customerId = drawer.dataset.guestProfile;
     if (!customerId) return;
 
     let loaded = false;
     const tryLoad = () => {
-      if (!drawer.classList.contains('open') || loaded) return;
+      const isOpen = drawer.classList.contains('open')
+        || drawer.closest('#appShellDrawerBody') != null;
+      if (!isOpen || loaded) return;
       loadProfile();
     };
+
+    if (loadImmediately) {
+      tryLoad();
+      return;
+    }
 
     drawer.addEventListener('transitionend', tryLoad);
     const obs = new MutationObserver(tryLoad);
@@ -43,5 +53,13 @@
         mount.innerHTML = '<p class="ops-empty">Could not load profile.</p>';
       }
     }
+  }
+
+  document.querySelectorAll('[data-guest-profile]').forEach((drawer) => bindGuestProfile(drawer, false));
+
+  document.addEventListener('app-drawer:content', () => {
+    document.getElementById('appShellDrawerBody')
+      ?.querySelectorAll('[data-guest-profile]')
+      .forEach((drawer) => bindGuestProfile(drawer, true));
   });
 })();

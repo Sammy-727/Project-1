@@ -71,6 +71,10 @@ function renderBookingRows(bookings) {
 }
 
 async function refreshBookingsView() {
+  if (window.AppDrawer?.refreshBackgroundList) {
+    await window.AppDrawer.refreshBackgroundList();
+    return;
+  }
   window.location.reload();
 }
 
@@ -115,7 +119,13 @@ document.addEventListener('DOMContentLoaded', () => {
     compact: true,
     onCreated: () => window.showToast?.('Customer saved. Open New Booking to use them.', 'success'),
   });
-  document.getElementById('quickAddCustomerBtn')?.addEventListener('click', () => quickAddModal.open());
+  document.getElementById('quickAddCustomerBtn')?.addEventListener('click', () => {
+    if (window.AppDrawer?.openModalFromPage) {
+      window.AppDrawer.openModalFromPage('/customers', 'addCustomerModal', 'Add Guest');
+      return;
+    }
+    quickAddModal.open();
+  });
 
   window.refreshBookingsTable = refreshBookingsView;
 });

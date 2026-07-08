@@ -14,11 +14,12 @@ const STEPS = [
 ];
 
 export class BookingDrawer {
-  constructor(drawerEl, { bookingSources, paymentModes, onSuccess }) {
+  constructor(drawerEl, { bookingSources, paymentModes, onSuccess, embedded = false }) {
     this.drawer = drawerEl;
     this.bookingSources = bookingSources;
     this.paymentModes = paymentModes;
     this.onSuccess = onSuccess;
+    this.embedded = embedded;
     this.step = 1;
     this.state = this.defaultState();
     this.submitting = false;
@@ -208,13 +209,19 @@ export class BookingDrawer {
     this.roomPicker.selected = null;
     this.paymentStep.advanceInput.value = 0;
     this.renderSteps();
-    this.drawer.classList.add('open');
-    document.getElementById('drawerBackdrop')?.classList.add('show');
+    if (!this.embedded) {
+      this.drawer.classList.add('open');
+      document.getElementById('drawerBackdrop')?.classList.add('show');
+    }
   }
 
   close() {
-    this.drawer.classList.remove('open');
-    document.getElementById('drawerBackdrop')?.classList.remove('show');
+    if (!this.embedded) {
+      this.drawer.classList.remove('open');
+      document.getElementById('drawerBackdrop')?.classList.remove('show');
+    } else {
+      window.AppDrawer?.close();
+    }
   }
 
   showError(msg) {

@@ -16,6 +16,7 @@
     <link href="{{ url_for('static', filename='css/images.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/premium.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/enterprise.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/app-drawer.css') }}" rel="stylesheet">
 </head>
 <body class="{% if current_user.get('user_id') %}app-body{% if is_read_only %} read-only-mode{% endif %}{% else %}auth-body{% endif %}">
 
@@ -237,6 +238,16 @@
 <div class="toast-container" id="toastContainer"></div>
 <div class="drawer-backdrop" id="drawerBackdrop"></div>
 
+<aside id="appShellDrawer" class="app-shell-drawer" aria-hidden="true" aria-label="Quick action panel">
+  <header class="app-shell-drawer-head">
+    <h2 id="appShellDrawerTitle"></h2>
+    <button type="button" class="app-shell-drawer-close" aria-label="Close panel">
+      <i data-lucide="x" class="icon"></i>
+    </button>
+  </header>
+  <div class="app-shell-drawer-body" id="appShellDrawerBody"></div>
+</aside>
+
 <aside class="notification-drawer" id="notificationDrawer" aria-label="Notifications and alerts" aria-hidden="true">
     <header class="notification-drawer-head">
         <h2><i data-lucide="bell-ring" class="icon"></i> Notifications &amp; Alerts</h2>
@@ -285,6 +296,10 @@
 <script src="{{ url_for('static', filename='js/filters.js') }}"></script>
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 {% if current_user.get("user_id") %}
+<script>
+window.__BOOKING_META__ = { sources: {{ booking_sources|tojson }}, modes: {{ payment_modes|tojson }} };
+</script>
+<script type="module" src="{{ url_for('static', filename='js/AppDrawer.js') }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/notifications/index.js') }}"></script>
 <script src="{{ url_for('static', filename='js/command-palette.js') }}"></script>
 <script src="{{ url_for('static', filename='js/quick-actions.js') }}"></script>
