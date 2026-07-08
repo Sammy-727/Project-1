@@ -1,0 +1,117 @@
+/* Global app shell drawer — slides over current page */
+
+.app-shell-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: min(480px, 100vw);
+  max-width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  background: var(--bg-elevated);
+  border-left: 1px solid var(--border);
+  box-shadow: -12px 0 48px rgba(15, 23, 42, 0.14);
+  z-index: 650;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  overflow: hidden;
+}
+
+.app-shell-drawer.open {
+  transform: translateX(0);
+}
+
+.app-shell-drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border-light);
+  flex-shrink: 0;
+  background: var(--bg-elevated);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.app-shell-drawer-head h2 {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.app-shell-drawer-close {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 10px;
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.app-shell-drawer-close:hover {
+  background: var(--border-light);
+  color: var(--text);
+}
+
+.app-shell-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 18px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.app-shell-drawer-body .page-header,
+.app-shell-drawer-body .breadcrumb {
+  display: none;
+}
+
+.app-shell-drawer-body .list-filter-shell {
+  margin-bottom: 12px;
+}
+
+.app-shell-drawer-body .entity-grid {
+  grid-template-columns: 1fr;
+}
+
+.app-drawer-loading {
+  padding: 8px 0;
+}
+
+.booking-drawer-host .booking-drawer-header {
+  display: none;
+}
+
+.booking-drawer-host .drawer-close {
+  display: none;
+}
+
+body.app-drawer-open {
+  overflow: hidden;
+}
+
+.drawer-backdrop.show {
+  animation: backdropIn 0.25s ease;
+}
+
+@media (max-width: 768px) {
+  .app-shell-drawer {
+    width: 100vw;
+  }
+}
+
+@media (min-width: 1200px) {
+  .app-shell-drawer {
+    width: min(520px, 42vw);
+  }
+}

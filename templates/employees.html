@@ -53,6 +53,7 @@
 </div>
 {% endif %}
 
+<div data-list-results>
 <div class="entity-grid wide" id="employeeCardGrid" data-page="employees">
   {% for e in employees %}
   {% set emp_bucket = 'archived' if e.status == 'Archived' else ('active' if e.status == 'Active' else 'inactive') %}
@@ -84,7 +85,29 @@
     </div>
     <div class="entity-card-footer">{{ status_badge(e.status) }}</div>
   </article>
+
+  <aside class="drawer" id="drawerEmp{{ e.id }}">
+    <button class="modal-close drawer-close" style="position:relative;top:0;right:0;float:right">✕</button>
+    <div style="text-align:center;margin:20px 0 28px">
+        {{ avatar(e.name, e.image_url, 'lg') }}
+        <h2 style="font-size:20px">{{ e.name }}</h2>
+        <p style="color:var(--text-muted)">{{ e.role or e.designation }} · {{ e.department or '—' }}</p>
+        {{ status_badge(e.status) }}
+    </div>
+    <div class="detail-grid">
+        <div><span>Phone</span><strong>{{ e.phone or '—' }}</strong></div>
+        <div><span>Email</span><strong>{{ e.email or '—' }}</strong></div>
+        <div><span>Salary</span><strong>₹{{ "{:,.0f}".format(e.salary or 0) }}</strong></div>
+        <div><span>Shift</span><strong>{{ e.shift or '—' }}</strong></div>
+        <div><span>Joined</span><strong>{{ e.joining_date or '—' }}</strong></div>
+        <div><span>Last Login</span><strong>{{ e.last_login or '—' }}</strong></div>
+    </div>
+    <div style="margin-top:24px;display:flex;gap:10px">
+        <button type="button" class="btn btn-outline btn-sm modal-trigger" data-target="#editEmp{{ e.id }}">Edit</button>
+    </div>
+  </aside>
   {% endfor %}
+</div>
 </div>
 
 {% if not employees %}
@@ -128,27 +151,6 @@
 </div>
 
 {% for e in employees %}
-<aside class="drawer" id="drawerEmp{{ e.id }}">
-    <button class="modal-close drawer-close" style="position:relative;top:0;right:0;float:right">✕</button>
-    <div style="text-align:center;margin:20px 0 28px">
-        {{ avatar(e.name, e.image_url, 'lg') }}
-        <h2 style="font-size:20px">{{ e.name }}</h2>
-        <p style="color:var(--text-muted)">{{ e.role or e.designation }} · {{ e.department or '—' }}</p>
-        {{ status_badge(e.status) }}
-    </div>
-    <div class="detail-grid">
-        <div><span>Phone</span><strong>{{ e.phone or '—' }}</strong></div>
-        <div><span>Email</span><strong>{{ e.email or '—' }}</strong></div>
-        <div><span>Salary</span><strong>₹{{ "{:,.0f}".format(e.salary or 0) }}</strong></div>
-        <div><span>Shift</span><strong>{{ e.shift or '—' }}</strong></div>
-        <div><span>Joined</span><strong>{{ e.joining_date or '—' }}</strong></div>
-        <div><span>Last Login</span><strong>{{ e.last_login or '—' }}</strong></div>
-    </div>
-    <div style="margin-top:24px;display:flex;gap:10px">
-        <button type="button" class="btn btn-outline btn-sm modal-trigger" data-target="#editEmp{{ e.id }}">Edit</button>
-    </div>
-</aside>
-
 <div class="modal" id="viewEmp{{ e.id }}" style="display:none"></div>
 
 <div class="modal" id="editEmp{{ e.id }}">
