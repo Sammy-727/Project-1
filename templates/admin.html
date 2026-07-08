@@ -1,19 +1,14 @@
 {% extends "base.html" %}
-{% from "macros/ui.html" import breadcrumb, status_badge, empty_state %}
+{% from "macros/ui.html" import breadcrumb, page_header, page_shell, status_badge, empty_state, icon %}
 {% set title = "User Management" %}
 {% block content %}
 
+{% call page_shell() %}
 {{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Staff"}, {"label": "Users"}]) }}
-
-<div class="page-header">
-  <div class="page-header-text">
-    <h1 class="page-title">User Management</h1>
-    <p class="page-description">Control staff access, roles, and account lifecycle</p>
-  </div>
-  <div class="page-header-actions">
-    <button class="btn btn-primary modal-trigger" data-target="#addUserModal">+ Add User</button>
-  </div>
-</div>
+{% set header_actions %}
+<button class="btn btn-primary modal-trigger write-action" data-target="#addUserModal">{{ icon('user-plus', 16) }} Add User</button>
+{% endset %}
+{{ page_header("User Management", "Control staff access, roles, and account lifecycle", header_actions) }}
 
 <div class="page-actions">
     <form class="filter-bar" method="get">
@@ -119,6 +114,8 @@
     {{ empty_state("🔐", "No users yet", "Click 'Add User' to create staff accounts.", "+ Add User", "#addUserModal") }}
     {% endif %}
 </div>
+
+{% endcall %}
 
 <div class="modal" id="addUserModal">
     <div class="modal-overlay"></div>

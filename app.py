@@ -1155,7 +1155,7 @@ def search():
 def global_search_results(q, hotel_id):
     results = {
         "rooms": [], "customers": [], "bookings": [], "payments": [],
-        "employees": [], "invoices": [], "inventory": [], "hotels": [],
+        "employees": [], "invoices": [], "inventory": [], "hotels": [], "users": [],
     }
     if not q:
         return results
@@ -1204,6 +1204,12 @@ def global_search_results(q, hotel_id):
            WHERE hotel_id=? AND (item_name LIKE ? OR category LIKE ?)
            ORDER BY item_name LIMIT 8""",
         (hotel_id, like, like),
+    )
+    results["users"] = query(
+        """SELECT id, username, full_name, role, status FROM users
+           WHERE hotel_id=? AND (username LIKE ? OR full_name LIKE ? OR role LIKE ?)
+           ORDER BY full_name LIMIT 8""",
+        (hotel_id, like, like, like),
     )
     if is_super_admin_role():
         results["hotels"] = query(

@@ -100,6 +100,9 @@
         (results.inventory || []).forEach((inv) => {
           out.push({ label: inv.item_name, meta: `${inv.category || 'Stock'} · Qty ${inv.quantity}`, url: `/inventory?q=${encodeURIComponent(inv.item_name)}`, icon: 'package', group: 'Inventory' });
         });
+        (results.users || []).forEach((u) => {
+          out.push({ label: u.full_name || u.username, meta: u.role || 'User', url: `/admin?q=${encodeURIComponent(u.username)}`, icon: 'shield', group: 'Users' });
+        });
         (results.hotels || []).forEach((h) => {
           out.push({ label: h.hotel_name, meta: h.hotel_code || h.city || 'Hotel', url: `/platform/hotels`, icon: 'building-2', group: 'Hotels' });
         });

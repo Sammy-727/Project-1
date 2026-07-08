@@ -1,18 +1,14 @@
 {% extends "base.html" %}
-{% from "macros/ui.html" import breadcrumb, page_header, empty_state, card_menu, icon, filter_meta, filter_empty, sort_controls %}
+{% from "macros/ui.html" import breadcrumb, page_header, page_shell, empty_state, card_menu, icon, filter_meta, filter_empty, sort_controls, filter_actions %}
 {% set title = "Inventory" %}
 {% block content %}
 
+{% call page_shell() %}
 {{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Operations"}, {"label": "Inventory"}]) }}
-<div class="page-header">
-  <div class="page-header-text">
-    <h1 class="page-title">Inventory</h1>
-    <p class="page-description">Stock levels and suppliers</p>
-  </div>
-  <div class="page-header-actions">
-    <button class="btn btn-primary modal-trigger" data-target="#addInvModal">{{ icon('plus', 16) }} Add Item</button>
-  </div>
-</div>
+{% set header_actions %}
+<button class="btn btn-primary modal-trigger write-action" data-target="#addInvModal">{{ icon('plus', 16) }} Add Item</button>
+{% endset %}
+{{ page_header("Inventory", "Stock levels, suppliers, and reorder alerts", header_actions) }}
 
 <div class="list-filter-shell">
 <form class="filter-toolbar-basic" method="get" data-list-filters data-card-filter="#inventoryCardGrid" data-auto-search="true">
@@ -22,10 +18,7 @@
   </div>
   {{ sort_controls(sort_by|default('item_name'), sort_dir|default('asc'), [('name', 'Name'), ('category', 'Category'), ('stock', 'Stock'), ('date', 'Updated')]) }}
   <button type="button" class="btn btn-ghost btn-sm filter-advanced-toggle" data-advanced-toggle>{{ icon('sliders-horizontal', 14) }} Advanced</button>
-  <div class="filter-toolbar-actions">
-    <button type="button" class="btn btn-ghost btn-sm" data-clear-filters>Clear All</button>
-    <button type="submit" class="btn btn-primary btn-sm">Apply</button>
-  </div>
+  {{ filter_actions() }}
   <div class="filter-advanced-panel" data-advanced-panel style="width:100%">
     <div class="filter-advanced-grid">
       <label>Category<select name="category"><option value="">All</option>{% for c in categories %}<option value="{{ c.category }}" {% if category == c.category %}selected{% endif %}>{{ c.category }}</option>{% endfor %}</select></label>
@@ -76,6 +69,8 @@
 {% else %}
 {{ empty_state("package", "No inventory items", "Add items to track hotel supplies.", "Add Item", "#addInvModal", illustration="inventory") }}
 {% endif %}
+
+{% endcall %}
 
 <!-- modals same as before -->
 <div class="modal" id="addInvModal">

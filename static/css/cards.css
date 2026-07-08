@@ -42,14 +42,24 @@
   border-radius: var(--radius);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
-  transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
+  transition: transform var(--duration-normal, 0.2s) var(--ease-out, ease),
+    box-shadow var(--duration-normal, 0.2s) ease,
+    border-color var(--duration-normal, 0.2s) ease;
   cursor: pointer;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 180px;
 }
 
 .entity-card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-3px);
   box-shadow: var(--shadow);
+  border-color: rgba(79, 70, 229, 0.18);
+}
+
+.entity-card:active {
+  transform: translateY(-1px);
 }
 
 .entity-card-header {

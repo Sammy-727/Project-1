@@ -1,29 +1,21 @@
 {% extends "base.html" %}
-{% from "macros/ui.html" import breadcrumb, page_header, status_badge, empty_state, card_menu, icon, filter_meta, filter_empty, sort_controls, avatar %}
+{% from "macros/ui.html" import breadcrumb, page_header, page_shell, status_badge, empty_state, card_menu, icon, filter_meta, filter_empty, sort_controls, filter_actions, avatar %}
 {% set title = "Employees" %}
 {% block content %}
 
+{% call page_shell() %}
 {{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Staff", "url": "#"}, {"label": "Employees"}]) }}
-
-<div class="page-header">
-  <div class="page-header-text">
-    <h1 class="page-title">Employees</h1>
-    <p class="page-description">Manage your hotel staff, roles, and lifecycle</p>
-  </div>
-  <div class="page-header-actions">
-    <button class="btn btn-primary modal-trigger" data-target="#addEmployeeModal">{{ icon('plus', 16) }} Add Employee</button>
-  </div>
-</div>
+{% set header_actions %}
+<button class="btn btn-primary modal-trigger write-action" data-target="#addEmployeeModal">{{ icon('plus', 16) }} Add Employee</button>
+{% endset %}
+{{ page_header("Employees", "Staff profiles, departments, shifts, and lifecycle", header_actions) }}
 
 <div class="list-filter-shell">
 <form class="filter-toolbar-basic" method="get" id="filterForm" data-list-filters data-card-filter="#employeeCardGrid" data-auto-search="true">
     <input type="search" name="q" placeholder="Search employees..." value="{{ search_q }}" data-local-search class="filter-search">
     {{ sort_controls(sort_by|default('name'), sort_dir|default('asc'), [('name', 'Name'), ('role', 'Role'), ('department', 'Department'), ('status', 'Status'), ('date', 'Joined')]) }}
     <button type="button" class="btn btn-ghost btn-sm filter-advanced-toggle" data-advanced-toggle>{{ icon('sliders-horizontal', 14) }} Advanced</button>
-    <div class="filter-toolbar-actions">
-        <button type="button" class="btn btn-ghost btn-sm" data-clear-filters>Clear All</button>
-        <button type="submit" class="btn btn-primary btn-sm">Apply</button>
-    </div>
+    {{ filter_actions() }}
     <div class="filter-advanced-panel" data-advanced-panel style="width:100%">
       <div class="filter-advanced-grid">
         <label>Status<select name="status"><option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option><option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option><option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option><option value="archived" {% if status_filter == 'archived' %}selected{% endif %}>Archived</option></select></label>
@@ -90,6 +82,8 @@
 {% if not employees %}
 {{ empty_state("briefcase", "No employees yet", "Add your first team member.", "Add Employee", "#addEmployeeModal", illustration="employees") }}
 {% endif %}
+
+{% endcall %}
 
 <div class="modal" id="addEmployeeModal">
     <div class="modal-overlay"></div>
