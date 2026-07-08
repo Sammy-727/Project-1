@@ -17,19 +17,29 @@
     { label: 'Invoices', url: '/invoices', icon: 'file-text', group: 'Pages' },
     { label: 'Reports', url: '/reports', icon: 'bar-chart-3', group: 'Pages' },
     { label: 'Settings', url: '/settings', icon: 'settings', group: 'Pages' },
-    { label: 'New Booking', url: '/bookings?new=1', icon: 'calendar-plus', group: 'Actions' },
-    { label: 'New Guest', url: '/customers?add=1', icon: 'user-plus', group: 'Actions' },
+    { label: 'New Booking', drawerAction: 'booking', icon: 'calendar-plus', group: 'Actions' },
+    { label: 'New Guest', drawerAction: 'addGuest', icon: 'user-plus', group: 'Actions' },
+    { label: 'Add Room', drawerAction: 'addRoom', icon: 'bed-double', group: 'Actions' },
+    { label: 'Add Employee', drawerAction: 'addEmployee', icon: 'briefcase', group: 'Actions' },
+    { label: 'Notifications', drawerAction: 'notifications', icon: 'bell', group: 'Actions' },
     { label: 'Quick Check-in', url: '/checkin-out', icon: 'log-in', group: 'Actions' },
     { label: 'Quick Checkout', url: '/checkin-out', icon: 'log-out', group: 'Actions' },
     { label: 'Record Payment', url: '/payments', icon: 'wallet', group: 'Actions' },
     { label: 'Generate Invoice', url: '/invoices', icon: 'file-plus', group: 'Actions' },
-    { label: 'Search Guest', url: '/customers', icon: 'search', group: 'Actions' },
-    { label: 'Search Booking', url: '/bookings', icon: 'search', group: 'Actions' },
   ];
 
   let activeIndex = 0;
   let items = [];
   let searchTimer = null;
+
+  function isDrawerItem(item) {
+    return Boolean(item.drawerAction || (item.drawerPage && item.drawerSelector));
+  }
+
+  function activateItem(item) {
+    if (window.AppDrawer?.activateCommandItem?.(item)) return;
+    if (item.url) window.location.href = item.url;
+  }
 
   function initCommandPalette() {
     const palette = document.getElementById('commandPalette');
@@ -50,13 +60,20 @@
           html += `<div class="command-group-label">${item.group}</div>`;
           lastGroup = item.group;
         }
-        const href = item.url || '#';
         const cls = i === activeIndex ? 'command-item active' : 'command-item';
-        html += `<a href="${href}" class="${cls}" data-index="${i}">
-          <i data-lucide="${item.icon || 'search'}" class="icon"></i>
-          <span>${escapeHtml(item.label)}</span>
-          ${item.meta ? `<span class="command-meta">${escapeHtml(item.meta)}</span>` : ''}
-        </a>`;
+        if (isDrawerItem(item)) {
+          html += `<button type="button" class="${cls}" data-index="${i}">
+            <i data-lucide="${item.icon || 'search'}" class="icon"></i>
+            <span>${escapeHtml(item.label)}</span>
+            ${item.meta ? `<span class="command-meta">${escapeHtml(item.meta)}</span>` : ''}
+          </button>`;
+        } else {
+          html += `<a href="${item.url || '#'}" class="${cls}" data-index="${i}">
+            <i data-lucide="${item.icon || 'search'}" class="icon"></i>
+            <span>${escapeHtml(item.label)}</span>
+            ${item.meta ? `<span class="command-meta">${escapeHtml(item.meta)}</span>` : ''}
+          </a>`;
+        }
       });
       list.innerHTML = html;
       window.refreshIcons?.(list);
@@ -80,16 +97,44 @@
         const results = data.data || data;
         const out = [];
         (results.customers || []).forEach((c) => {
-          out.push({ label: c.name, meta: c.phone || 'Guest', url: `/customers?q=${encodeURIComponent(c.name)}`, icon: 'user', group: 'Guests' });
+          out.push({
+            label: c.name,
+            meta: c.phone || 'Guest',
+            drawerPage: '/customers',
+            drawerSelector: `#drawerGuest${c.id}`,
+            icon: 'user',
+            group: 'Guests',
+          });
         });
         (results.rooms || []).forEach((r) => {
-          out.push({ label: `Room ${r.room_no}`, meta: r.room_type || r.status, url: `/rooms?q=${encodeURIComponent(r.room_no)}`, icon: 'bed-double', group: 'Rooms' });
+          out.push({
+            label: `Room ${r.room_no}`,
+            meta: r.room_type || r.status,
+            drawerPage: '/rooms',
+            drawerSelector: `#drawerRoom${r.id}`,
+            icon: 'bed-double',
+            group: 'Rooms',
+          });
         });
         (results.bookings || []).forEach((b) => {
-          out.push({ label: `Booking #${b.id} · ${b.name}`, meta: `${b.checkin} → ${b.checkout}`, url: `/bookings?q=${b.id}`, icon: 'calendar-days', group: 'Bookings' });
+          out.push({
+            label: `Booking #${b.id} · ${b.name}`,
+            meta: `${b.checkin} → ${b.checkout}`,
+            drawerPage: '/bookings',
+            drawerSelector: `#drawerBooking${b.id}`,
+            icon: 'calendar-days',
+            group: 'Bookings',
+          });
         });
         (results.employees || []).forEach((e) => {
-          out.push({ label: e.name, meta: e.role || e.department || 'Staff', url: `/employees?q=${encodeURIComponent(e.name)}`, icon: 'briefcase', group: 'Employees' });
+          out.push({
+            label: e.name,
+            meta: e.role || e.department || 'Staff',
+            drawerPage: '/employees',
+            drawerSelector: `#drawerEmp${e.id}`,
+            icon: 'briefcase',
+            group: 'Employees',
+          });
         });
         (results.invoices || []).forEach((inv) => {
           out.push({ label: `Invoice #${inv.invoice_id}`, meta: inv.customer_name, url: `/invoices?q=${inv.invoice_id}`, icon: 'file-text', group: 'Invoices' });
@@ -101,7 +146,7 @@
           out.push({ label: inv.item_name, meta: `${inv.category || 'Stock'} · Qty ${inv.quantity}`, url: `/inventory?q=${encodeURIComponent(inv.item_name)}`, icon: 'package', group: 'Inventory' });
         });
         (results.hotels || []).forEach((h) => {
-          out.push({ label: h.hotel_name, meta: h.hotel_code || h.city || 'Hotel', url: `/platform/hotels`, icon: 'building-2', group: 'Hotels' });
+          out.push({ label: h.hotel_name, meta: h.hotel_code || h.city || 'Hotel', url: '/platform/hotels', icon: 'building-2', group: 'Hotels' });
         });
         return out;
       } catch (_) {
@@ -141,8 +186,18 @@
     input.addEventListener('input', onInput);
 
     list.addEventListener('click', (e) => {
-      const link = e.target.closest('.command-item');
-      if (link) close();
+      const row = e.target.closest('.command-item');
+      if (!row) return;
+      const idx = Number(row.dataset.index);
+      const item = items[idx];
+      if (!item) return;
+      if (isDrawerItem(item)) {
+        e.preventDefault();
+        close();
+        activateItem(item);
+      } else {
+        close();
+      }
     });
 
     document.addEventListener('keydown', (e) => {
@@ -168,11 +223,10 @@
       }
       if (e.key === 'Enter') {
         e.preventDefault();
-        const link = list.querySelector(`[data-index="${activeIndex}"]`);
-        if (link) {
-          close();
-          window.location.href = link.getAttribute('href');
-        }
+        const item = items[activeIndex];
+        if (!item) return;
+        close();
+        activateItem(item);
       }
     });
   }

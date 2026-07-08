@@ -22,7 +22,7 @@ export class NotificationCard {
     const timeLabel = formatRelativeTime(n.createdAt);
     const readClass = n.isRead ? ' is-read' : '';
     const actionBtn = n.actionUrl
-      ? `<a href="${escapeHtml(n.actionUrl)}" class="btn btn-sm btn-outline notification-card-action">${escapeHtml(actionLabel)}</a>`
+      ? `<button type="button" class="btn btn-sm btn-outline notification-card-action" data-action-url="${escapeHtml(n.actionUrl)}">${escapeHtml(actionLabel)}</button>`
       : '';
 
     const el = document.createElement('article');
@@ -51,6 +51,14 @@ export class NotificationCard {
       e.preventDefault();
       e.stopPropagation();
       this.onMarkRead?.(n.id);
+    });
+
+    el.querySelector('.notification-card-action')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const url = e.currentTarget.getAttribute('data-action-url');
+      if (window.AppDrawer?.resolveActionUrl?.(url)) return;
+      if (url) window.location.href = url;
     });
 
     el.querySelector('.notification-dismiss')?.addEventListener('click', (e) => {

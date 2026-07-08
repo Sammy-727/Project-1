@@ -96,6 +96,13 @@
   display: none;
 }
 
+.search-result-card {
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--border-light);
+  cursor: pointer;
+}
+
 body.app-drawer-open {
   overflow: hidden;
 }
@@ -114,4 +121,15 @@ body.app-drawer-open {
   .app-shell-drawer {
     width: min(520px, 42vw);
   }
+}
+
+button.dash-activity-item,
+button.ops-queue-item {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
 }

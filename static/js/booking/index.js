@@ -109,10 +109,20 @@ document.addEventListener('DOMContentLoaded', () => {
     },
   });
 
-  document.getElementById('newBookingBtn')?.addEventListener('click', () => drawer.open());
+  document.getElementById('newBookingBtn')?.addEventListener('click', () => {
+    if (window.AppDrawer?.openBooking) {
+      window.AppDrawer.openBooking();
+      return;
+    }
+    drawer.open();
+  });
 
   if (new URLSearchParams(window.location.search).get('new') === '1') {
-    drawer.open();
+    if (window.AppDrawer?.openBooking) {
+      window.AppDrawer.openBooking();
+    } else {
+      drawer.open();
+    }
   }
 
   const quickAddModal = new AddCustomerModal(document.getElementById('quickAddCustomerModal'), {

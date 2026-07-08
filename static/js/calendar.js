@@ -88,13 +88,19 @@
         const cellBookings = room.bookings.filter((b) => b.checkin <= dayStr && b.checkout > dayStr);
         html += '<div class="calendar-cell">';
         cellBookings.forEach((b) => {
-          html += `<a href="/bookings?q=${b.id}" class="calendar-booking-block ${b.status}" title="${b.guest_name}">${b.guest_name}</a>`;
+          html += `<button type="button" class="calendar-booking-block ${b.status}" data-booking-id="${b.id}" title="${b.guest_name}">${b.guest_name}</button>`;
         });
         html += '</div>';
       });
       html += '</div>';
     });
     grid.innerHTML = html;
+    grid.querySelectorAll('.calendar-booking-block[data-booking-id]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.bookingId;
+        window.AppDrawer?.openDetailFromPage?.('/bookings', `#drawerBooking${id}`, `Booking #${id}`);
+      });
+    });
   }
 
   document.getElementById('calPrev')?.addEventListener('click', () => {

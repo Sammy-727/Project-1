@@ -58,7 +58,7 @@
       </div>
       {{ card_menu([
         {'type': 'button', 'label': 'View Profile', 'icon': 'user', 'drawer': '#drawerGuest' ~ c.id},
-        {'type': 'link', 'label': 'New Booking', 'icon': 'calendar-plus', 'url': url_for('bookings', new_customer=c.id)},
+        {'type': 'button', 'label': 'New Booking', 'icon': 'calendar-plus', 'drawer_action': 'booking', 'booking_customer': c.id},
         {'type': 'button', 'label': 'Edit', 'icon': 'pencil', 'target': '#editCustomer' ~ c.id},
         {'type': 'link', 'label': 'Call', 'icon': 'phone', 'url': 'tel:' ~ c.phone},
       ] + ([{'type': 'form', 'label': 'Delete', 'icon': 'trash-2', 'url': url_for('delete_customer', customer_id=c.id), 'danger': true, 'confirm': 'Delete ' ~ c.name ~ '?'}] if c.booking_count == 0 else [])) }}
@@ -93,7 +93,7 @@
     <div data-profile-mount></div>
     <div class="card-quick-actions">
       <button type="button" class="btn btn-secondary btn-sm modal-trigger" data-target="#editCustomer{{ c.id }}">Edit</button>
-      <a href="{{ url_for('bookings', new_customer=c.id) }}" class="btn btn-primary btn-sm">New Booking</a>
+      <button type="button" class="btn btn-primary btn-sm" data-app-drawer-action="booking" data-booking-customer="{{ c.id }}">New Booking</button>
     </div>
   </aside>
   {% endfor %}

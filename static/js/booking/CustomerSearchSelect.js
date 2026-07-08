@@ -1,4 +1,4 @@
-import { searchCustomers } from './api.js';
+import { searchCustomers, getCustomer } from './api.js';
 
 export class CustomerSearchSelect {
   constructor(root, { onSelect, onAddNew }) {
@@ -95,6 +95,18 @@ export class CustomerSearchSelect {
     this.card.hidden = true;
     this.card.innerHTML = '';
     this.onSelect?.(null);
+  }
+
+  async selectById(id) {
+    if (!id) return;
+    try {
+      const customer = await getCustomer(id);
+      if (customer) this.select(customer);
+    } catch (_) {
+      const customers = await searchCustomers(String(id));
+      const match = customers.find((c) => c.id === Number(id));
+      if (match) this.select(match);
+    }
   }
 
   getValue() {

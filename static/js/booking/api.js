@@ -16,6 +16,10 @@ api.interceptors.response.use(
   },
 );
 
+export function getCustomer(id) {
+  return api.get(`/api/customers/${id}`).then((r) => r.data.customer);
+}
+
 export function searchCustomers(q) {
   return api.get('/api/customers/search', { params: { q } }).then((r) => r.data.customers);
 }

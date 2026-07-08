@@ -66,7 +66,7 @@
       {{ card_menu([
         {'type': 'button', 'label': 'View', 'icon': 'eye', 'drawer': '#drawerRoom' ~ r.id},
         {'type': 'button', 'label': 'Edit', 'icon': 'pencil', 'target': '#editRoom' ~ r.id, 'class': 'modal-trigger'},
-        {'type': 'link', 'label': 'Book', 'icon': 'calendar-plus', 'url': url_for('bookings')},
+        {'type': 'button', 'label': 'Book', 'icon': 'calendar-plus', 'drawer_action': 'booking', 'booking_room': r.room_no},
         {'type': 'link', 'label': 'Check-in', 'icon': 'log-in', 'url': url_for('checkin_out')},
       ]) }}
     </div>
@@ -104,7 +104,7 @@
     </div>
     <div class="card-quick-actions">
       <button type="button" class="btn btn-secondary btn-sm modal-trigger" data-target="#editRoom{{ r.id }}">Edit</button>
-      <a href="{{ url_for('bookings') }}" class="btn btn-primary btn-sm">Book</a>
+      <button type="button" class="btn btn-primary btn-sm" data-app-drawer-action="booking" data-booking-room="{{ r.room_no }}">Book</button>
       <a href="{{ url_for('checkin_out') }}" class="btn btn-outline btn-sm">Check-in/out</a>
     </div>
   </aside>
