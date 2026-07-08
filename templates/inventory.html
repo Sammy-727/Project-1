@@ -14,8 +14,10 @@
   </div>
 </div>
 
+<div class="entity-list-module" data-entity-module="inventory" id="inventoryModule">
+<div class="entity-filter-toolbar-row">
 <div class="list-filter-shell">
-<form class="filter-toolbar-basic" method="get" data-list-filters data-card-filter="#inventoryCardGrid" data-auto-search="true">
+<form class="filter-toolbar-basic" method="get" id="inventoryFilterForm" data-list-filters data-entity-api="true" data-auto-search="false">
   <div class="table-search-wrap filter-search">
     {{ icon('search', 16) }}
     <input type="search" name="q" placeholder="Search items..." value="{{ search_q }}" data-local-search>
@@ -23,7 +25,7 @@
   {{ sort_controls(sort_by|default('item_name'), sort_dir|default('asc'), [('name', 'Name'), ('category', 'Category'), ('stock', 'Stock'), ('date', 'Updated')]) }}
   <button type="button" class="btn btn-ghost btn-sm filter-advanced-toggle" data-advanced-toggle>{{ icon('sliders-horizontal', 14) }} Advanced</button>
   <div class="filter-toolbar-actions">
-    <button type="button" class="btn btn-ghost btn-sm" data-clear-filters>Clear All</button>
+    <button type="button" class="btn btn-ghost btn-sm" data-reset-entity-filters data-clear-filters>Clear All</button>
     <button type="submit" class="btn btn-primary btn-sm">Apply</button>
   </div>
   <div class="filter-advanced-panel" data-advanced-panel style="width:100%">
@@ -39,9 +41,14 @@
 {{ filter_meta(list_showing|default(items|length), list_total|default(items|length)) }}
 {{ filter_empty() }}
 </div>
+<div id="inventoryViewSwitcher"></div>
+</div>
+
+<div id="inventoryToolbar" hidden></div>
 
 {% if items %}
-<div data-list-results>
+<div class="entity-views-container" data-list-results>
+<div id="inventoryTableView" class="entity-view-panel" hidden></div>
 <div class="entity-grid" id="inventoryCardGrid" data-view-panel="cards" data-page="inventory">
   {% for i in items %}
   <article class="entity-card {% if i.quantity <= i.reorder_level %}low-stock{% endif %}" data-searchable
@@ -76,6 +83,7 @@
 {% else %}
 {{ empty_state("package", "No inventory items", "Add items to track hotel supplies.", "Add Item", "#addInvModal", illustration="inventory") }}
 {% endif %}
+</div>
 
 <!-- modals same as before -->
 <div class="modal" id="addInvModal">
@@ -120,4 +128,9 @@
 </div>
 {% endfor %}
 
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script type="module" src="{{ url_for('static', filename='js/entity/index.js') }}"></script>
 {% endblock %}

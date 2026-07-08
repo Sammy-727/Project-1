@@ -1,0 +1,129 @@
+/* Site-wide entity list multi-view (Guests, Rooms, Employees, Inventory) */
+
+.entity-list-module {
+  --entity-view-ease: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.entity-filter-toolbar-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.entity-filter-toolbar-row .list-filter-shell {
+  flex: 1;
+  min-width: min(100%, 520px);
+  margin-bottom: 0;
+}
+
+.entity-view-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+
+.entity-view-switcher-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 0 8px 0 10px;
+}
+
+.entity-view-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.entity-view-btn:hover {
+  color: var(--text);
+  background: var(--bg-elevated);
+}
+
+.entity-view-btn.active {
+  background: var(--bg-elevated);
+  color: var(--primary);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+.entity-view-btn .icon {
+  width: 15px;
+  height: 15px;
+}
+
+.entity-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.entity-toolbar-meta {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.entity-toolbar-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.entity-views-container {
+  position: relative;
+}
+
+.entity-view-panel[hidden] {
+  display: none !important;
+}
+
+.entity-view-transition .entity-grid,
+.entity-view-transition .entity-table-wrap {
+  animation: entityViewFade 0.28s var(--entity-view-ease);
+}
+
+@keyframes entityViewFade {
+  from { opacity: 0.6; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.entity-table-wrap .table-actions {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.entity-table-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 4px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+@media (max-width: 768px) {
+  .entity-view-btn-text {
+    display: none;
+  }
+  .entity-filter-toolbar-row {
+    flex-direction: column;
+  }
+}

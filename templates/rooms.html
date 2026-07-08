@@ -11,16 +11,14 @@
     <p class="page-description">Manage inventory, pricing, and availability</p>
   </div>
   <div class="page-header-actions">
-    <div class="floor-view-toggle" role="tablist" aria-label="Room view">
-      <button type="button" class="btn btn-sm btn-primary" data-room-view="cards" aria-pressed="true">Cards</button>
-      <button type="button" class="btn btn-sm btn-ghost" data-room-view="floor" aria-pressed="false">Floor View</button>
-    </div>
     <button class="btn btn-primary modal-trigger" data-target="#addRoomModal">{{ icon('plus', 16) }} Add Room</button>
   </div>
 </div>
 
+<div class="entity-list-module" data-entity-module="rooms" id="roomsModule">
+<div class="entity-filter-toolbar-row">
 <div class="list-filter-shell">
-<form class="filter-toolbar-basic" method="get" data-list-filters data-card-filter="#roomCardGrid" data-enrich-bookings data-auto-search="true">
+<form class="filter-toolbar-basic" method="get" id="roomsFilterForm" data-list-filters data-entity-api="true" data-enrich-bookings data-auto-search="false">
   <div class="table-search-wrap filter-search">
     {{ icon('search', 16) }}
     <input type="search" name="q" placeholder="Search rooms..." value="{{ search_q }}" data-local-search>
@@ -30,7 +28,7 @@
   ]) }}
   <button type="button" class="btn btn-ghost btn-sm filter-advanced-toggle" data-advanced-toggle>{{ icon('sliders-horizontal', 14) }} Advanced</button>
   <div class="filter-toolbar-actions">
-    <button type="button" class="btn btn-ghost btn-sm" data-clear-filters>Clear All</button>
+    <button type="button" class="btn btn-ghost btn-sm" data-reset-entity-filters data-clear-filters>Clear All</button>
     <button type="submit" class="btn btn-primary btn-sm">Apply</button>
   </div>
   <div class="filter-advanced-panel" data-advanced-panel style="width:100%">
@@ -47,9 +45,14 @@
 {{ filter_meta(list_showing|default(rooms|length), list_total|default(rooms|length)) }}
 {{ filter_empty() }}
 </div>
+<div id="roomsViewSwitcher"></div>
+</div>
+
+<div id="roomsToolbar" hidden></div>
 
 {% if rooms %}
-<div data-list-results>
+<div class="entity-views-container" data-list-results>
+<div id="roomsTableView" class="entity-view-panel" hidden></div>
 <div class="entity-grid wide" id="roomCardGrid" data-view-panel="cards" data-page="rooms" data-enrich-bookings>
   {% for r in rooms %}
   {% set amenities = (r.amenities or '').split(',')[:4] %}
@@ -137,9 +140,11 @@
   {% endfor %}
 </div>
 </div>
+</div>
 {% else %}
 {{ empty_state("bed-double", "No rooms yet", "Add your first room to start managing availability.", "Add Room", "#addRoomModal", illustration="rooms") }}
 {% endif %}
+</div>
 
 <!-- Add / Edit modals unchanged -->
 <div class="modal" id="addRoomModal">
@@ -211,19 +216,5 @@
 {% block scripts %}
 {{ super() }}
 <script src="{{ url_for('static', filename='js/image-upload.js') }}"></script>
-<script>
-document.querySelectorAll('[data-room-view]').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    const view = btn.dataset.roomView;
-    document.getElementById('roomCardGrid')?.toggleAttribute('hidden', view === 'floor');
-    document.getElementById('floorView')?.toggleAttribute('hidden', view !== 'floor');
-    document.querySelectorAll('[data-room-view]').forEach((b) => {
-      const active = b.dataset.roomView === view;
-      b.classList.toggle('btn-primary', active);
-      b.classList.toggle('btn-ghost', !active);
-      b.setAttribute('aria-pressed', active ? 'true' : 'false');
-    });
-  });
-});
-</script>
+<script type="module" src="{{ url_for('static', filename='js/entity/index.js') }}"></script>
 {% endblock %}

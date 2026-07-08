@@ -253,6 +253,17 @@ def update_booking_payment_status(booking_id):
           (total, status, booking_id), commit=True)
 
 
+def row_get(row, key, default=None):
+    if row is None:
+        return default
+    if isinstance(row, dict):
+        return row.get(key, default)
+    try:
+        return row[key]
+    except (KeyError, IndexError, TypeError):
+        return default
+
+
 def customer_to_dict(row):
     if not row:
         return None
@@ -268,6 +279,92 @@ def customer_to_dict(row):
         "id_proof_type": d["id_proof_type"],
         "id_proof_number": d["id_proof_number"],
         "emergency_contact": d.get("emergency_contact"),
+    }
+
+
+def customer_list_row_to_dict(row, booking_count=0):
+    d = dict(row)
+    bc = booking_count if booking_count is not None else d.get("booking_count", 0)
+    loyalty = "Gold" if bc >= 5 else ("Silver" if bc >= 2 else "New")
+    return {
+        "id": d["id"],
+        "name": d["name"],
+        "phone": d["phone"],
+        "email": d.get("email"),
+        "address": d.get("address"),
+        "booking_count": bc,
+        "loyalty": loyalty,
+        "guest_type": "Returning" if bc > 1 else "New",
+        "image_url": d.get("image_url"),
+        "id_proof_type": d.get("id_proof_type"),
+        "gender": d.get("gender"),
+        "age": d.get("age"),
+    }
+
+
+def room_list_row_to_dict(row):
+    d = dict(row)
+    return {
+        "id": d["id"],
+        "room_no": d["room_no"],
+        "room_type": d.get("room_type") or d.get("category"),
+        "floor": d.get("floor") or 1,
+        "price": float(d.get("price") or 0),
+        "capacity": d.get("capacity") or 2,
+        "status": d.get("status"),
+        "amenities": d.get("amenities"),
+        "image_url": d.get("image_url"),
+    }
+
+
+def employee_list_row_to_dict(row):
+    d = dict(row)
+    return {
+        "id": d["id"],
+        "name": d["name"],
+        "phone": d.get("phone"),
+        "email": d.get("email"),
+        "role": d.get("role") or d.get("designation"),
+        "department": d.get("department"),
+        "status": d.get("status"),
+        "shift": d.get("shift"),
+        "joining_date": d.get("joining_date"),
+        "salary": float(d.get("salary") or 0),
+        "image_url": d.get("image_url"),
+    }
+
+
+def inventory_list_row_to_dict(row):
+    d = dict(row)
+    qty = int(d.get("quantity") or 0)
+    reorder = int(d.get("reorder_level") or 0)
+    stock = "out" if qty == 0 else ("low" if qty <= reorder else "in_stock")
+    return {
+        "id": d["id"],
+        "item_name": d["item_name"],
+        "category": d.get("category"),
+        "quantity": qty,
+        "unit": d.get("unit"),
+        "price": float(d.get("price") or 0),
+        "reorder_level": reorder,
+        "supplier_name": d.get("supplier_name"),
+        "last_updated": d.get("last_updated"),
+        "stock_status": stock,
+    }
+
+
+def housekeeping_list_row_to_dict(row):
+    d = dict(row)
+    return {
+        "id": d["id"],
+        "room_no": d.get("room_no"),
+        "room_type": d.get("room_type"),
+        "staff_name": d.get("staff_name"),
+        "status": d.get("status"),
+        "priority": d.get("priority"),
+        "notes": d.get("notes"),
+        "created_at": d.get("created_at"),
+        "completed_at": d.get("completed_at"),
     }
 
 
@@ -1940,6 +2037,83 @@ def api_bookings_list():
     page_rows, total, page, size = paginate_rows(rows, f["page"], f["size"])
     return api_ok(
         bookings=[booking_row_to_dict(r) for r in page_rows],
+        total=total,
+        page=page,
+        size=size,
+        showing=len(page_rows),
+    )
+
+
+@app.route("/api/customers/list")
+def api_customers_list():
+    sql, params, f = customers_query(get_current_hotel_id())
+    customer_list = []
+    for c in query(sql, params):
+        bc = query("SELECT COUNT(*) c FROM bookings WHERE customer_id=?", (c["id"],), one=True)["c"]
+        if f["guest_type"] == "new" and bc > 1:
+            continue
+        if f["guest_type"] == "returning" and bc <= 1:
+            continue
+        customer_list.append(customer_list_row_to_dict(c, bc))
+    page_rows, total, page, size = paginate_rows(customer_list, f["page"], f["size"])
+    return api_ok(
+        customers=page_rows,
+        total=total,
+        page=page,
+        size=size,
+        showing=len(page_rows),
+    )
+
+
+@app.route("/api/rooms/list")
+def api_rooms_list():
+    sql, params, f = rooms_query(get_current_hotel_id())
+    rows = query(sql, params)
+    page_rows, total, page, size = paginate_rows(rows, f["page"], f["size"])
+    return api_ok(
+        rooms=[room_list_row_to_dict(r) for r in page_rows],
+        total=total,
+        page=page,
+        size=size,
+        showing=len(page_rows),
+    )
+
+
+@app.route("/api/employees/list")
+@role_required(*admin_roles())
+def api_employees_list():
+    employee_list, f = _employee_list_query()
+    page_rows, total, page, size = paginate_rows(employee_list, f["page"], f["size"])
+    return api_ok(
+        employees=[employee_list_row_to_dict(r) for r in page_rows],
+        total=total,
+        page=page,
+        size=size,
+        showing=len(page_rows),
+    )
+
+
+@app.route("/api/inventory/list")
+def api_inventory_list():
+    sql, params, f = inventory_query(get_current_hotel_id())
+    rows = query(sql, params)
+    page_rows, total, page, size = paginate_rows(rows, f["page"], f["size"])
+    return api_ok(
+        items=[inventory_list_row_to_dict(r) for r in page_rows],
+        total=total,
+        page=page,
+        size=size,
+        showing=len(page_rows),
+    )
+
+
+@app.route("/api/housekeeping/list")
+def api_housekeeping_list():
+    sql, params, f = housekeeping_query(get_current_hotel_id())
+    rows = query(sql, params)
+    page_rows, total, page, size = paginate_rows(rows, f["page"], f["size"])
+    return api_ok(
+        tasks=[housekeeping_list_row_to_dict(r) for r in page_rows],
         total=total,
         page=page,
         size=size,

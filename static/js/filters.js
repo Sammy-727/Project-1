@@ -6,6 +6,8 @@ const FilterUI = {
     document.querySelectorAll('[data-list-filters]').forEach((form) => this.initForm(form));
     document.querySelectorAll('[data-clear-filters]').forEach((btn) => {
       btn.addEventListener('click', (e) => {
+        const form = btn.closest('form');
+        if (form?.dataset.entityApi === 'true') return;
         e.preventDefault();
         window.location.href = window.location.pathname;
       });
@@ -43,6 +45,11 @@ const FilterUI = {
 
     form.querySelector('[data-clear-filters]')?.addEventListener('click', (e) => {
       e.preventDefault();
+      if (form.dataset.entityApi === 'true') {
+        form.reset();
+        form.requestSubmit();
+        return;
+      }
       const base = form.getAttribute('action') || window.location.pathname;
       window.location.href = base;
     });

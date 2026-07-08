@@ -14,8 +14,10 @@
   </div>
 </div>
 
+<div class="entity-list-module" data-entity-module="guests" id="guestsModule">
+<div class="entity-filter-toolbar-row">
 <div class="list-filter-shell">
-<form class="filter-toolbar-basic" method="get" data-list-filters data-card-filter="#guestCardGrid" data-auto-search="true">
+<form class="filter-toolbar-basic" method="get" id="guestsFilterForm" data-list-filters data-entity-api="true" data-auto-search="false">
   <div class="table-search-wrap filter-search">
     {{ icon('search', 16) }}
     <input type="search" name="q" placeholder="Search name, phone, email..." value="{{ search_q }}" data-local-search>
@@ -23,7 +25,7 @@
   {{ sort_controls(sort_by|default('id'), sort_dir|default('desc'), [('name', 'Name'), ('phone', 'Phone'), ('email', 'Email'), ('date', 'Date added')]) }}
   <button type="button" class="btn btn-ghost btn-sm filter-advanced-toggle" data-advanced-toggle>{{ icon('sliders-horizontal', 14) }} Advanced</button>
   <div class="filter-toolbar-actions">
-    <button type="button" class="btn btn-ghost btn-sm" data-clear-filters>Clear All</button>
+    <button type="button" class="btn btn-ghost btn-sm" data-reset-entity-filters data-clear-filters>Clear All</button>
     <button type="submit" class="btn btn-primary btn-sm">Apply</button>
   </div>
   <div class="filter-advanced-panel" data-advanced-panel style="width:100%">
@@ -40,9 +42,14 @@
 {{ filter_meta(list_showing|default(customers|length), list_total|default(customers|length)) }}
 {{ filter_empty() }}
 </div>
+<div id="guestsViewSwitcher"></div>
+</div>
+
+<div id="guestsToolbar" hidden></div>
 
 {% if customers %}
-<div data-list-results>
+<div class="entity-views-container" data-list-results>
+<div id="guestsTableView" class="entity-view-panel" hidden></div>
 <div class="entity-grid wide" id="guestCardGrid" data-view-panel="cards" data-page="guests">
   {% for c in customers %}
   {% set loyalty = 'Gold' if c.booking_count >= 5 else ('Silver' if c.booking_count >= 2 else 'New') %}
@@ -102,6 +109,7 @@
 {% else %}
 {{ empty_state("users", "No guests found", "Add your first guest to start taking bookings.", "Add Guest", "#addCustomerModal", illustration="bookings") }}
 {% endif %}
+</div>
 
 <div class="modal" id="addCustomerModal">
     <div class="modal-overlay"></div>
@@ -169,6 +177,7 @@
 {% block scripts %}
 {{ super() }}
 <script src="{{ url_for('static', filename='js/image-upload.js') }}"></script>
+<script type="module" src="{{ url_for('static', filename='js/entity/index.js') }}"></script>
 <script>
 if (new URLSearchParams(window.location.search).get('add') === '1') {
   window.AppDrawer?.openFromModal('#addCustomerModal');
