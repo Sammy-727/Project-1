@@ -10,6 +10,7 @@
       <a href="/checkin-out" class="write-action"><i data-lucide="log-out" class="icon"></i> Check-out</a>
       <button type="button" data-app-drawer-fetch="/customers" data-app-drawer-modal="addCustomerModal" data-app-drawer-title="Add Guest" class="write-action"><i data-lucide="user-plus" class="icon"></i> Add Guest</button>
       <button type="button" data-app-drawer-fetch="/employees" data-app-drawer-modal="addEmployeeModal" data-app-drawer-title="Add Employee" class="write-action"><i data-lucide="briefcase" class="icon"></i> Add Employee</button>
+      <button type="button" data-app-drawer-fetch="/rooms" data-app-drawer-modal="addRoomModal" data-app-drawer-title="Add Room" class="write-action"><i data-lucide="bed-double" class="icon"></i> Add Room</button>
       <a href="/payments" class="write-action"><i data-lucide="credit-card" class="icon"></i> Record Payment</a>
     </div>
     <button type="button" class="fab-trigger" id="fabTrigger" aria-label="Quick actions" aria-expanded="false">

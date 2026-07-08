@@ -20,7 +20,10 @@
 <h3 class="search-section-title">{{ icon('users', 16) }} Guests ({{ results.customers|length }})</h3>
 <div class="search-results-grid">
   {% for c in results.customers %}
-  <a href="{{ url_for('customers', q=c.name) }}" class="entity-card">
+  <button type="button" class="entity-card search-result-card"
+    data-app-drawer-fetch="{{ url_for('customers') }}"
+    data-app-drawer-selector="#drawerGuest{{ c.id }}"
+    data-app-drawer-title="{{ c.name }}">
     <div class="entity-card-header">
       <div class="entity-card-title" style="font-size:16px">{{ c.name }}</div>
       {{ icon('chevron-right', 16) }}
@@ -28,7 +31,7 @@
     <div class="entity-card-body">
       <div class="entity-card-sub">{{ c.phone }} · {{ c.email or 'No email' }}</div>
     </div>
-  </a>
+  </button>
   {% endfor %}
 </div>
 {% endif %}
@@ -37,7 +40,10 @@
 <h3 class="search-section-title">{{ icon('bed-double', 16) }} Rooms ({{ results.rooms|length }})</h3>
 <div class="search-results-grid">
   {% for r in results.rooms %}
-  <a href="{{ url_for('rooms', q=r.room_no) }}" class="entity-card">
+  <button type="button" class="entity-card search-result-card"
+    data-app-drawer-fetch="{{ url_for('rooms') }}"
+    data-app-drawer-selector="#drawerRoom{{ r.id }}"
+    data-app-drawer-title="Room {{ r.room_no }}">
     <div class="entity-card-header">
       <div class="entity-card-title" style="font-size:16px">Room {{ r.room_no }}</div>
       {{ status_badge(r.status) }}
@@ -45,7 +51,7 @@
     <div class="entity-card-body">
       <div class="entity-card-sub">{{ r.room_type }} · ₹{{ "{:,.0f}".format(r.price) }}/night</div>
     </div>
-  </a>
+  </button>
   {% endfor %}
 </div>
 {% endif %}
@@ -54,7 +60,10 @@
 <h3 class="search-section-title">{{ icon('calendar-days', 16) }} Bookings ({{ results.bookings|length }})</h3>
 <div class="search-results-grid">
   {% for b in results.bookings %}
-  <a href="{{ url_for('bookings', q=b.id) }}" class="entity-card">
+  <button type="button" class="entity-card search-result-card"
+    data-app-drawer-fetch="{{ url_for('bookings') }}"
+    data-app-drawer-selector="#drawerBooking{{ b.id }}"
+    data-app-drawer-title="Booking #{{ b.id }}">
     <div class="entity-card-header">
       <div class="entity-card-title" style="font-size:16px">#{{ b.id }} · {{ b.name }}</div>
       {{ status_badge(b.status) }}
@@ -62,7 +71,7 @@
     <div class="entity-card-body">
       <div class="entity-card-sub">Room {{ b.room_no }} · {{ b.checkin }} → {{ b.checkout }}</div>
     </div>
-  </a>
+  </button>
   {% endfor %}
 </div>
 {% endif %}
@@ -71,14 +80,17 @@
 <h3 class="search-section-title">{{ icon('briefcase', 16) }} Employees ({{ results.employees|length }})</h3>
 <div class="search-results-grid">
   {% for e in results.employees %}
-  <a href="{{ url_for('employees', q=e.name) }}" class="entity-card">
+  <button type="button" class="entity-card search-result-card"
+    data-app-drawer-fetch="{{ url_for('employees') }}"
+    data-app-drawer-selector="#drawerEmp{{ e.id }}"
+    data-app-drawer-title="{{ e.name }}">
     <div class="entity-card-header">
       <div class="entity-card-title" style="font-size:16px">{{ e.name }}</div>
     </div>
     <div class="entity-card-body">
       <div class="entity-card-sub">{{ e.role or '—' }} · {{ e.department or '—' }}</div>
     </div>
-  </a>
+  </button>
   {% endfor %}
 </div>
 {% endif %}

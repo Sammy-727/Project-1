@@ -1,5 +1,5 @@
 /**
- * AppDrawer — reusable right-side panel for quick forms, edits, and detail previews.
+ * SideDrawer / AppDrawer — reusable right-side panel for quick forms, edits, and detail previews.
  * Full modules (lists, reports, settings, calendar) use normal page navigation.
  */
 (function initAppDrawer(global) {
@@ -10,6 +10,19 @@
 
   let bookingModulePromise = null;
   let bookingDrawerInstance = null;
+
+  const drawerState = {
+    isOpen: false,
+    title: '',
+    content: '',
+    selectedItem: null,
+  };
+
+  function syncState() {
+    drawerState.isOpen = isOpen();
+    drawerState.title = titleEl()?.textContent || '';
+    drawerState.content = body()?.innerHTML || '';
+  }
 
   function isOpen() {
     return shell()?.classList.contains('open');
@@ -33,6 +46,7 @@
     document.body.classList.add('app-drawer-open');
     el.querySelector('.app-shell-drawer-close')?.focus();
     global.refreshIcons?.(el);
+    syncState();
   }
 
   function close() {
@@ -44,10 +58,15 @@
     document.body.classList.remove('app-drawer-open');
     if (body()) body().innerHTML = '';
     bookingDrawerInstance = null;
+    drawerState.isOpen = false;
+    drawerState.title = '';
+    drawerState.content = '';
+    drawerState.selectedItem = null;
   }
 
   function setTitle(title) {
     if (titleEl()) titleEl().textContent = title || '';
+    drawerState.title = title || '';
   }
 
   function showLoading() {
@@ -59,13 +78,16 @@
       </div>`;
   }
 
-  function setContent(html, title) {
+  function setContent(html, title, selectedItem = null) {
     setTitle(title);
     if (body()) body().innerHTML = html;
+    drawerState.content = html;
+    drawerState.selectedItem = selectedItem;
     rebind(body());
     global.ImageUpload?.bind?.(body());
     global.refreshIcons?.(body());
     document.dispatchEvent(new CustomEvent('app-drawer:content'));
+    syncState();
   }
 
   function openFromModal(selector) {
@@ -85,7 +107,7 @@
     const content = modal.querySelector('.modal-content');
     if (!content) return false;
     const title = content.querySelector('h3, h2')?.textContent?.trim() || 'Form';
-    setContent(content.innerHTML, title);
+    setContent(content.innerHTML, title, { type: 'form', selector });
     open();
     return true;
   }
@@ -94,7 +116,7 @@
     const el = document.querySelector(selector);
     if (!el) return false;
     const title = el.querySelector('h2, h3')?.textContent?.trim() || 'Details';
-    setContent(el.innerHTML, title);
+    setContent(el.innerHTML, title, { type: 'detail', selector });
     open();
     return true;
   }
@@ -113,7 +135,11 @@
       const modal = doc.getElementById(modalId);
       const content = modal?.querySelector('.modal-content');
       if (!content) throw new Error('modal missing');
-      setContent(content.innerHTML, title || content.querySelector('h3, h2')?.textContent?.trim() || 'Form');
+      setContent(
+        content.innerHTML,
+        title || content.querySelector('h3, h2')?.textContent?.trim() || 'Form',
+        { type: 'form', pageUrl, modalId },
+      );
       return true;
     } catch (_) {
       setContent('<p class="ops-empty">Unable to load this form.</p>', 'Error');
@@ -121,7 +147,32 @@
     }
   }
 
-  async function openBooking() {
+  async function openDetailFromPage(pageUrl, selector, title) {
+    if (openFromElement(selector)) return true;
+    showLoading();
+    open();
+    try {
+      const res = await fetch(pageUrl, {
+        headers: { 'X-App-Drawer': '1', 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin',
+      });
+      if (!res.ok) throw new Error('load failed');
+      const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+      const el = doc.querySelector(selector);
+      if (!el) throw new Error('detail missing');
+      setContent(
+        el.innerHTML,
+        title || el.querySelector('h2, h3')?.textContent?.trim() || 'Details',
+        { type: 'detail', pageUrl, selector },
+      );
+      return true;
+    } catch (_) {
+      setContent('<p class="ops-empty">Unable to load details.</p>', 'Error');
+      return false;
+    }
+  }
+
+  async function openBooking(options = {}) {
     const meta = global.__BOOKING_META__ || { sources: [], modes: [] };
     setContent('<div id="bookingDrawerHost" class="booking-drawer-host"></div>', 'New Booking');
     open();
@@ -142,7 +193,8 @@
         global.showToast?.('Booking created successfully.', 'success');
       },
     });
-    bookingDrawerInstance.open();
+    await bookingDrawerInstance.open(options);
+    drawerState.selectedItem = { type: 'booking', ...options };
     global.refreshIcons?.(host);
   }
 
@@ -157,6 +209,22 @@
         headers: { 'X-App-Drawer': '1', 'X-Requested-With': 'XMLHttpRequest' },
         credentials: 'same-origin',
       });
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const data = await res.json();
+        if (!res.ok || data.ok === false) {
+          global.showToast?.(data.error || 'Could not save. Please check the form.', 'danger');
+          return;
+        }
+        close();
+        await refreshBackgroundList();
+        global.showToast?.(data.message || 'Saved successfully.', 'success');
+        global.refreshNotifications?.();
+        if (data.next_action === 'booking') {
+          await openBooking({ customerId: data.customer_id });
+        }
+        return;
+      }
       if (!res.ok) {
         global.showToast?.('Could not save. Please check the form.', 'danger');
         return;
@@ -195,6 +263,78 @@
     return openFromElement(selector);
   }
 
+  function resolveActionUrl(url) {
+    if (!url) return false;
+    try {
+      const u = new URL(url, window.location.origin);
+      const path = u.pathname.replace(/\/$/, '');
+      const q = u.searchParams.get('q');
+
+      if (path === '/bookings' && u.searchParams.get('new') === '1') {
+        openBooking();
+        return true;
+      }
+      if (path === '/customers' && u.searchParams.get('add') === '1') {
+        openModalFromPage('/customers', 'addCustomerModal', 'Add Guest');
+        return true;
+      }
+      if (path === '/bookings' && q && /^\d+$/.test(q)) {
+        openDetailFromPage('/bookings', `#drawerBooking${q}`, `Booking #${q}`);
+        return true;
+      }
+      if (path === '/customers' && q) {
+        openDetailFromPage('/customers', `#drawerGuest${q}`, 'Guest');
+        return true;
+      }
+      if (path === '/rooms' && q) {
+        openDetailFromPage('/rooms', `#drawerRoom${q}`, `Room ${q}`);
+        return true;
+      }
+      if (path === '/employees' && q) {
+        openDetailFromPage('/employees', `#drawerEmp${q}`, 'Employee');
+        return true;
+      }
+      if (path === '/payments' || path === '/inventory') {
+        openModalFromPage(path, 'addPaymentModal', 'Record Payment');
+        return true;
+      }
+    } catch (_) { /* ignore */ }
+    return false;
+  }
+
+  function activateCommandItem(item) {
+    if (!item) return false;
+    if (item.drawerAction === 'booking') {
+      openBooking(item.bookingOptions || {});
+      return true;
+    }
+    if (item.drawerAction === 'addGuest') {
+      openModalFromPage('/customers', 'addCustomerModal', 'Add Guest');
+      return true;
+    }
+    if (item.drawerAction === 'addEmployee') {
+      openModalFromPage('/employees', 'addEmployeeModal', 'Add Employee');
+      return true;
+    }
+    if (item.drawerAction === 'addRoom') {
+      openModalFromPage('/rooms', 'addRoomModal', 'Add Room');
+      return true;
+    }
+    if (item.drawerAction === 'notifications') {
+      document.getElementById('notificationBellBtn')?.click();
+      return true;
+    }
+    if (item.drawerPage && item.drawerSelector) {
+      openDetailFromPage(item.drawerPage, item.drawerSelector, item.label);
+      return true;
+    }
+    if (item.url) {
+      window.location.href = item.url;
+      return true;
+    }
+    return false;
+  }
+
   function rebind(root) {
     const r = root || document;
 
@@ -221,7 +361,9 @@
   function handleQuickAction(el) {
     const action = el.dataset.appDrawerAction;
     if (action === 'booking') {
-      openBooking();
+      const customerId = el.dataset.bookingCustomer ? Number(el.dataset.bookingCustomer) : undefined;
+      const roomNo = el.dataset.bookingRoom || undefined;
+      openBooking({ customerId, roomNo });
       return true;
     }
     if (action === 'notifications') {
@@ -234,7 +376,52 @@
       openModalFromPage(fetchUrl || window.location.pathname, modalId, el.dataset.appDrawerTitle || '');
       return true;
     }
+    const detailSelector = el.dataset.appDrawerSelector;
+    if (detailSelector) {
+      openDetailFromPage(
+        el.dataset.appDrawerFetch || window.location.pathname,
+        detailSelector,
+        el.dataset.appDrawerTitle || '',
+      );
+      return true;
+    }
     return false;
+  }
+
+  function handleDrawerClick(e) {
+    const modalBtn = e.target.closest('.modal-trigger[data-target]');
+    if (modalBtn) {
+      const target = modalBtn.getAttribute('data-target');
+      if (target) {
+        e.preventDefault();
+        e.stopPropagation();
+        openFromModal(target);
+        return;
+      }
+    }
+
+    const drawerBtn = e.target.closest('[data-drawer]');
+    if (drawerBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      openDrawerSelector(drawerBtn.getAttribute('data-drawer'));
+      return;
+    }
+
+    const detailBtn = e.target.closest('[data-app-drawer-selector]');
+    if (detailBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      handleQuickAction(detailBtn);
+      return;
+    }
+
+    const quickBtn = e.target.closest('[data-app-drawer-action], [data-app-drawer-modal]');
+    if (quickBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      handleQuickAction(quickBtn);
+    }
   }
 
   function bindGlobal() {
@@ -247,46 +434,28 @@
       if (e.key === 'Escape' && isOpen()) close();
     });
 
-    document.addEventListener('click', (e) => {
-      const modalBtn = e.target.closest('.modal-trigger[data-target]');
-      if (modalBtn && !modalBtn.closest('#appShellDrawer')) {
-        const target = modalBtn.getAttribute('data-target');
-        if (target && document.querySelector(target)) {
-          e.preventDefault();
-          e.stopPropagation();
-          openFromModal(target);
-          return;
-        }
-      }
-
-      const drawerBtn = e.target.closest('[data-drawer]');
-      if (drawerBtn && !drawerBtn.closest('#appShellDrawer')) {
-        e.preventDefault();
-        e.stopPropagation();
-        openDrawerSelector(drawerBtn.getAttribute('data-drawer'));
-        return;
-      }
-
-      const quickBtn = e.target.closest('[data-app-drawer-action], [data-app-drawer-modal]');
-      if (quickBtn) {
-        e.preventDefault();
-        handleQuickAction(quickBtn);
-      }
-    }, true);
+    document.addEventListener('click', handleDrawerClick, true);
   }
 
-  global.AppDrawer = {
+  const api = {
     open,
     close,
     isOpen,
+    getState: () => ({ ...drawerState }),
     openFromModal,
     openFromElement,
     openDrawerSelector,
     openModalFromPage,
+    openDetailFromPage,
     openBooking,
     refreshBackgroundList,
+    resolveActionUrl,
+    activateCommandItem,
     rebind,
   };
+
+  global.AppDrawer = api;
+  global.SideDrawer = api;
 
   document.addEventListener('DOMContentLoaded', () => {
     bindGlobal();

@@ -202,13 +202,17 @@ export class BookingDrawer {
     this.errorEl.hidden = true;
   }
 
-  open() {
+  async open(options = {}) {
     this.step = 1;
     this.state = this.defaultState();
     this.customerSearch.clear();
     this.roomPicker.selected = null;
     this.paymentStep.advanceInput.value = 0;
     this.renderSteps();
+    if (options.customerId) {
+      await this.customerSearch.selectById(options.customerId);
+      this.state.customer = this.customerSearch.getValue();
+    }
     if (!this.embedded) {
       this.drawer.classList.add('open');
       document.getElementById('drawerBackdrop')?.classList.add('show');

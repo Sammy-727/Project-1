@@ -209,7 +209,15 @@
       {% if item.type == 'link' %}
       <a href="{{ item.url }}" class="actions-item">{% if item.icon %}{{ icon(item.icon, 14) }}{% endif %}{{ item.label }}</a>
       {% elif item.type == 'button' %}
-      <button type="button" class="actions-item {% if item.target %}modal-trigger{% endif %} {{ item.class or '' }}" {% if item.target %}data-target="{{ item.target }}"{% endif %} {% if item.drawer %}data-drawer="{{ item.drawer }}"{% endif %}>{% if item.icon %}{{ icon(item.icon, 14) }}{% endif %}{{ item.label }}</button>
+      <button type="button" class="actions-item {% if item.target %}modal-trigger{% endif %} {{ item.class or '' }}"
+        {% if item.target %}data-target="{{ item.target }}"{% endif %}
+        {% if item.drawer %}data-drawer="{{ item.drawer }}"{% endif %}
+        {% if item.drawer_action %}data-app-drawer-action="{{ item.drawer_action }}"{% endif %}
+        {% if item.booking_customer %}data-booking-customer="{{ item.booking_customer }}"{% endif %}
+        {% if item.booking_room %}data-booking-room="{{ item.booking_room }}"{% endif %}
+        {% if item.drawer_fetch %}data-app-drawer-fetch="{{ item.drawer_fetch }}"{% endif %}
+        {% if item.drawer_selector %}data-app-drawer-selector="{{ item.drawer_selector }}" data-app-drawer-title="{{ item.label }}"{% endif %}
+      >{% if item.icon %}{{ icon(item.icon, 14) }}{% endif %}{{ item.label }}</button>
       {% elif item.type == 'form' %}
       <form method="post" action="{{ item.url }}" {% if item.confirm %}data-confirm="{{ item.confirm }}"{% endif %}>
         <button type="submit" class="actions-item {% if item.danger %}danger{% endif %}">{% if item.icon %}{{ icon(item.icon, 14) }}{% endif %}{{ item.label }}</button>

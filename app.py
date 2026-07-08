@@ -69,6 +69,19 @@ ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
 MAX_IMAGE_BYTES = 2 * 1024 * 1024
 _db_ready = False
 
+
+def is_drawer_request():
+    return request.headers.get("X-App-Drawer") == "1"
+
+
+def drawer_json_response(message="Saved successfully.", **extra):
+    if is_drawer_request():
+        payload = {"ok": True, "message": message}
+        payload.update({k: v for k, v in extra.items() if v is not None})
+        return jsonify(payload)
+    return None
+
+
 ROLES = ROLES  # from tenant
 EMPLOYEE_STATUSES = ["Active", "Inactive", "On Leave", "Suspended", "Resigned", "Terminated", "Archived"]
 USER_STATUSES = EMPLOYEE_STATUSES
@@ -1280,6 +1293,9 @@ def build_dashboard_activity(hotel_id, limit=8):
             "date_label": ts,
             "sort_key": f"{ts}-{b['id']:08d}",
             "url": url_for("bookings", q=b["id"]),
+            "drawer_page": url_for("bookings"),
+            "drawer_selector": f"#drawerBooking{b['id']}",
+            "booking_id": b["id"],
         })
 
     payments = query(
@@ -1693,6 +1709,12 @@ def add_room():
         flash("Room added successfully.", "success")
     except Exception as e:
         flash(f"Error: {e}", "danger")
+        if is_drawer_request():
+            return jsonify(ok=False, error=str(e)), 400
+        return redirect(url_for("rooms"))
+    drawer_resp = drawer_json_response("Room added successfully.")
+    if drawer_resp:
+        return drawer_resp
     return redirect(url_for("rooms"))
 
 
@@ -1706,6 +1728,9 @@ def update_room(room_id):
            request.form.get("amenities", ""), request.form.get("image_url", ""), room_id, get_current_hotel_id()), commit=True)
     sync_notifications_from_data(get_current_hotel_id())
     flash("Room updated.", "success")
+    drawer_resp = drawer_json_response("Room updated.")
+    if drawer_resp:
+        return drawer_resp
     return redirect(url_for("rooms"))
 
 
@@ -1772,7 +1797,15 @@ def add_customer():
                   (cid, gn.strip(), int(ages[i]) if i < len(ages) and ages[i] else None,
                    genders[i] if i < len(genders) else None), commit=True)
     flash("Customer added.", "success")
-    if request.form.get("redirect_to") == "bookings":
+    save_and_book = request.form.get("redirect_to") == "bookings"
+    drawer_resp = drawer_json_response(
+        "Customer added.",
+        customer_id=cid,
+        next_action="booking" if save_and_book else None,
+    )
+    if drawer_resp:
+        return drawer_resp
+    if save_and_book:
         return redirect(url_for("bookings", new_customer=cid))
     return redirect(url_for("customers"))
 
@@ -1796,6 +1829,9 @@ def update_customer(customer_id):
         if gn.strip():
             query("INSERT INTO guests(customer_id,name) VALUES(?,?)", (customer_id, gn.strip()), commit=True)
     flash("Customer updated.", "success")
+    drawer_resp = drawer_json_response("Customer updated.")
+    if drawer_resp:
+        return drawer_resp
     return redirect(url_for("customers"))
 
 
@@ -1838,6 +1874,14 @@ def api_search_customers():
             (hid, like, like, like),
         )
     return api_ok(customers=[customer_to_dict(r) for r in rows])
+
+
+@app.route("/api/customers/<int:customer_id>")
+def api_get_customer(customer_id):
+    customer = scoped_customer(customer_id)
+    if not customer:
+        return api_error("Customer not found.", 404)
+    return api_ok(customer=customer_to_dict(customer))
 
 
 @app.route("/api/customers", methods=["POST"])
@@ -2361,6 +2405,9 @@ def add_employee():
         commit=True,
     )
     flash("Employee added successfully.", "success")
+    drawer_resp = drawer_json_response("Employee added successfully.")
+    if drawer_resp:
+        return drawer_resp
     return redirect(url_for("employees"))
 
 
@@ -2380,6 +2427,9 @@ def update_employee(emp_id):
            request.form.get("image_url", ""), emp_id), commit=True)
     sync_employee_user_status(emp_id, status)
     flash("Employee updated successfully.", "success")
+    drawer_resp = drawer_json_response("Employee updated successfully.")
+    if drawer_resp:
+        return drawer_resp
     return redirect(url_for("employees", **request.args))
 
 

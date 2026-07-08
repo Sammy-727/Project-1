@@ -17,7 +17,7 @@
     <span id="calRangeLabel" class="muted" style="font-size:13px;min-width:140px;text-align:center"></span>
     <button type="button" class="btn btn-ghost btn-sm" id="calNext">{{ icon('chevron-right', 16) }}</button>
     <button type="button" class="btn btn-outline btn-sm" id="calToday">Today</button>
-    <a href="{{ url_for('bookings', **{'new': 1}) }}" class="btn btn-primary btn-sm write-action">{{ icon('plus', 14) }} New Booking</a>
+    <button type="button" class="btn btn-primary btn-sm write-action" data-app-drawer-action="booking">{{ icon('plus', 14) }} New Booking</button>
   </div>
 </div>
 

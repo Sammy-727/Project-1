@@ -232,6 +232,19 @@
     {% if recent_activity %}
     <div class="dash-activity-feed">
       {% for a in recent_activity[:6] %}
+      {% if a.drawer_selector %}
+      <button type="button" class="dash-activity-item"
+        data-app-drawer-fetch="{{ a.drawer_page }}"
+        data-app-drawer-selector="{{ a.drawer_selector }}"
+        data-app-drawer-title="{{ a.title }}">
+        <div class="activity-timeline-dot {{ a.kind }}"></div>
+        <div class="dash-activity-body">
+          <strong>{{ a.title }}</strong>
+          <span>{{ a.detail }}</span>
+        </div>
+        <time>{{ a.date_label }}</time>
+      </button>
+      {% else %}
       <a href="{{ a.url }}" class="dash-activity-item">
         <div class="activity-timeline-dot {{ a.kind }}"></div>
         <div class="dash-activity-body">
@@ -240,6 +253,7 @@
         </div>
         <time>{{ a.date_label }}</time>
       </a>
+      {% endif %}
       {% endfor %}
     </div>
     {% else %}
@@ -255,14 +269,17 @@
     {% if recent_bookings %}
     <div class="ops-queue ops-queue-compact">
       {% for b in recent_bookings[:5] %}
-      <a href="{{ b.url }}" class="ops-queue-item">
+      <button type="button" class="ops-queue-item"
+        data-app-drawer-fetch="{{ url_for('bookings') }}"
+        data-app-drawer-selector="#drawerBooking{{ b.booking_id }}"
+        data-app-drawer-title="Booking #{{ b.booking_id }}">
         <div class="ops-queue-icon arrival">{{ icon('calendar-days', 16) }}</div>
         <div class="ops-queue-body">
           <strong>{{ b.detail.split('·')[1]|trim if '·' in b.detail else b.title }}</strong>
           <span>{{ b.detail }}</span>
         </div>
         <time class="muted" style="font-size:11px">{{ b.date_label }}</time>
-      </a>
+      </button>
       {% endfor %}
     </div>
     {% else %}
