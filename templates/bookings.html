@@ -50,6 +50,9 @@
         </div>
       </form>
       <div class="filter-chips-row" data-filter-chips></div>
+      <div class="filter-meta" data-list-meta data-showing="{{ list_showing|default(0) }}" data-total="{{ list_total|default(0) }}">
+        <div class="filter-result-count">Showing {{ list_showing|default(0) }} of {{ list_total|default(0) }} results</div>
+      </div>
       {{ filter_empty() }}
     </div>
     <div id="bookingViewSwitcher"></div>

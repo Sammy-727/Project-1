@@ -39,8 +39,9 @@ export class BookingCalendarView {
 
   initCalendar() {
     const el = this.mount.querySelector('#bookingFullCalendar');
-    if (!el || typeof FullCalendar === 'undefined') {
-      el.innerHTML = '<p class="ops-empty">Calendar library loading…</p>';
+    if (!el) return;
+    if (typeof FullCalendar === 'undefined') {
+      el.innerHTML = '<p class="ops-empty">Calendar could not load. Please refresh the page.</p>';
       return;
     }
     const canDrag = !document.body.classList.contains('read-only-mode');

@@ -2074,7 +2074,7 @@ def bookings():
         (hid,),
     )
     new_customer = request.args.get("new_customer", type=int)
-    room_types = sorted({r["room_type"] for r in all_rooms if r.get("room_type")})
+    room_types = sorted({r["room_type"] for r in all_rooms if r["room_type"]})
     bookings_bootstrap = [
         {**booking_row_to_dict(r), "created_at": r["checkin"]}
         for r in page_rows
