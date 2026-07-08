@@ -5,11 +5,12 @@
   root.className = 'fab-root';
   root.innerHTML = `
     <div class="fab-menu" id="fabMenu" aria-hidden="true">
-      <a href="/bookings?new=1" class="write-action"><i data-lucide="calendar-plus" class="icon"></i> Booking</a>
-      <a href="/customers?add=1" class="write-action"><i data-lucide="user-plus" class="icon"></i> Guest</a>
-      <a href="/payments" class="write-action"><i data-lucide="credit-card" class="icon"></i> Payment</a>
-      <a href="/employees" class="write-action"><i data-lucide="briefcase" class="icon"></i> Employee</a>
-      <a href="/inventory" class="write-action"><i data-lucide="package" class="icon"></i> Inventory</a>
+      <a href="/bookings?new=1" class="write-action"><i data-lucide="calendar-plus" class="icon"></i> New Booking</a>
+      <a href="/checkin-out" class="write-action"><i data-lucide="log-in" class="icon"></i> Check-in</a>
+      <a href="/checkin-out" class="write-action"><i data-lucide="log-out" class="icon"></i> Check-out</a>
+      <a href="/customers?add=1" class="write-action"><i data-lucide="user-plus" class="icon"></i> Add Guest</a>
+      <a href="/employees" class="write-action"><i data-lucide="briefcase" class="icon"></i> Add Employee</a>
+      <a href="/payments" class="write-action"><i data-lucide="credit-card" class="icon"></i> Record Payment</a>
     </div>
     <button type="button" class="fab-trigger" id="fabTrigger" aria-label="Quick actions" aria-expanded="false">
       <i data-lucide="plus" class="icon"></i>

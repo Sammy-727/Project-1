@@ -3,6 +3,7 @@
   if (!root || typeof Chart === 'undefined') return;
 
   let revenueChart = null;
+  let occupancyChart = null;
 
   const palette = () => {
     const dark = document.documentElement.getAttribute('data-theme') === 'dark';
@@ -11,6 +12,7 @@
       grid: dark ? '#1e293b' : '#f1f5f9',
       primary: '#4f46e5',
       today: '#059669',
+      donut: ['#22c55e', '#6366f1', '#3b82f6', '#f59e0b', '#94a3b8'],
     };
   };
 
@@ -27,19 +29,33 @@
     return `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
   }
 
+  function setRevenueTrend(rows) {
+    const el = document.getElementById('trendRevenue');
+    if (!el || !rows || rows.length < 2) return;
+    const today = rows[rows.length - 1];
+    const yesterday = rows[rows.length - 2];
+    const diff = Number(today?.revenue || 0) - Number(yesterday?.revenue || 0);
+    if (diff === 0) {
+      el.className = 'exec-kpi-trend neutral';
+      el.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg>';
+    } else if (diff > 0) {
+      el.className = 'exec-kpi-trend up';
+      el.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m18 15-6-6-6 6"/></svg>';
+    } else {
+      el.className = 'exec-kpi-trend down';
+      el.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>';
+    }
+    el.hidden = false;
+    el.removeAttribute('aria-hidden');
+  }
+
   function renderRevenue(payload) {
     const c = palette();
     const canvas = document.getElementById('revenueChart');
     const rows = payload?.data || [];
-    const todayRevenue = payload?.todayRevenue ?? 0;
     const hasRevenue = rows.some((d) => Number(d.revenue) > 0);
 
-    const todayPill = document.getElementById('revenueTodayPill');
-    const todayAmount = document.getElementById('revenueTodayAmount');
-    if (todayPill && todayAmount) {
-      todayAmount.textContent = formatInr(todayRevenue);
-      todayPill.hidden = false;
-    }
+    setRevenueTrend(rows);
 
     if (!canvas || !rows.length || !hasRevenue) {
       showState('revenueChart', 'empty');
@@ -51,7 +67,6 @@
 
     const pointRadius = rows.map((d) => (d.isToday ? 5 : 3));
     const pointBg = rows.map((d) => (d.isToday ? c.today : c.primary));
-    const borderColor = rows.map((d) => (d.isToday ? c.today : c.primary));
 
     revenueChart = new Chart(canvas, {
       type: 'line',
@@ -66,7 +81,7 @@
           tension: 0.35,
           pointRadius,
           pointBackgroundColor: pointBg,
-          pointBorderColor: borderColor,
+          pointBorderColor: pointBg,
           pointHoverRadius: 6,
           borderWidth: 2,
         }],
@@ -105,15 +120,74 @@
     });
   }
 
+  function renderOccupancy(payload) {
+    const c = palette();
+    const canvas = document.getElementById('occupancyChart');
+    const rows = payload?.data || [];
+    const total = rows.reduce((sum, d) => sum + Number(d.value || 0), 0);
+
+    if (!canvas || !rows.length || !total) {
+      showState('occupancyChart', 'empty');
+      return;
+    }
+
+    showState('occupancyChart', 'ready');
+    if (occupancyChart) occupancyChart.destroy();
+
+    occupancyChart = new Chart(canvas, {
+      type: 'doughnut',
+      data: {
+        labels: rows.map((d) => d.name),
+        datasets: [{
+          data: rows.map((d) => d.value),
+          backgroundColor: c.donut.slice(0, rows.length),
+          borderWidth: 0,
+          hoverOffset: 4,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '62%',
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              color: c.text,
+              font: { size: 11 },
+              boxWidth: 10,
+              padding: 12,
+            },
+          },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const pct = total ? Math.round((ctx.parsed / total) * 100) : 0;
+                return ` ${ctx.label}: ${ctx.parsed} (${pct}%)`;
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
   async function loadCharts() {
     showState('revenueChart', 'loading');
+    showState('occupancyChart', 'loading');
     try {
-      const { data } = await axios.get('/api/dashboard/charts/revenue-daily');
-      if (!data?.ok) throw new Error(data?.error || 'Chart request failed');
-      renderRevenue(data);
+      const [revenueRes, occupancyRes] = await Promise.all([
+        axios.get('/api/dashboard/charts/revenue-daily'),
+        axios.get('/api/dashboard/charts/occupancy-status'),
+      ]);
+      if (!revenueRes.data?.ok) throw new Error(revenueRes.data?.error || 'Revenue chart failed');
+      renderRevenue(revenueRes.data);
+      if (occupancyRes.data?.ok) renderOccupancy(occupancyRes.data);
+      else showState('occupancyChart', 'empty');
     } catch (err) {
       console.error(err);
       showState('revenueChart', 'empty');
+      showState('occupancyChart', 'empty');
     }
   }
 
