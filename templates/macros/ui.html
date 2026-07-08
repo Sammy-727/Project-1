@@ -87,6 +87,30 @@
 <span class="badge badge-status badge-{{ status|css_class }}">{{ status }}</span>
 {% endmacro %}
 
+{% macro filter_actions(export_url='') %}
+<div class="filter-toolbar-actions">
+  <button type="button" class="btn btn-ghost btn-sm" data-clear-filters aria-label="Reset filters">Reset</button>
+  <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+  {% if export_url %}
+  <a href="{{ export_url }}" class="btn btn-outline btn-sm">{{ icon('download', 14) }} Export</a>
+  {% endif %}
+</div>
+{% endmacro %}
+
+{% macro skeleton_grid(count=6, type='card') %}
+<div class="skeleton-grid" aria-hidden="true" data-skeleton-placeholder>
+  {% for i in range(count) %}
+  <div class="skeleton skeleton-{{ type }}"></div>
+  {% endfor %}
+</div>
+{% endmacro %}
+
+{% macro page_shell(open=true) %}
+{% if open %}<div class="page-shell">{% endif %}
+{{ caller() }}
+{% if open %}</div>{% endif %}
+{% endmacro %}
+
 {% macro filter_toolbar(form_id='', method='get', action='') %}
 <form class="filter-toolbar" {% if form_id %}id="{{ form_id }}"{% endif %} method="{{ method }}" {% if action %}action="{{ action }}"{% endif %}>
   {{ caller() }}

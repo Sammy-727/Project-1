@@ -1,27 +1,27 @@
 {% extends "base.html" %}
-{% from "macros/ui.html" import breadcrumb, page_header, empty_state, filter_meta, sort_controls, icon, status_badge %}
+{% from "macros/ui.html" import breadcrumb, page_header, page_shell, empty_state, filter_meta, sort_controls, icon, status_badge, filter_actions %}
 {% set title = "Reports" %}
 {% block content %}
 
+{% call page_shell() %}
 {{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Reports"}]) }}
-{{ page_header("Reports & Analytics", "Interactive insights across revenue, occupancy, and bookings") }}
+{{ page_header("Reports & Analytics", "Revenue, occupancy, and booking insights with export") }}
 
-<div class="list-filter-shell" style="margin-bottom:20px">
+<div class="list-filter-shell">
   <form class="filter-toolbar-basic" method="get" data-list-filters>
     <label style="font-size:12px;color:var(--text-muted)">Date range</label>
-    <input type="date" name="from" value="{{ date_from or '' }}">
-    <input type="date" name="to" value="{{ date_to or '' }}">
-    <div class="filter-toolbar-actions">
-      <button type="button" class="btn btn-ghost btn-sm" data-clear-filters>Clear All</button>
-      <button type="submit" class="btn btn-primary btn-sm">Apply</button>
-      <a href="{{ url_for('export_reports', **request.args) }}" class="btn btn-outline btn-sm">{{ icon('download', 14) }} Export CSV</a>
+    <input type="date" name="from" value="{{ date_from or '' }}" aria-label="From date">
+    <input type="date" name="to" value="{{ date_to or '' }}" aria-label="To date">
+    <div class="reports-export-bar">
+      {{ filter_actions(export_url=url_for('export_reports', **request.args)) }}
+      <button type="button" class="btn btn-outline btn-sm" onclick="window.print()" aria-label="Print or save as PDF">{{ icon('file-text', 14) }} Export PDF</button>
     </div>
   </form>
   {{ filter_meta(list_showing|default(payment_rows|length), list_total|default(payment_rows|length)) }}
 </div>
 
 <div class="kpi-grid">
-    <div class="kpi-card"><div class="kpi-label">Total Revenue</div><div class="kpi-value">₹{{ "{:,.0f}".format(stats.revenue) }}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Total Revenue</div><div class="kpi-value">₹{{ "{:,.0f}".format(stats.revenue) }}</div>{% if analytics.periodRevenue %}<span class="kpi-trend-pill neutral">30d: ₹{{ "{:,.0f}".format(analytics.periodRevenue) }}</span>{% endif %}</div>
     <div class="kpi-card"><div class="kpi-label">Occupancy</div><div class="kpi-value">{{ stats.occupancy_rate }}%</div></div>
     <div class="kpi-card"><div class="kpi-label">ADR (30d)</div><div class="kpi-value">₹{{ "{:,.0f}".format(analytics.adr) }}</div></div>
     <div class="kpi-card"><div class="kpi-label">RevPAR (30d)</div><div class="kpi-value">₹{{ "{:,.0f}".format(analytics.revpar) }}</div></div>
@@ -146,4 +146,5 @@
     {% endif %}
 </div>
 
+{% endcall %}
 {% endblock %}

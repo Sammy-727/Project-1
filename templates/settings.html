@@ -1,18 +1,23 @@
 {% extends "base.html" %}
-{% from "macros/ui.html" import breadcrumb, page_header, icon, empty_state %}
+{% from "macros/ui.html" import breadcrumb, page_header, page_shell, icon %}
 {% set title = "Settings" %}
 {% set cover_default = url_for('static', filename='images/placeholders/hotel-cover-default.svg') %}
 {% set logo_default = url_for('static', filename='images/placeholders/hotel-logo-default.svg') %}
 {% block content %}
 
+{% call page_shell() %}
 {{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Settings"}]) }}
-{{ page_header("Settings", "Hotel profile, branding, users, and subscription") }}
+{{ page_header("Settings", "Hotel profile, branding, users, payments, and notifications") }}
 
 <nav class="settings-tabs" role="tablist" aria-label="Settings sections">
-  <button type="button" class="settings-tab active" data-settings-tab="hotel" role="tab">Hotel</button>
-  <button type="button" class="settings-tab" data-settings-tab="branding" role="tab">Branding</button>
-  <button type="button" class="settings-tab" data-settings-tab="users" role="tab">Users</button>
-  <button type="button" class="settings-tab" data-settings-tab="subscription" role="tab">Subscription</button>
+  <button type="button" class="settings-tab active" data-settings-tab="hotel" role="tab" aria-selected="true">Hotel</button>
+  <button type="button" class="settings-tab" data-settings-tab="branding" role="tab" aria-selected="false">Branding</button>
+  <button type="button" class="settings-tab" data-settings-tab="taxes" role="tab" aria-selected="false">Taxes</button>
+  <button type="button" class="settings-tab" data-settings-tab="users" role="tab" aria-selected="false">Users</button>
+  <button type="button" class="settings-tab" data-settings-tab="permissions" role="tab" aria-selected="false">Permissions</button>
+  <button type="button" class="settings-tab" data-settings-tab="payments" role="tab" aria-selected="false">Payments</button>
+  <button type="button" class="settings-tab" data-settings-tab="notifications" role="tab" aria-selected="false">Notifications</button>
+  <button type="button" class="settings-tab" data-settings-tab="email" role="tab" aria-selected="false">Email</button>
 </nav>
 
 <form method="post" action="{{ url_for('save_hotel_settings') }}" id="settingsForm">
@@ -62,24 +67,68 @@
     </div>
 </div>
 
+<div class="settings-panel" id="tab-taxes" data-settings-panel="taxes" hidden>
+    <div class="panel saas-panel settings-panel-placeholder">
+        <h3>Taxes &amp; Fees</h3>
+        <p>Tax configuration is applied automatically at checkout (12% service tax on room and service charges).</p>
+        <ul>
+            <li>Room charges — taxable at checkout</li>
+            <li>Service charges — taxable at checkout</li>
+            <li>Invoices reflect tax breakdown on the bill</li>
+        </ul>
+        <p style="margin-top:12px"><a href="{{ url_for('reports_page') }}">View revenue reports →</a></p>
+    </div>
+</div>
+
 <div class="settings-panel" id="tab-users" data-settings-panel="users" hidden>
     <div class="panel saas-panel">
-        <h3 style="margin-bottom:8px">Users &amp; Permissions</h3>
-        <p style="color:var(--text-muted);font-size:13px;margin:0 0 16px">
-            Manage staff accounts, roles, and access from User Management.
-            Receptionists can operate front desk; managers access reports and settings.
-        </p>
-        <a href="{{ url_for('admin') }}" class="btn btn-primary">{{ icon('shield', 16) }} Open User Management</a>
+        <h3 style="margin-bottom:8px">Users</h3>
+        <p class="settings-panel-placeholder" style="padding:0;margin-bottom:16px">Manage staff accounts and roles from User Management.</p>
+        <a href="{{ url_for('admin') }}" class="btn btn-primary">{{ icon('shield', 16) }} User Management</a>
         <a href="{{ url_for('employees') }}" class="btn btn-outline" style="margin-left:8px">{{ icon('briefcase', 16) }} Employees</a>
     </div>
 </div>
 
-<div class="settings-panel" id="tab-subscription" data-settings-panel="subscription" hidden>
+<div class="settings-panel" id="tab-permissions" data-settings-panel="permissions" hidden>
+    <div class="panel saas-panel settings-panel-placeholder">
+        <h3>Permissions</h3>
+        <p>Role-based access is enforced across the platform:</p>
+        <ul>
+            <li><strong>Hotel Admin / Manager</strong> — full property access, reports, settings</li>
+            <li><strong>Receptionist</strong> — front desk, bookings, check-in/out, payments</li>
+            <li><strong>Housekeeping</strong> — housekeeping board and room status</li>
+        </ul>
+        <a href="{{ url_for('admin') }}" class="btn btn-outline" style="margin-top:12px">{{ icon('shield', 16) }} Manage roles</a>
+    </div>
+</div>
+
+<div class="settings-panel" id="tab-payments" data-settings-panel="payments" hidden>
     <div class="panel saas-panel">
-        <h3 style="margin-bottom:8px">Subscription</h3>
-        <p style="color:var(--text-muted);font-size:13px;margin:0 0 12px">
-            Billing and plan changes are managed by the platform administrator.
-        </p>
+        <h3 style="margin-bottom:8px">Payments</h3>
+        <p class="settings-panel-placeholder" style="padding:0;margin-bottom:16px">Record payments, view receipts, and manage billing from the Finance module.</p>
+        <a href="{{ url_for('payments') }}" class="btn btn-primary">{{ icon('credit-card', 16) }} Billing</a>
+        <a href="{{ url_for('invoices_list') }}" class="btn btn-outline" style="margin-left:8px">{{ icon('file-text', 16) }} Invoices</a>
+    </div>
+</div>
+
+<div class="settings-panel" id="tab-notifications" data-settings-panel="notifications" hidden>
+    <div class="panel saas-panel">
+        <h3 style="margin-bottom:8px">Notifications</h3>
+        <p class="settings-panel-placeholder" style="padding:0;margin-bottom:16px">Alerts for payments, inventory, bookings, and maintenance appear in the notification center.</p>
+        <button type="button" class="btn btn-primary" id="settingsOpenNotifications">{{ icon('bell', 16) }} Open Notification Center</button>
+    </div>
+</div>
+
+<div class="settings-panel" id="tab-email" data-settings-panel="email" hidden>
+    <div class="panel saas-panel settings-panel-placeholder">
+        <h3>Email Templates</h3>
+        <p>Booking confirmations and payment receipts are generated from invoice and receipt pages. Email delivery integration can be configured by your platform administrator.</p>
+    </div>
+</div>
+
+<div class="settings-panel" id="tab-subscription" data-settings-panel="subscription" hidden style="display:none">
+    <div class="panel saas-panel">
+        <h3>Subscription</h3>
         <div class="kpi-card" style="max-width:320px">
             <div class="kpi-label">Current plan</div>
             <div class="kpi-value" style="font-size:20px">{{ hotel.subscription_plan or 'Professional' }}</div>
@@ -88,10 +137,11 @@
     </div>
 </div>
 
-<div class="settings-save-bar">
+<div class="settings-save-bar" data-settings-save-bar>
     <button type="submit" class="btn btn-primary write-action">{{ icon('save', 16) }} Save Changes</button>
 </div>
 </form>
+{% endcall %}
 
 {% endblock %}
 
@@ -102,13 +152,21 @@
 document.querySelectorAll('[data-settings-tab]').forEach(function (tab) {
   tab.addEventListener('click', function () {
     var id = tab.dataset.settingsTab;
-    document.querySelectorAll('[data-settings-tab]').forEach(function (t) { t.classList.toggle('active', t === tab); });
+    document.querySelectorAll('[data-settings-tab]').forEach(function (t) {
+      t.classList.toggle('active', t === tab);
+      t.setAttribute('aria-selected', t === tab ? 'true' : 'false');
+    });
     document.querySelectorAll('[data-settings-panel]').forEach(function (panel) {
       var show = panel.dataset.settingsPanel === id;
       panel.classList.toggle('active', show);
       panel.hidden = !show;
     });
+    var saveBar = document.querySelector('[data-settings-save-bar]');
+    if (saveBar) saveBar.hidden = !['hotel', 'branding'].includes(id);
   });
+});
+document.getElementById('settingsOpenNotifications')?.addEventListener('click', function () {
+  document.getElementById('notificationBellBtn')?.click();
 });
 document.querySelectorAll('[data-upload-url]').forEach(function (input) {
   input.addEventListener('change', function () {

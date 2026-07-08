@@ -5,7 +5,7 @@
 {% set recent_bookings = recent_activity|selectattr('kind', 'equalto', 'new_booking')|list %}
 {% block content %}
 
-<div class="dashboard-page dashboard-executive">
+<div class="dashboard-page dashboard-executive page-shell">
 {{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Dashboard"}]) }}
 
 <header class="dash-exec-header">
@@ -30,6 +30,7 @@
       <div class="exec-kpi-value">₹{{ "{:,.0f}".format(stats.today_revenue) }}</div>
       <div class="exec-kpi-label">Today's Revenue</div>
       <div class="exec-kpi-sub">Collected today</div>
+      <div class="exec-kpi-sparkline" aria-hidden="true"><canvas id="sparkRevenue" height="28"></canvas></div>
     </article>
 
     <article class="exec-kpi-card">

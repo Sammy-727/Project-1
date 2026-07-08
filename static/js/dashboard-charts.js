@@ -49,6 +49,39 @@
     el.removeAttribute('aria-hidden');
   }
 
+  function renderSparkline(canvasId, values) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !values?.length || typeof Chart === 'undefined') return;
+    const c = palette();
+    const existing = Chart.getChart(canvas);
+    if (existing) existing.destroy();
+    new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels: values.map((_, i) => i),
+        datasets: [{
+          data: values,
+          borderColor: c.primary,
+          backgroundColor: 'rgba(79, 70, 229, 0.12)',
+          fill: true,
+          tension: 0.4,
+          pointRadius: 0,
+          borderWidth: 1.5,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { enabled: false } },
+        scales: {
+          x: { display: false },
+          y: { display: false },
+        },
+        animation: { duration: 400 },
+      },
+    });
+  }
+
   function renderRevenue(payload) {
     const c = palette();
     const canvas = document.getElementById('revenueChart');
@@ -56,6 +89,7 @@
     const hasRevenue = rows.some((d) => Number(d.revenue) > 0);
 
     setRevenueTrend(rows);
+    renderSparkline('sparkRevenue', rows.map((d) => d.revenue));
 
     if (!canvas || !rows.length || !hasRevenue) {
       showState('revenueChart', 'empty');

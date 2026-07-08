@@ -16,10 +16,12 @@
     <link href="{{ url_for('static', filename='css/images.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/premium.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/enterprise.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/design-system.css') }}" rel="stylesheet">
 </head>
 <body class="{% if current_user.get('user_id') %}app-body{% if is_read_only %} read-only-mode{% endif %}{% else %}auth-body{% endif %}">
 
 {% if current_user.get("user_id") %}
+<a href="#main-content" class="skip-link">Skip to main content</a>
 <div class="app-layout">
     <aside class="sidebar" id="sidebar" aria-label="Main navigation">
         <div class="sidebar-header">
@@ -197,7 +199,7 @@
             </div>
         </header>
 
-        <main class="content">
+        <main class="content" id="main-content">
             {% if is_read_only and current_hotel %}
             <div class="read-only-banner" role="status">
                 <i data-lucide="eye" class="icon"></i>
@@ -289,6 +291,7 @@
 <script src="{{ url_for('static', filename='js/command-palette.js') }}"></script>
 <script src="{{ url_for('static', filename='js/quick-actions.js') }}"></script>
 <script src="{{ url_for('static', filename='js/guest-profile.js') }}"></script>
+<script src="{{ url_for('static', filename='js/ui-enhancements.js') }}"></script>
 {% endif %}
 
 </body>

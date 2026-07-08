@@ -1,23 +1,18 @@
 {% extends "base.html" %}
-{% from "macros/ui.html" import breadcrumb, page_header, status_badge, empty_state, card_menu, icon, filter_meta, filter_empty, sort_controls, room_image, avatar %}
+{% from "macros/ui.html" import breadcrumb, page_header, page_shell, status_badge, empty_state, card_menu, icon, filter_meta, filter_empty, sort_controls, filter_actions, room_image, avatar %}
 {% set title = "Rooms" %}
 {% block content %}
 
+{% call page_shell() %}
 {{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Front Desk"}, {"label": "Rooms"}]) }}
-
-<div class="page-header">
-  <div class="page-header-text">
-    <h1 class="page-title">Rooms</h1>
-    <p class="page-description">Manage inventory, pricing, and availability</p>
-  </div>
-  <div class="page-header-actions">
-    <div class="floor-view-toggle" role="tablist" aria-label="Room view">
-      <button type="button" class="btn btn-sm btn-primary" data-room-view="cards" aria-pressed="true">Cards</button>
-      <button type="button" class="btn btn-sm btn-ghost" data-room-view="floor" aria-pressed="false">Floor View</button>
-    </div>
-    <button class="btn btn-primary modal-trigger" data-target="#addRoomModal">{{ icon('plus', 16) }} Add Room</button>
-  </div>
+{% set header_actions %}
+<div class="floor-view-toggle" role="tablist" aria-label="Room view">
+  <button type="button" class="btn btn-sm btn-primary" data-room-view="cards" aria-pressed="true">Cards</button>
+  <button type="button" class="btn btn-sm btn-ghost" data-room-view="floor" aria-pressed="false">Floor View</button>
 </div>
+<button class="btn btn-primary modal-trigger write-action" data-target="#addRoomModal">{{ icon('plus', 16) }} Add Room</button>
+{% endset %}
+{{ page_header("Rooms", "Inventory, pricing, availability, and floor layout", header_actions) }}
 
 <div class="list-filter-shell">
 <form class="filter-toolbar-basic" method="get" data-list-filters data-card-filter="#roomCardGrid" data-enrich-bookings data-auto-search="true">
@@ -29,10 +24,7 @@
     ('room_no', 'Room'), ('type', 'Type'), ('floor', 'Floor'), ('price', 'Price'), ('capacity', 'Capacity'), ('status', 'Status')
   ]) }}
   <button type="button" class="btn btn-ghost btn-sm filter-advanced-toggle" data-advanced-toggle>{{ icon('sliders-horizontal', 14) }} Advanced</button>
-  <div class="filter-toolbar-actions">
-    <button type="button" class="btn btn-ghost btn-sm" data-clear-filters>Clear All</button>
-    <button type="submit" class="btn btn-primary btn-sm">Apply</button>
-  </div>
+  {{ filter_actions() }}
   <div class="filter-advanced-panel" data-advanced-panel style="width:100%">
     <div class="filter-advanced-grid">
       <label>Status<select name="status"><option value="">All</option>{% for s in room_statuses %}<option value="{{ s }}" {% if filter_status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
@@ -140,6 +132,8 @@
 {% else %}
 {{ empty_state("bed-double", "No rooms yet", "Add your first room to start managing availability.", "Add Room", "#addRoomModal", illustration="rooms") }}
 {% endif %}
+
+{% endcall %}
 
 <!-- Add / Edit modals unchanged -->
 <div class="modal" id="addRoomModal">
