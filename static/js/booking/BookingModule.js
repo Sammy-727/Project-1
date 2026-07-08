@@ -24,6 +24,11 @@ export class BookingModule {
   }
 
   init() {
+    if (!this.form || !this.mounts.switcher) {
+      console.error('BookingModule: required DOM nodes missing');
+      return;
+    }
+
     this.viewSwitcher = new BookingViewSwitcher(this.mounts.switcher, {
       onChange: (view) => {
         this.root.classList.add('booking-view-transition');
@@ -38,7 +43,7 @@ export class BookingModule {
     });
 
     this.filters = new BookingFilters(this.form, this.store, {
-      onApply: () => this.loadBookings(),
+      onApply: () => this.loadBookings(false),
     });
 
     this.cardView = new BookingCardView(this.mounts.cards, this.store);
@@ -46,22 +51,33 @@ export class BookingModule {
     this.calendarView = new BookingCalendarView(this.mounts.calendar, this.store);
 
     const bootstrap = document.getElementById('bookingsBootstrap');
+    let hasBootstrap = false;
     if (bootstrap) {
       try {
         const data = JSON.parse(bootstrap.textContent);
-        this.store.setBookings(data.bookings || [], data.total);
+        if (data.bookings?.length) {
+          this.store.setBookings(data.bookings, data.total);
+          hasBootstrap = true;
+          const empty = document.getElementById('bookingEmptyFallback');
+          if (empty) empty.hidden = true;
+          this.root.hidden = false;
+        }
       } catch (_) { /* fetch instead */ }
     }
 
     this.viewSwitcher.setActive(this.store.activeView);
     this.store.setView(this.store.activeView);
-    this.loadBookings();
+    this.loadBookings(hasBootstrap);
   }
 
-  async loadBookings() {
+  async loadBookings(background = false) {
+    if (!this.filters) return;
     const qs = this.filters.getQueryString();
     try {
       const data = await fetchBookings(qs ? `?${qs}` : '?size=200');
+      if (!data?.ok && !data?.bookings) {
+        throw new Error(data?.error || 'Invalid response');
+      }
       const bookings = (data.bookings || []).map((b) => ({
         ...b,
         created_at: b.created_at || b.checkin,
@@ -69,13 +85,17 @@ export class BookingModule {
       this.store.setBookings(bookings, data.total ?? bookings.length);
       this.updateUrl(qs);
       const empty = document.getElementById('bookingEmptyFallback');
-      const module = document.getElementById('bookingModule');
       if (bookings.length) {
         if (empty) empty.hidden = true;
-        if (module) module.hidden = false;
+        this.root.hidden = false;
+      } else if (!background) {
+        if (empty) empty.hidden = false;
+        this.root.hidden = true;
       }
-    } catch (_) {
-      window.showToast?.('Could not load bookings.', 'danger');
+    } catch (err) {
+      if (!background) {
+        window.showToast?.(err.message || 'Could not load bookings.', 'danger');
+      }
     }
   }
 
