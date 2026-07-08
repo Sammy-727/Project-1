@@ -38,10 +38,9 @@ export function createBooking(payload) {
   return api.post('/api/bookings', payload).then((r) => r.data);
 }
 
-export function fetchBookings(params = {}) {
-  const qs = new URLSearchParams(params);
-  const query = qs.toString();
-  return api.get(`/api/bookings/list${query ? `?${query}` : ''}`).then((r) => r.data.bookings);
+export function fetchBookings(query = '') {
+  const q = query.startsWith('?') ? query : query ? `?${query}` : '';
+  return api.get(`/api/bookings/list${q}`).then((r) => r.data);
 }
 
 export default api;
