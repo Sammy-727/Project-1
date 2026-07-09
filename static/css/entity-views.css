@@ -1,4 +1,5 @@
 /* Site-wide multi-view modules — ViewSwitcher, tables, cards, kanban, floor */
+/* Table presentation: see list-table.css for separated list-row layout */
 
 .page-view-module,
 .entity-list-module {

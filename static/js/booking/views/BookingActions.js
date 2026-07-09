@@ -18,7 +18,7 @@ export function formatAmount(n) {
 
 export function statusBadge(status) {
   const cls = cssClass(status);
-  return `<span class="badge badge-${cls} booking-status-badge">${escapeHtml(status)}</span>`;
+  return `<span class="list-status-badge list-status-badge--sm status-${cls} booking-status-badge">${escapeHtml(status)}</span>`;
 }
 
 export function calendarColor(status, paymentStatus) {

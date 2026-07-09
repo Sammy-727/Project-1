@@ -1,15 +1,65 @@
-import { escapeHtml, formatAmount, statusBadge } from '../shared/utils.js';
+import { escapeHtml, formatAmount } from '../shared/utils.js';
+import { statusBadge } from '../shared/views/StatusBadge.js';
+import { renderActionMenu } from '../shared/views/ActionMenu.js';
 import { kanbanCardHtml } from '../shared/views/KanbanView.js';
 import { bindRowActions } from '../shared/views/bindActions.js';
 
-function drawerBtn(selector, label, icon = 'eye') {
-  return `<button type="button" class="btn btn-ghost btn-sm" data-app-drawer-selector="${selector}" title="${label}">
-    <i data-lucide="${icon}" class="icon"></i></button>`;
+function guestActions(r) {
+  return renderActionMenu([
+    { type: 'button', label: 'View Profile', icon: 'eye', drawer: `#drawerGuest${r.id}` },
+    { type: 'button', label: 'Edit', icon: 'pencil', modal: `#editCustomer${r.id}` },
+    { type: 'button', label: 'New Booking', icon: 'calendar-plus', bookingCustomer: String(r.id) },
+  ]);
 }
 
-function modalBtn(target, label, icon = 'pencil') {
-  return `<button type="button" class="btn btn-ghost btn-sm modal-trigger" data-target="${target}" title="${label}">
-    <i data-lucide="${icon}" class="icon"></i></button>`;
+function roomActions(r) {
+  return renderActionMenu([
+    { type: 'button', label: 'View', icon: 'eye', drawer: `#drawerRoom${r.id}` },
+    { type: 'button', label: 'Edit', icon: 'pencil', modal: `#editRoom${r.id}` },
+    { type: 'button', label: 'Book', icon: 'calendar-plus', bookingRoom: r.room_no },
+  ]);
+}
+
+function employeeActions(r) {
+  return renderActionMenu([
+    { type: 'button', label: 'View', icon: 'eye', drawer: `#drawerEmp${r.id}` },
+    { type: 'button', label: 'Edit', icon: 'pencil', modal: `#editEmp${r.id}` },
+  ]);
+}
+
+function inventoryActions(r) {
+  return renderActionMenu([{ type: 'button', label: 'Edit', icon: 'pencil', modal: `#editInv${r.id}` }]);
+}
+
+function hkActions(r) {
+  return renderActionMenu([{ type: 'button', label: 'Update', icon: 'pencil', modal: `#editHK${r.id}` }]);
+}
+
+function userActions(r) {
+  return renderActionMenu([
+    { type: 'button', label: 'View Details', icon: 'eye', modal: `#viewUser${r.id}` },
+    { type: 'button', label: 'Edit', icon: 'pencil', modal: `#editUser${r.id}` },
+  ]);
+}
+
+function serviceActions(r) {
+  return renderActionMenu([{ type: 'button', label: 'Update', icon: 'pencil', modal: `#editRS${r.id}` }]);
+}
+
+function invoiceActions(r) {
+  return renderActionMenu([
+    { type: 'link', label: 'View Invoice', icon: 'file-text', href: `/invoice/${r.booking_id}` },
+  ]);
+}
+
+function billingActions(r) {
+  return renderActionMenu([
+    { type: 'link', label: 'View Receipt', icon: 'file-text', href: `/receipt/${r.id}`, target: '_blank' },
+  ]);
+}
+
+function cardModalBtn(target, label) {
+  return `<button type="button" class="btn btn-ghost btn-sm modal-trigger" data-target="${target}">${escapeHtml(label)}</button>`;
 }
 
 const CARD_TABLE = [
@@ -44,7 +94,7 @@ export const PAGE_CONFIGS = {
       phone: (r) => r.phone || '', email: (r) => (r.email || '').toLowerCase(), date: (r) => r.id,
     },
     columns: [
-      { key: 'name', label: 'Guest', sortable: true, render: (r) => `<strong>${escapeHtml(r.name)}</strong>` },
+      { key: 'name', label: 'Guest', sortable: true, render: (r) => `<span class="list-cell-primary">${escapeHtml(r.name)}</span>` },
       { key: 'phone', label: 'Phone', sortable: true },
       { key: 'email', label: 'Email', sortable: true, render: (r) => escapeHtml(r.email || '—') },
       { key: 'guest_type', label: 'Type', sortable: false },
@@ -53,8 +103,8 @@ export const PAGE_CONFIGS = {
     ],
     exportHeaders: ['ID', 'Name', 'Phone', 'Email', 'Type', 'Stays', 'Loyalty'],
     exportRow: (r) => [r.id, r.name, r.phone, r.email || '', r.guest_type, r.booking_count, r.loyalty],
-    actions: (r) => `<div class="table-actions">${drawerBtn(`#drawerGuest${r.id}`, 'View')}${modalBtn(`#editCustomer${r.id}`, 'Edit')}
-      <button type="button" class="btn btn-ghost btn-sm" data-app-drawer-action="booking" data-booking-customer="${r.id}" title="Book"><i data-lucide="calendar-plus" class="icon"></i></button></div>`,
+    actions: guestActions,
+    onRowClick: (r) => window.AppDrawer?.openDrawerSelector?.(`#drawerGuest${r.id}`),
   },
 
   rooms: {
@@ -94,8 +144,8 @@ export const PAGE_CONFIGS = {
     ],
     exportHeaders: ['Room', 'Type', 'Floor', 'Capacity', 'Price', 'Status'],
     exportRow: (r) => [r.room_no, r.room_type, r.floor, r.capacity, r.price, r.status],
-    actions: (r) => `<div class="table-actions">${drawerBtn(`#drawerRoom${r.id}`, 'View')}${modalBtn(`#editRoom${r.id}`, 'Edit')}
-      <button type="button" class="btn btn-ghost btn-sm" data-app-drawer-action="booking" data-booking-room="${escapeHtml(r.room_no)}" title="Book"><i data-lucide="calendar-plus" class="icon"></i></button></div>`,
+    actions: roomActions,
+    onRowClick: (r) => window.AppDrawer?.openDrawerSelector?.(`#drawerRoom${r.id}`),
   },
 
   employees: {
@@ -138,7 +188,8 @@ export const PAGE_CONFIGS = {
     ],
     exportHeaders: ['ID', 'Name', 'Role', 'Department', 'Phone', 'Shift', 'Status'],
     exportRow: (r) => [r.id, r.name, r.role, r.department || '', r.phone || '', r.shift || '', r.status],
-    actions: (r) => `<div class="table-actions">${drawerBtn(`#drawerEmp${r.id}`, 'View')}${modalBtn(`#editEmp${r.id}`, 'Edit')}</div>`,
+    actions: employeeActions,
+    onRowClick: (r) => window.AppDrawer?.openDrawerSelector?.(`#drawerEmp${r.id}`),
   },
 
   inventory: {
@@ -170,13 +221,12 @@ export const PAGE_CONFIGS = {
       { key: 'supplier_name', label: 'Supplier', sortable: false, render: (r) => escapeHtml(r.supplier_name || '—') },
       { key: 'stock_status', label: 'Status', sortable: false, render: (r) => {
         const label = r.stock_status === 'low' ? 'Low Stock' : (r.stock_status === 'out' ? 'Out of Stock' : 'In Stock');
-        const cls = r.stock_status === 'low' ? 'danger' : (r.stock_status === 'out' ? 'Cancelled' : 'Available');
-        return `<span class="badge badge-${cls}">${label}</span>`;
+        return statusBadge(label);
       }},
     ],
     exportHeaders: ['ID', 'Item', 'Category', 'Stock', 'Unit', 'Min Level', 'Price', 'Supplier'],
     exportRow: (r) => [r.id, r.item_name, r.category, r.quantity, r.unit, r.reorder_level, r.price, r.supplier_name || ''],
-    actions: (r) => modalBtn(`#editInv${r.id}`, 'Edit'),
+    actions: inventoryActions,
   },
 
   housekeeping: {
@@ -230,7 +280,7 @@ export const PAGE_CONFIGS = {
             <div class="entity-stat">Priority<strong>${escapeHtml(r.priority)}</strong></div>
           </div>
         </div>
-        <div class="entity-card-footer">${statusBadge(r.priority)} ${modalBtn(`#editHK${r.id}`, 'Update')}</div>
+        <div class="entity-card-footer">${statusBadge(r.priority)} ${cardModalBtn(`#editHK${r.id}`, 'Update')}</div>
       </article>`,
     bindCards: bindRowActions,
     columns: [
@@ -243,7 +293,7 @@ export const PAGE_CONFIGS = {
     ],
     exportHeaders: ['ID', 'Room', 'Type', 'Staff', 'Priority', 'Status', 'Created'],
     exportRow: (r) => [r.id, r.room_no, r.room_type, r.staff_name || '', r.priority, r.status, r.created_at],
-    actions: (r) => modalBtn(`#editHK${r.id}`, 'Update'),
+    actions: hkActions,
   },
 
   users: {
@@ -291,10 +341,10 @@ export const PAGE_CONFIGS = {
           <div class="entity-card-sub">@${escapeHtml(r.username)} · ${escapeHtml(r.role)}</div></div>
           ${statusBadge(r.status)}
         </div>
-        <div class="entity-card-footer">${modalBtn(`#viewUser${r.id}`, 'View', 'eye')} ${modalBtn(`#editUser${r.id}`, 'Edit')}</div>
+        <div class="entity-card-footer">${cardModalBtn(`#viewUser${r.id}`, 'View')} ${cardModalBtn(`#editUser${r.id}`, 'Edit')}</div>
       </article>`,
     bindCards: bindRowActions,
-    actions: (r) => `<div class="table-actions">${modalBtn(`#viewUser${r.id}`, 'View', 'eye')}${modalBtn(`#editUser${r.id}`, 'Edit')}</div>`,
+    actions: userActions,
   },
 
   services: {
@@ -322,7 +372,7 @@ export const PAGE_CONFIGS = {
       { key: 'charges', label: 'Charges', sortable: false, render: (r) => `₹${formatAmount(r.charges)}` },
       { key: 'created_at', label: 'Created', sortable: true },
     ],
-    actions: (r) => modalBtn(`#editRS${r.id}`, 'Update'),
+    actions: serviceActions,
   },
 
   maintenance: {
@@ -369,7 +419,7 @@ export const PAGE_CONFIGS = {
       { key: 'status', label: 'Status', sortable: true, render: (r) => statusBadge(r.status) },
       { key: 'created_at', label: 'Reported', sortable: true },
     ],
-    actions: (r) => modalBtn(`#editRS${r.id}`, 'Update'),
+    actions: serviceActions,
   },
 
   billing: {
@@ -415,7 +465,7 @@ export const PAGE_CONFIGS = {
       </article>`,
     exportHeaders: ['Receipt', 'Guest', 'Room', 'Amount', 'Mode', 'Date'],
     exportRow: (r) => [r.receipt_number, r.customer_name, r.room_no, r.amount, r.payment_mode, r.payment_date],
-    actions: (r) => `<a href="/receipt/${r.id}" class="btn btn-ghost btn-sm" target="_blank"><i data-lucide="file-text" class="icon"></i></a>`,
+    actions: billingActions,
   },
 
   invoices: {
@@ -461,7 +511,7 @@ export const PAGE_CONFIGS = {
           <a href="/invoice/${r.booking_id}" class="btn btn-ghost btn-sm">View</a>
         </div>
       </article>`,
-    actions: (r) => `<a href="/invoice/${r.booking_id}" class="btn btn-ghost btn-sm"><i data-lucide="file-text" class="icon"></i></a>`,
+    actions: invoiceActions,
   },
 
   reports: {

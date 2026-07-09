@@ -7,29 +7,29 @@
 {{ page_header("Audit Logs", "Platform and hotel activity trail") }}
 
 <div class="panel saas-panel">
-    <div class="saas-table-wrap">
-        <div class="table-wrap table-sticky-header">
-        <table class="data-table saas-table">
-            <thead>
+    <div class="list-table-wrap saas-table-wrap">
+        <div class="list-table-scroll">
+        <table class="list-table">
+            <thead class="list-table-head">
                 <tr>
-                    <th>Time</th>
-                    <th>User</th>
-                    <th>Hotel</th>
-                    <th>Action</th>
-                    <th>Details</th>
+                    <th class="list-table-th" scope="col">Time</th>
+                    <th class="list-table-th" scope="col">User</th>
+                    <th class="list-table-th" scope="col">Hotel</th>
+                    <th class="list-table-th" scope="col">Action</th>
+                    <th class="list-table-th" scope="col">Details</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody class="list-table-body">
                 {% for log in logs %}
-                <tr>
-                    <td data-label="Time">{{ log.created_at }}</td>
-                    <td data-label="User">{{ log.full_name or log.username or '—' }}</td>
-                    <td data-label="Hotel">{{ log.hotel_name or 'Platform' }}</td>
-                    <td data-label="Action"><strong>{{ log.action }}</strong></td>
-                    <td data-label="Details" class="muted">{{ log.details or '' }}</td>
+                <tr class="list-table-row list-table-row--static">
+                    <td class="list-table-td" data-label="Time">{{ log.created_at }}</td>
+                    <td class="list-table-td" data-label="User">{{ log.full_name or log.username or '—' }}</td>
+                    <td class="list-table-td" data-label="Hotel">{{ log.hotel_name or 'Platform' }}</td>
+                    <td class="list-table-td" data-label="Action"><strong>{{ log.action }}</strong></td>
+                    <td class="list-table-td muted" data-label="Details">{{ log.details or '' }}</td>
                 </tr>
                 {% else %}
-                <tr><td colspan="5" class="muted">No audit logs recorded yet.</td></tr>
+                <tr class="list-table-empty"><td colspan="5" class="muted">No audit logs recorded yet.</td></tr>
                 {% endfor %}
             </tbody>
         </table>

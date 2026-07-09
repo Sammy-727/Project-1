@@ -1,4 +1,5 @@
 /** Shared helpers for entity list modules */
+import { statusBadge as listStatusBadge } from './views/StatusBadge.js';
 
 export function escapeHtml(value) {
   if (value == null) return '';
@@ -15,9 +16,7 @@ export function formatAmount(value) {
 }
 
 export function statusBadge(status) {
-  const s = escapeHtml(status || '—');
-  const cls = String(status || '').replace(/\s+/g, '-');
-  return `<span class="badge badge-${cls}">${s}</span>`;
+  return listStatusBadge(status);
 }
 
 export function csvEscape(value) {

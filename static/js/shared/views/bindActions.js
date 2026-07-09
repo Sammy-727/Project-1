@@ -1,4 +1,6 @@
 /** Bind drawer, modal, and booking actions on dynamically rendered rows/cards */
+import { bindActionMenus } from './ActionMenu.js';
+
 export function bindRowActions(root) {
   root.querySelectorAll('[data-app-drawer-selector]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
@@ -9,7 +11,7 @@ export function bindRowActions(root) {
   root.querySelectorAll('.modal-trigger[data-target]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      window.AppDrawer?.openFromModal?.(btn.dataset.target) || document.querySelector(btn.dataset.target)?.classList.add('open');
+      window.AppDrawer?.openFromModal?.(btn.dataset.target);
     });
   });
   root.querySelectorAll('[data-app-drawer-action]').forEach((btn) => {
@@ -31,4 +33,5 @@ export function bindRowActions(root) {
       window.AppDrawer?.openDrawerSelector(card.dataset.cardDrawer);
     });
   });
+  bindActionMenus(root);
 }

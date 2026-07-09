@@ -63,6 +63,8 @@ export class PageViewModule {
         bulkSelect: this.config.bulkSelect,
         onSortChange: (key, dir) => this.syncSortForm(key, dir),
         bindActions: (el) => bindRowActions(el),
+        onRowClick: this.config.onRowClick,
+        rowClickable: Boolean(this.config.onRowClick),
       });
     }
 

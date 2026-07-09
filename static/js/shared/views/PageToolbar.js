@@ -1,4 +1,4 @@
-/** Toolbar with refresh, export, and meta — shown for table/data views */
+/** Toolbar with refresh, export, and meta — shown for table/list views */
 export class PageToolbar {
   constructor(mount, { onRefresh, onExport, showExport = true }) {
     this.mount = mount;
@@ -33,3 +33,6 @@ export class PageToolbar {
     if (el) el.textContent = text || '';
   }
 }
+
+/** Alias for list-table pages (TableToolbar = PageToolbar) */
+export { PageToolbar as TableToolbar };
