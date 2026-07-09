@@ -1,13 +1,15 @@
 {% extends "base.html" %}
-{% from "macros/ui.html" import breadcrumb, page_header, empty_state, status_badge, table_toolbar, icon, filter_meta, filter_empty, sort_controls %}
+{% from "macros/ui.html" import breadcrumb, page_header, empty_state, status_badge, icon, filter_meta, filter_empty, sort_controls %}
 {% set title = "Invoices" %}
 {% block content %}
 
 {{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Finance"}, {"label": "Invoices"}]) }}
 {{ page_header("Invoices", "Generated bills and payment status") }}
 
+<div class="page-view-module" data-page-module="invoices" id="invoicesModule">
+<div class="page-filter-toolbar-row">
 <div class="list-filter-shell">
-<form class="filter-toolbar-basic" method="get" data-list-filters data-auto-search="true">
+<form class="filter-toolbar-basic" method="get" id="invoicesFilterForm" data-list-filters data-entity-api="true" data-auto-search="false">
   <div class="table-search-wrap filter-search">
     {{ icon('search', 16) }}
     <input type="search" name="q" placeholder="Invoice #, guest, booking..." value="{{ search_q }}">
@@ -17,7 +19,7 @@
   ]) }}
   <button type="button" class="btn btn-ghost btn-sm filter-advanced-toggle" data-advanced-toggle>{{ icon('sliders-horizontal', 14) }} Advanced</button>
   <div class="filter-toolbar-actions">
-    <button type="button" class="btn btn-ghost btn-sm" data-clear-filters>Clear All</button>
+    <button type="button" class="btn btn-ghost btn-sm" data-reset-entity-filters data-clear-filters>Clear All</button>
     <button type="submit" class="btn btn-primary btn-sm">Apply</button>
   </div>
   <div class="filter-advanced-panel" data-advanced-panel style="width:100%">
@@ -34,37 +36,26 @@
 {{ filter_meta(list_showing|default(invoices|length), list_total|default(invoices|length)) }}
 {{ filter_empty() }}
 </div>
-
-{% if invoices %}
-<div class="saas-table-wrap" data-list-results>
-  {{ table_toolbar('Search invoices...') }}
-  <div class="table-wrap">
-    <table class="data-table" data-paginate>
-      <thead>
-        <tr>
-          <th class="sortable">Invoice</th><th class="sortable">Booking</th><th class="sortable">Guest</th>
-          <th>Room</th><th class="sortable">Amount</th><th>Status</th><th class="sortable">Date</th><th></th>
-        </tr>
-      </thead>
-      <tbody>
-      {% for inv in invoices %}
-      <tr>
-        <td><strong>#{{ inv.invoice_id }}</strong></td>
-        <td>#{{ inv.booking_id }}</td>
-        <td>{{ inv.customer_name }}</td>
-        <td>{{ inv.room_no }}</td>
-        <td>₹{{ "{:,.0f}".format(inv.total or 0) }}</td>
-        <td>{{ status_badge(inv.payment_status) }}</td>
-        <td>{{ inv.bill_date }}</td>
-        <td><a href="{{ url_for('invoice', booking_id=inv.booking_id) }}" class="btn btn-ghost btn-sm">{{ icon('file-text', 14) }} View</a></td>
-      </tr>
-      {% endfor %}
-      </tbody>
-    </table>
-  </div>
+<div id="invoicesViewSwitcher"></div>
 </div>
-{% else %}
+
+<div id="invoicesToolbar" hidden></div>
+
+<div class="entity-views-container" data-list-results>
+  <div id="invoicesTableView" class="entity-view-panel" data-view-panel="table" hidden></div>
+  <div id="invoicesCardView" class="entity-view-panel" data-view-panel="cards" hidden></div>
+</div>
+</div>
+
+{% if not invoices %}
 {{ empty_state("file-text", "No invoices found", "Invoices are generated at checkout.", "", "") }}
 {% endif %}
 
+<script type="application/json" id="invoicesBootstrap">{"invoices":[{% for inv in invoices %}{"invoice_id":{{ inv.invoice_id }},"booking_id":{{ inv.booking_id }},"customer_name":{{ inv.customer_name|tojson }},"room_no":{{ inv.room_no|tojson }},"total":{{ inv.total or 0 }},"payment_status":{{ inv.payment_status|tojson }},"bill_date":{{ inv.bill_date|tojson }}}{% if not loop.last %},{% endif %}{% endfor %}],"total":{{ list_total|default(invoices|length) }}}</script>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script type="module" src="{{ url_for('static', filename='js/entity/index.js') }}"></script>
 {% endblock %}

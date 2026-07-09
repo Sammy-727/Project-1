@@ -4,6 +4,7 @@ const VIEWS = [
   { id: 'cards', label: 'Card View', icon: 'layout-grid' },
   { id: 'table', label: 'Table View', icon: 'table' },
   { id: 'calendar', label: 'Calendar View', icon: 'calendar-range' },
+  { id: 'kanban', label: 'Status View', icon: 'columns-3' },
 ];
 
 export class BookingViewSwitcher {

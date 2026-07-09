@@ -14,7 +14,7 @@
   </div>
 </div>
 
-<div class="entity-list-module" data-entity-module="guests" id="guestsModule">
+<div class="page-view-module" data-page-module="guests" id="guestsModule">
 <div class="entity-filter-toolbar-row">
 <div class="list-filter-shell">
 <form class="filter-toolbar-basic" method="get" id="guestsFilterForm" data-list-filters data-entity-api="true" data-auto-search="false">
@@ -53,7 +53,7 @@
 <div class="entity-grid wide" id="guestCardGrid" data-view-panel="cards" data-page="guests">
   {% for c in customers %}
   {% set loyalty = 'Gold' if c.booking_count >= 5 else ('Silver' if c.booking_count >= 2 else 'New') %}
-  <article class="entity-card data-searchable" data-search="{{ c.name }} {{ c.phone }} {{ c.email or '' }}"
+  <article class="entity-card data-searchable" data-entity-id="{{ c.id }}" data-search="{{ c.name }} {{ c.phone }} {{ c.email or '' }}"
            data-card-drawer="#drawerGuest{{ c.id }}">
     <div class="entity-card-header gradient">
       <div class="guest-card-top">

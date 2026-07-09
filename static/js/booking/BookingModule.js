@@ -6,6 +6,7 @@ import { BookingFilters } from './views/BookingFilters.js';
 import { BookingCardView } from './views/BookingCardView.js';
 import { BookingTableView } from './views/BookingTableView.js';
 import { BookingCalendarView } from './views/BookingCalendarView.js';
+import { BookingKanbanView } from './views/BookingKanbanView.js';
 import { escapeHtml } from './views/BookingActions.js';
 
 export class BookingModule {
@@ -18,6 +19,7 @@ export class BookingModule {
       cards: root.querySelector('#bookingCardView'),
       table: root.querySelector('#bookingTableView'),
       calendar: root.querySelector('#bookingCalendarView'),
+      kanban: root.querySelector('#bookingKanbanView'),
     };
     this.form = document.getElementById('bookingsFilterForm');
     this.init();
@@ -49,6 +51,7 @@ export class BookingModule {
     this.cardView = new BookingCardView(this.mounts.cards, this.store);
     this.tableView = new BookingTableView(this.mounts.table, this.store);
     this.calendarView = new BookingCalendarView(this.mounts.calendar, this.store);
+    this.kanbanView = new BookingKanbanView(this.mounts.kanban, this.store);
 
     const bootstrap = document.getElementById('bookingsBootstrap');
     let hasBootstrap = false;

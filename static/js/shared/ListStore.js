@@ -1,7 +1,13 @@
-/** Generic list state for card/table view modules */
+/** Shared list state — single source of truth for all views on a page */
 
 export class ListStore {
-  constructor({ sortBy = 'id', sortDir = 'desc', pageSize = 15, storageKey = 'hms-entity-view' } = {}) {
+  constructor({
+    sortBy = 'id',
+    sortDir = 'desc',
+    pageSize = 15,
+    storageKey = 'hms-page-view',
+    defaultView = 'cards',
+  } = {}) {
     this.items = [];
     this.total = 0;
     this.sortBy = sortBy;
@@ -9,13 +15,20 @@ export class ListStore {
     this.page = 1;
     this.pageSize = pageSize;
     this.storageKey = storageKey;
-    this.activeView = localStorage.getItem(storageKey) || 'cards';
+    this.defaultView = defaultView;
+    this.activeView = localStorage.getItem(storageKey) || defaultView;
     this.sortKeys = {};
+    this.filterFn = null;
+    this.selectedIds = new Set();
     this.listeners = new Set();
   }
 
   setSortKeys(keys) {
     this.sortKeys = keys;
+  }
+
+  setFilterFn(fn) {
+    this.filterFn = fn;
   }
 
   subscribe(fn) {
@@ -24,20 +37,25 @@ export class ListStore {
   }
 
   notify() {
-    const snap = this.getSnapshot();
-    this.listeners.forEach((fn) => fn(snap));
+    this.listeners.forEach((fn) => fn(this.getSnapshot()));
+  }
+
+  getFilteredItems() {
+    let rows = this.items;
+    if (this.filterFn) rows = rows.filter(this.filterFn);
+    return rows;
   }
 
   getSnapshot() {
-    const sorted = this.getSortedItems(this.items);
-    const total = sorted.length;
+    const filtered = this.getSortedItems(this.getFilteredItems());
+    const total = filtered.length;
     const pageCount = Math.max(1, Math.ceil(total / this.pageSize));
     const page = Math.min(this.page, pageCount);
     const start = (page - 1) * this.pageSize;
     return {
       items: this.items,
-      filtered: sorted,
-      pageRows: sorted.slice(start, start + this.pageSize),
+      filtered,
+      pageRows: filtered.slice(start, start + this.pageSize),
       total,
       page,
       pageCount,
@@ -45,12 +63,14 @@ export class ListStore {
       activeView: this.activeView,
       sortBy: this.sortBy,
       sortDir: this.sortDir,
+      selectedIds: this.selectedIds,
     };
   }
 
   setItems(items, total) {
     this.items = items || [];
     this.total = total ?? this.items.length;
+    this.page = 1;
     this.notify();
   }
 
@@ -68,6 +88,19 @@ export class ListStore {
   setView(view) {
     this.activeView = view;
     localStorage.setItem(this.storageKey, view);
+    this.notify();
+  }
+
+  toggleSelect(id) {
+    if (this.selectedIds.has(id)) this.selectedIds.delete(id);
+    else this.selectedIds.add(id);
+    this.notify();
+  }
+
+  selectAll(ids) {
+    const all = ids.every((id) => this.selectedIds.has(id));
+    if (all) ids.forEach((id) => this.selectedIds.delete(id));
+    else ids.forEach((id) => this.selectedIds.add(id));
     this.notify();
   }
 

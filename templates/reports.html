@@ -6,21 +6,28 @@
 {{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Reports"}]) }}
 {{ page_header("Reports & Analytics", "Interactive insights across revenue, occupancy, and bookings") }}
 
-<div class="list-filter-shell" style="margin-bottom:20px">
-  <form class="filter-toolbar-basic" method="get" data-list-filters>
+<div class="page-view-module" data-page-module="reports" id="reportsModule">
+<div class="page-filter-toolbar-row">
+<div class="list-filter-shell">
+  <form class="filter-toolbar-basic" method="get" id="reportsFilterForm" data-list-filters data-entity-api="true" data-auto-search="false">
     <label style="font-size:12px;color:var(--text-muted)">Date range</label>
     <input type="date" name="from" value="{{ date_from or '' }}">
     <input type="date" name="to" value="{{ date_to or '' }}">
     <div class="filter-toolbar-actions">
-      <button type="button" class="btn btn-ghost btn-sm" data-clear-filters>Clear All</button>
+      <button type="button" class="btn btn-ghost btn-sm" data-reset-entity-filters data-clear-filters>Clear All</button>
       <button type="submit" class="btn btn-primary btn-sm">Apply</button>
       <a href="{{ url_for('export_reports', **request.args) }}" class="btn btn-outline btn-sm">{{ icon('download', 14) }} Export CSV</a>
     </div>
   </form>
   {{ filter_meta(list_showing|default(payment_rows|length), list_total|default(payment_rows|length)) }}
 </div>
+<div id="reportsViewSwitcher"></div>
+</div>
 
-<div class="kpi-grid">
+<div id="reportsToolbar" hidden></div>
+
+<div id="reportsCharts">
+<div id="reportsKpis" class="kpi-grid">
     <div class="kpi-card"><div class="kpi-label">Total Revenue</div><div class="kpi-value">₹{{ "{:,.0f}".format(stats.revenue) }}</div></div>
     <div class="kpi-card"><div class="kpi-label">Occupancy</div><div class="kpi-value">{{ stats.occupancy_rate }}%</div></div>
     <div class="kpi-card"><div class="kpi-label">ADR (30d)</div><div class="kpi-value">₹{{ "{:,.0f}".format(analytics.adr) }}</div></div>
@@ -110,10 +117,10 @@
     </div>
 </div>
 
-<div class="panel saas-panel">
+<div class="panel saas-panel" id="reportsTablePanelLegacy" hidden>
   <div class="panel-head"><h3>Payment Details</h3></div>
   {% if payment_rows %}
-  <div class="table-wrap">
+  <div class="table-wrap table-sticky-header">
     <table class="data-table" data-paginate>
       <thead><tr><th class="sortable">Receipt</th><th class="sortable">Guest</th><th>Room</th><th class="sortable">Amount</th><th>Mode</th><th class="sortable">Date</th></tr></thead>
       <tbody>
@@ -145,5 +152,19 @@
     </div>
     {% endif %}
 </div>
+</div>
 
+<div id="reportsTablePanel" hidden>
+  <div id="reportsTableView" class="entity-view-panel" data-view-panel="table"></div>
+</div>
+</div>
+
+<script type="application/json" id="reportsBootstrap">{"payments":[{% for p in payment_rows %}{"id":{{ loop.index }},"receipt_number":{{ p.receipt_number|tojson }},"customer_name":{{ p.customer_name|tojson }},"room_no":{{ p.room_no|tojson }},"amount":{{ p.amount }},"payment_mode":{{ p.payment_mode|tojson }},"payment_date":{{ p.payment_date|tojson }}}{% if not loop.last %},{% endif %}{% endfor %}],"total":{{ payment_rows|length }}}</script>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script type="module" src="{{ url_for('static', filename='js/entity/index.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dashboard-charts.js') }}"></script>
 {% endblock %}

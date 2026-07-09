@@ -6,33 +6,6 @@
 {{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Operations"}, {"label": "Services"}]) }}
 {{ page_header("Services & Requests", "Hotel services and guest requests") }}
 
-<div class="list-filter-shell" style="margin:-8px 0 16px">
-  <form class="filter-toolbar-basic" method="get" data-list-filters data-card-filter="#serviceRequestGrid" data-auto-search="true">
-    <div class="table-search-wrap filter-search">
-      {{ icon('search', 16) }}
-      <input type="search" name="q" placeholder="Room, guest, description..." value="{{ search_q or '' }}">
-    </div>
-    {{ sort_controls(sort_by|default('id'), sort_dir|default('desc'), [('room', 'Room'), ('type', 'Type'), ('status', 'Status'), ('date', 'Date')]) }}
-    <button type="button" class="btn btn-ghost btn-sm filter-advanced-toggle" data-advanced-toggle>{{ icon('sliders-horizontal', 14) }} Advanced</button>
-    <div class="filter-toolbar-actions">
-      <button type="button" class="btn btn-ghost btn-sm" data-clear-filters>Clear All</button>
-      <button type="submit" class="btn btn-primary btn-sm">Apply</button>
-      <button class="btn btn-primary modal-trigger" data-target="#addRSModal">{{ icon('plus', 16) }} New Request</button>
-    </div>
-    <div class="filter-advanced-panel" data-advanced-panel style="width:100%">
-      <div class="filter-advanced-grid">
-        <label>Status<select name="status"><option value="">All</option>{% for s in rs_statuses %}<option value="{{ s }}" {% if filter_status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
-        <label>Request type<select name="request_type"><option value="">All</option>{% for t in rs_types %}<option value="{{ t }}" {% if request_type == t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></label>
-        <label>Room<input type="text" name="room_no" value="{{ room_no or '' }}"></label>
-        <label>From<input type="date" name="from" value="{{ date_from or '' }}"></label>
-        <label>To<input type="date" name="to" value="{{ date_to or '' }}"></label>
-      </div>
-    </div>
-  </form>
-  {{ filter_meta(list_showing|default(requests|length), list_total|default(requests|length)) }}
-  {{ filter_empty() }}
-</div>
-
 <h3 class="page-title" style="font-size:14px;margin-bottom:10px">Available Services</h3>
 <div class="entity-grid service-grid" style="margin-bottom:20px">
   {% set services = [
@@ -59,50 +32,93 @@
 </div>
 
 <h3 class="page-title" style="font-size:14px;margin-bottom:10px">Active Requests</h3>
-{% if requests %}
-<div class="entity-grid wide" id="serviceRequestGrid">
-  {% for r in requests %}
-  <article class="entity-card {% if r.request_type == 'Maintenance' %}status-Maintenance{% endif %}" data-searchable
-           data-status="{{ r.status }}" data-search="room {{ r.room_no }} {{ r.request_type }} {{ r.customer_name or '' }}">
-    <div class="entity-card-header">
-      <div>
-        <div class="entity-card-sub">Room {{ r.room_no }}</div>
-        <div class="entity-card-title">{{ r.request_type }}</div>
-        <div class="entity-card-sub">{{ r.customer_name or 'Walk-in guest' }}</div>
+<div class="page-view-module" data-page-module="services" id="servicesModule">
+<div class="page-filter-toolbar-row">
+<div class="list-filter-shell" style="margin:0;flex:1">
+  <form class="filter-toolbar-basic" method="get" id="servicesFilterForm" data-list-filters data-entity-api="true" data-auto-search="false">
+    <div class="table-search-wrap filter-search">
+      {{ icon('search', 16) }}
+      <input type="search" name="q" placeholder="Room, guest, description..." value="{{ search_q or '' }}">
+    </div>
+    {{ sort_controls(sort_by|default('id'), sort_dir|default('desc'), [('room', 'Room'), ('type', 'Type'), ('status', 'Status'), ('date', 'Date')]) }}
+    <button type="button" class="btn btn-ghost btn-sm filter-advanced-toggle" data-advanced-toggle>{{ icon('sliders-horizontal', 14) }} Advanced</button>
+    <div class="filter-toolbar-actions">
+      <button type="button" class="btn btn-ghost btn-sm" data-reset-entity-filters data-clear-filters>Clear All</button>
+      <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+      <button class="btn btn-primary modal-trigger" data-target="#addRSModal">{{ icon('plus', 16) }} New Request</button>
+    </div>
+    <div class="filter-advanced-panel" data-advanced-panel style="width:100%">
+      <div class="filter-advanced-grid">
+        <label>Status<select name="status"><option value="">All</option>{% for s in rs_statuses %}<option value="{{ s }}" {% if filter_status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
+        <label>Request type<select name="request_type"><option value="">All</option>{% for t in rs_types %}<option value="{{ t }}" {% if request_type == t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></label>
+        <label>Room<input type="text" name="room_no" value="{{ room_no or '' }}"></label>
+        <label>From<input type="date" name="from" value="{{ date_from or '' }}"></label>
+        <label>To<input type="date" name="to" value="{{ date_to or '' }}"></label>
       </div>
-      {{ card_menu([{'type': 'button', 'label': 'Update', 'icon': 'pencil', 'target': '#editRS' ~ r.id}]) }}
     </div>
-    <div class="entity-card-body">
-      <p class="muted">{{ r.description or 'No description' }}</p>
-      <div class="entity-card-stats">
-        <div class="entity-stat">Charges<strong>₹{{ "{:,.0f}".format(r.charges or 0) }}</strong></div>
-        <div class="entity-stat">Bill<strong>{{ 'Yes' if r.add_to_bill else 'No' }}</strong></div>
-      </div>
-    </div>
-    <div class="entity-card-footer">
-      {{ status_badge(r.status) }}
-      <span class="muted">{{ r.created_at }}</span>
-    </div>
-  </article>
-  {% endfor %}
+  </form>
+  {{ filter_meta(list_showing|default(requests|length), list_total|default(requests|length)) }}
+  {{ filter_empty() }}
 </div>
+<div id="servicesViewSwitcher"></div>
+</div>
+<div id="servicesToolbar" hidden></div>
+
+{% if requests %}
+<div class="entity-views-container" data-list-results>
+  <div id="servicesTableView" class="entity-view-panel" data-view-panel="table" hidden></div>
+  <div class="entity-grid wide" id="serviceRequestGrid" data-view-panel="cards">
+    {% for r in requests %}
+    <article class="entity-card {% if r.request_type == 'Maintenance' %}status-Maintenance{% endif %}" data-entity-id="{{ r.id }}" data-searchable
+             data-status="{{ r.status }}" data-search="room {{ r.room_no }} {{ r.request_type }} {{ r.customer_name or '' }}">
+      <div class="entity-card-header">
+        <div>
+          <div class="entity-card-sub">Room {{ r.room_no }}</div>
+          <div class="entity-card-title">{{ r.request_type }}</div>
+          <div class="entity-card-sub">{{ r.customer_name or 'Walk-in guest' }}</div>
+        </div>
+        {{ card_menu([{'type': 'button', 'label': 'Update', 'icon': 'pencil', 'target': '#editRS' ~ r.id}]) }}
+      </div>
+      <div class="entity-card-body">
+        <p class="muted">{{ r.description or 'No description' }}</p>
+        <div class="entity-card-stats">
+          <div class="entity-stat">Charges<strong>₹{{ "{:,.0f}".format(r.charges or 0) }}</strong></div>
+          <div class="entity-stat">Bill<strong>{{ 'Yes' if r.add_to_bill else 'No' }}</strong></div>
+        </div>
+      </div>
+      <div class="entity-card-footer">
+        {{ status_badge(r.status) }}
+        <span class="muted">{{ r.created_at }}</span>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</div>
+{% else %}
+{{ empty_state("concierge-bell", "No service requests", "Create a request for a checked-in guest.", "New Request", "#addRSModal") }}
+{% endif %}
+</div>
+
+<script type="application/json" id="servicesBootstrap">{"requests":[{% for r in requests %}{"id":{{ r.id }},"room_no":{{ r.room_no|tojson }},"request_type":{{ r.request_type|tojson }},"customer_name":{{ (r.customer_name or '')|tojson }},"description":{{ (r.description or '')|tojson }},"status":{{ r.status|tojson }},"charges":{{ r.charges or 0 }},"add_to_bill":{{ 'true' if r.add_to_bill else 'false' }},"created_at":{{ (r.created_at or '')|tojson }}}{% if not loop.last %},{% endif %}{% endfor %}],"total":{{ list_total|default(requests|length) }}}</script>
 
 {% set maintenance = maintenance|default([]) %}
 {% if maintenance %}
 <h3 class="page-title" style="font-size:14px;margin:20px 0 10px">Maintenance Issues</h3>
-<div class="entity-grid wide">
-  {% for r in maintenance %}
-  <article class="entity-card status-Maintenance priority-{{ 'High' if r.charges and r.charges > 500 else 'Medium' }}">
-    <div class="entity-card-title">Room {{ r.room_no }} — {{ r.description or 'Maintenance' }}</div>
-    <div class="entity-card-sub">Reported {{ r.created_at }}</div>
-    <div style="margin-top:8px">{{ status_badge(r.status) }}</div>
-  </article>
-  {% endfor %}
+<div class="page-view-module" data-page-module="maintenance" id="maintenanceModule">
+  <div class="page-filter-toolbar-row" style="justify-content:flex-end;margin-bottom:12px">
+    <div id="maintenanceViewSwitcher"></div>
+  </div>
+  <div id="maintenanceToolbar" hidden></div>
+  <form id="maintenanceFilterForm" data-list-filters data-entity-api="true" hidden>
+    <input type="search" name="q" value="">
+  </form>
+  <div class="entity-views-container">
+    <div id="maintenanceKanbanView" class="entity-view-panel" data-view-panel="kanban" hidden></div>
+    <div id="maintenanceCardView" class="entity-view-panel" data-view-panel="cards" hidden></div>
+    <div id="maintenanceTableView" class="entity-view-panel" data-view-panel="table" hidden></div>
+  </div>
 </div>
-{% endif %}
-
-{% else %}
-{{ empty_state("concierge-bell", "No service requests", "Create a request for a checked-in guest.", "New Request", "#addRSModal") }}
+<script type="application/json" id="maintenanceBootstrap">{"items":[{% for r in maintenance %}{"id":{{ r.id }},"room_no":{{ r.room_no|tojson }},"description":{{ (r.description or 'Maintenance')|tojson }},"status":{{ r.status|tojson }},"request_type":"Maintenance","created_at":{{ (r.created_at or '')|tojson }}}{% if not loop.last %},{% endif %}{% endfor %}],"total":{{ maintenance|length }}}</script>
 {% endif %}
 
 <div class="modal" id="addRSModal">
@@ -148,4 +164,9 @@
 </div>
 {% endfor %}
 
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script type="module" src="{{ url_for('static', filename='js/entity/index.js') }}"></script>
 {% endblock %}

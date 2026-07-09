@@ -12,7 +12,7 @@
   <button class="btn btn-primary modal-trigger" data-target="#addHKModal">{{ icon('plus', 16) }} New Task</button>
 </div>
 
-<div class="entity-list-module" data-entity-module="housekeeping" id="housekeepingModule">
+<div class="page-view-module" data-page-module="housekeeping" id="housekeepingModule">
 <div class="entity-filter-toolbar-row">
 <div class="list-filter-shell">
 <form class="filter-toolbar-basic" method="get" id="housekeepingFilterForm" data-list-filters data-entity-api="true" data-auto-search="false">
@@ -47,8 +47,10 @@
 
 {% if tasks %}
 <div class="entity-views-container" data-list-results>
-<div id="housekeepingTableView" class="entity-view-panel" hidden></div>
-<div class="kanban-board" id="housekeepingKanban" data-kanban>
+<div id="housekeepingKanbanView" class="entity-view-panel" data-view-panel="kanban" hidden></div>
+<div id="housekeepingCardView" class="entity-view-panel" data-view-panel="cards" hidden></div>
+<div id="housekeepingTableView" class="entity-view-panel" data-view-panel="table" hidden></div>
+<div class="kanban-board" id="housekeepingKanban" hidden data-kanban>
   {% for col_status in hk_statuses %}
   <div class="kanban-column">
     <div class="kanban-column-head">

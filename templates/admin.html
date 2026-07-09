@@ -15,24 +15,30 @@
   </div>
 </div>
 
-<div class="page-actions">
-    <form class="filter-bar" method="get">
+<div class="page-view-module" data-page-module="users" id="usersModule">
+<div class="page-filter-toolbar-row">
+<div class="page-actions" style="flex:1">
+    <form class="filter-bar" method="get" id="usersFilterForm" data-list-filters data-entity-api="true" data-auto-search="false">
         <input type="search" name="q" placeholder="Search users..." value="{{ search_q }}">
-        <select name="status" onchange="this.form.submit()">
+        <select name="status">
             <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Users</option>
             <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
             <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
             <option value="archived" {% if status_filter == 'archived' %}selected{% endif %}>Archived Users</option>
         </select>
-        <select name="role" onchange="this.form.submit()">
+        <select name="role">
             <option value="">All Roles</option>
             {% for r in roles %}
             <option value="{{ r }}" {% if role == r %}selected{% endif %}>{{ r }}</option>
             {% endfor %}
         </select>
-        <button type="submit" class="btn btn-outline btn-sm">Filter</button>
+        <button type="submit" class="btn btn-outline btn-sm">Apply</button>
     </form>
 </div>
+<div id="usersViewSwitcher"></div>
+</div>
+
+<div id="usersToolbar" hidden></div>
 
 {% if users %}
 <div class="bulk-bar">
@@ -48,77 +54,13 @@
 </div>
 {% endif %}
 
-<div class="panel" style="padding:0;overflow:hidden">
-    {% if users %}
-    <div class="table-toolbar">
-        <div class="table-search-wrap">
-            <input type="search" placeholder="Search users..." data-table-search>
-        </div>
-    </div>
-    <div class="table-wrap">
-    <table class="data-table" data-paginate>
-        <thead>
-            <tr>
-                <th style="width:36px"></th>
-                <th>Username</th>
-                <th>Full Name</th>
-                <th>Role</th>
-                <th>Status</th>
-                <th>Last Login</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for u in users %}
-        <tr>
-            <td>
-                {% if u.role != 'Super Admin' %}
-                <input type="checkbox" class="user-check" form="userBulkForm" name="ids" value="{{ u.id }}">
-                {% endif %}
-            </td>
-            <td><strong>{{ u.username }}</strong></td>
-            <td>{{ u.full_name or u.username }}</td>
-            <td>{{ u.role }}</td>
-            <td>{{ status_badge(u.status) }}</td>
-            <td>{{ u.last_login or '—' }}</td>
-            <td>
-                <div class="actions-dropdown">
-                    <button type="button" class="btn btn-outline btn-sm actions-toggle" title="Actions">⋮</button>
-                    <div class="actions-menu">
-                        <button type="button" class="actions-item modal-trigger" data-target="#viewUser{{ u.id }}">View Details</button>
-                        <button type="button" class="actions-item modal-trigger" data-target="#editUser{{ u.id }}">Edit</button>
-                        {% if u.role != 'Super Admin' and u.status != 'Inactive' and u.status != 'Archived' %}
-                        <form method="post" action="{{ url_for('deactivate_user', user_id=u.id, **request.args) }}" data-confirm="Deactivate {{ u.username }}? They will not be able to log in.">
-                            <button type="submit" class="actions-item">Deactivate</button>
-                        </form>
-                        {% endif %}
-                        {% if u.role != 'Super Admin' and (u.status == 'Inactive' or u.status in ['On Leave', 'Suspended', 'Resigned', 'Terminated']) %}
-                        <form method="post" action="{{ url_for('activate_user', user_id=u.id, **request.args) }}">
-                            <button type="submit" class="actions-item">Activate</button>
-                        </form>
-                        {% endif %}
-                        {% if u.role != 'Super Admin' and u.status != 'Archived' %}
-                        <form method="post" action="{{ url_for('archive_user', user_id=u.id, **request.args) }}" data-confirm="Archive {{ u.username }}?">
-                            <button type="submit" class="actions-item">Archive</button>
-                        </form>
-                        {% endif %}
-                        {% if current_user.role == 'Super Admin' and u.role != 'Super Admin' %}
-                        <form method="post" action="{{ url_for('delete_user', user_id=u.id, **request.args) }}" data-confirm="Permanently delete {{ u.username }}? This action cannot be undone.">
-                            <button type="submit" class="actions-item danger">Delete Permanently</button>
-                        </form>
-                        {% endif %}
-                    </div>
-                </div>
-            </td>
-        </tr>
-        {% endfor %}
-        </tbody>
-    </table>
-    </div>
-    {% else %}
-    {{ empty_state("🔐", "No users yet", "Click 'Add User' to create staff accounts.", "+ Add User", "#addUserModal") }}
-    {% endif %}
+<div class="entity-views-container" data-list-results>
+  <div id="usersTableView" class="entity-view-panel" data-view-panel="table"></div>
+  <div id="usersCardView" class="entity-view-panel" data-view-panel="cards" hidden></div>
 </div>
+</div>
+
+<script type="application/json" id="usersBootstrap">{"users":[{% for u in users %}{"id":{{ u.id }},"username":{{ u.username|tojson }},"full_name":{{ (u.full_name or u.username)|tojson }},"role":{{ u.role|tojson }},"status":{{ u.status|tojson }},"last_login":{{ (u.last_login or '')|tojson }}}{% if not loop.last %},{% endif %}{% endfor %}],"total":{{ users|length }}}</script>
 
 <div class="modal" id="addUserModal">
     <div class="modal-overlay"></div>
@@ -186,4 +128,13 @@
 </div>
 {% endfor %}
 
+{% if not users %}
+{{ empty_state("🔐", "No users yet", "Click 'Add User' to create staff accounts.", "+ Add User", "#addUserModal") }}
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script type="module" src="{{ url_for('static', filename='js/entity/index.js') }}"></script>
 {% endblock %}

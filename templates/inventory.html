@@ -14,7 +14,7 @@
   </div>
 </div>
 
-<div class="entity-list-module" data-entity-module="inventory" id="inventoryModule">
+<div class="page-view-module" data-page-module="inventory" id="inventoryModule">
 <div class="entity-filter-toolbar-row">
 <div class="list-filter-shell">
 <form class="filter-toolbar-basic" method="get" id="inventoryFilterForm" data-list-filters data-entity-api="true" data-auto-search="false">
@@ -51,7 +51,7 @@
 <div id="inventoryTableView" class="entity-view-panel" hidden></div>
 <div class="entity-grid" id="inventoryCardGrid" data-view-panel="cards" data-page="inventory">
   {% for i in items %}
-  <article class="entity-card {% if i.quantity <= i.reorder_level %}low-stock{% endif %}" data-searchable
+  <article class="entity-card {% if i.quantity <= i.reorder_level %}low-stock{% endif %}" data-entity-id="{{ i.id }}" data-searchable
            data-search="{{ i.item_name }} {{ i.category }} {{ i.supplier_name or '' }}">
     <div class="entity-card-header">
       <div class="service-icon" style="width:40px;height:40px;margin:0">{{ icon('package', 20) }}</div>

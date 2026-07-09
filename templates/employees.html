@@ -15,7 +15,7 @@
   </div>
 </div>
 
-<div class="entity-list-module" data-entity-module="employees" id="employeesModule">
+<div class="page-view-module" data-page-module="employees" id="employeesModule">
 <div class="entity-filter-toolbar-row">
 <div class="list-filter-shell">
 <form class="filter-toolbar-basic" method="get" id="employeesFilterForm" data-list-filters data-entity-api="true" data-auto-search="false">
@@ -64,7 +64,7 @@
 <div class="entity-grid wide" id="employeeCardGrid" data-page="employees">
   {% for e in employees %}
   {% set emp_bucket = 'archived' if e.status == 'Archived' else ('active' if e.status == 'Active' else 'inactive') %}
-  <article class="entity-card data-searchable" data-search="{{ e.name }} {{ e.role }} {{ e.department }}"
+  <article class="entity-card data-searchable" data-entity-id="{{ e.id }}" data-search="{{ e.name }} {{ e.role }} {{ e.department }}"
            data-status="{{ emp_bucket }}" data-department="{{ e.department or '' }}" data-role="{{ e.role or '' }}"
            data-card-drawer="#drawerEmp{{ e.id }}">
     <div class="entity-card-header gradient">

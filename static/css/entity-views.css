@@ -1,9 +1,11 @@
-/* Site-wide entity list multi-view (Guests, Rooms, Employees, Inventory) */
+/* Site-wide multi-view modules — ViewSwitcher, tables, cards, kanban, floor */
 
+.page-view-module,
 .entity-list-module {
-  --entity-view-ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --view-ease: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
+.page-filter-toolbar-row,
 .entity-filter-toolbar-row {
   display: flex;
   align-items: flex-start;
@@ -13,13 +15,17 @@
   margin-bottom: 12px;
 }
 
+.page-filter-toolbar-row .list-filter-shell,
 .entity-filter-toolbar-row .list-filter-shell {
   flex: 1;
   min-width: min(100%, 520px);
   margin-bottom: 0;
 }
 
-.entity-view-switcher {
+/* Unified view switcher (entity + booking aliases) */
+.view-switcher,
+.entity-view-switcher,
+.booking-view-switcher {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -30,14 +36,18 @@
   flex-shrink: 0;
 }
 
-.entity-view-switcher-label {
+.view-switcher-label,
+.entity-view-switcher-label,
+.booking-view-switcher-label {
   font-size: 12px;
   font-weight: 600;
   color: var(--text-muted);
   padding: 0 8px 0 10px;
 }
 
-.entity-view-btn {
+.view-switcher-btn,
+.entity-view-btn,
+.booking-view-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -52,22 +62,29 @@
   transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
 }
 
-.entity-view-btn:hover {
+.view-switcher-btn:hover,
+.entity-view-btn:hover,
+.booking-view-btn:hover {
   color: var(--text);
   background: var(--bg-elevated);
 }
 
-.entity-view-btn.active {
+.view-switcher-btn.active,
+.entity-view-btn.active,
+.booking-view-btn.active {
   background: var(--bg-elevated);
   color: var(--primary);
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
 }
 
-.entity-view-btn .icon {
+.view-switcher-btn .icon,
+.entity-view-btn .icon,
+.booking-view-btn .icon {
   width: 15px;
   height: 15px;
 }
 
+.page-view-toolbar,
 .entity-toolbar {
   display: flex;
   align-items: center;
@@ -76,40 +93,62 @@
   margin-bottom: 14px;
 }
 
+.page-view-toolbar-meta,
 .entity-toolbar-meta {
   font-size: 13px;
   color: var(--text-muted);
 }
 
+.page-view-toolbar-actions,
 .entity-toolbar-actions {
   display: flex;
   gap: 8px;
 }
 
+.page-views-container,
 .entity-views-container {
   position: relative;
 }
 
-.entity-view-panel[hidden] {
+.entity-view-panel[hidden],
+[data-view-panel][hidden] {
   display: none !important;
 }
 
+.page-view-transition .entity-grid,
 .entity-view-transition .entity-grid,
-.entity-view-transition .entity-table-wrap {
-  animation: entityViewFade 0.28s var(--entity-view-ease);
+.page-data-table-wrap,
+.entity-table-wrap {
+  animation: viewFadeIn 0.28s var(--view-ease);
 }
 
-@keyframes entityViewFade {
+@keyframes viewFadeIn {
   from { opacity: 0.6; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* Sticky table header */
+.table-sticky-header {
+  max-height: min(70vh, 720px);
+  overflow: auto;
+}
+
+.table-sticky-header thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg-elevated, #fff);
+  box-shadow: 0 1px 0 var(--border-light);
+}
+
+.page-data-table-wrap .table-actions,
 .entity-table-wrap .table-actions {
   display: flex;
   gap: 4px;
   flex-wrap: wrap;
 }
 
+.page-table-pagination,
 .entity-table-pagination {
   display: flex;
   align-items: center;
@@ -119,10 +158,37 @@
   color: var(--text-muted);
 }
 
+.page-card-grid .entity-card {
+  height: 100%;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.page-card-grid .entity-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+.page-empty-view {
+  text-align: center;
+  padding: 48px 16px;
+  color: var(--text-muted);
+}
+
+.page-kanban-board .kanban-card {
+  cursor: pointer;
+}
+
+.booking-kanban-board {
+  margin-top: 4px;
+}
+
 @media (max-width: 768px) {
-  .entity-view-btn-text {
+  .view-switcher-btn-text,
+  .entity-view-btn-text,
+  .booking-view-btn-text {
     display: none;
   }
+  .page-filter-toolbar-row,
   .entity-filter-toolbar-row {
     flex-direction: column;
   }
