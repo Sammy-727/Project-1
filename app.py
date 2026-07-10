@@ -13,8 +13,68 @@ import uuid
 from list_filters import (
     bookings_query, customers_query, rooms_query, employees_query,
     inventory_query, payments_query, invoices_query, housekeeping_query,
-    room_service_query, paginate_rows,
+    room_service_query, paginate_rows, paginate_sql,
 )
+from services.api_helpers import api_error, api_ok, paginated_api_response
+from services.hotel_access import (
+    get_current_hotel_id,
+    set_session_hotel,
+    ensure_entity_hotel,
+    scoped_customer as _scoped_customer,
+    scoped_room as _scoped_room,
+    scoped_booking as _scoped_booking,
+    get_current_hotel as _get_current_hotel,
+)
+from services.booking_availability import (
+    BookingConflictError,
+    OVERLAP_CONFLICT_MESSAGE,
+    validate_booking_dates,
+    room_has_overlap as _room_has_overlap,
+    get_available_rooms as _get_available_rooms,
+)
+from services.booking_finance import (
+    nights_between,
+    calc_room_charges,
+    receipt_number as _receipt_number,
+    receipt_number_conn,
+    booking_service_charges as _booking_service_charges,
+    booking_room_charges,
+    booking_total_amount as _booking_total_amount,
+    booking_paid_amount as _booking_paid_amount,
+    update_booking_payment_status as _update_booking_payment_status,
+)
+from services.booking_service import (
+    get_idempotent_booking as _get_idempotent_booking,
+    store_idempotent_booking as _store_idempotent_booking,
+    fetch_booking_detail as _fetch_booking_detail,
+    create_booking_record,
+)
+from services.entity_mappers import (
+    customer_to_dict,
+    customer_list_row_to_dict,
+    room_to_dict,
+    room_list_row_to_dict,
+    booking_row_to_dict,
+    employee_list_row_to_dict,
+    inventory_list_row_to_dict,
+    housekeeping_list_row_to_dict,
+)
+from services.notifications_service import (
+    NOTIFICATION_TYPES,
+    NOTIFICATION_PRIORITY,
+    NOTIFICATION_CATEGORIES,
+    notification_to_dict,
+    count_unread_notifications as _count_unread_notifications,
+    list_notifications as _list_notifications,
+    generate_hotel_alerts as _generate_hotel_alerts,
+    sync_notifications_from_data as _sync_notifications_from_data,
+)
+from services.dashboard_service import (
+    dashboard_stats as _dashboard_stats,
+    pending_payment_summary,
+    pending_bookings_with_balance,
+)
+from services.room_status import sync_room_status_from_bookings as _sync_room_status_from_bookings
 from chart_data import (
     get_revenue_trend,
     get_revenue_daily_7d,
@@ -100,29 +160,6 @@ RS_STATUSES = ["Pending", "In Progress", "Completed", "Cancelled"]
 ID_PROOF_TYPES = ["Aadhar", "Passport", "Driving License", "Voter ID", "PAN Card", "Other"]
 BOOKING_SOURCES = ["Walk-in", "Phone", "Website", "OTA", "Corporate", "Travel Agent", "Other"]
 UNAVAILABLE_ROOM_STATUSES = {"Maintenance", "Cleaning"}
-BLOCKING_BOOKING_STATUSES = ("Reserved", "Checked-in")
-OVERLAP_CONFLICT_MESSAGE = "This room is already booked for the selected dates."
-
-
-class BookingConflictError(Exception):
-    """Raised when a room is already booked for overlapping dates."""
-NOTIFICATION_TYPES = ("RED", "YELLOW", "GREEN", "BLUE", "ORANGE")
-NOTIFICATION_PRIORITY = {
-    "RED": "urgent",
-    "ORANGE": "urgent",
-    "YELLOW": "upcoming",
-    "BLUE": "general",
-    "GREEN": "general",
-}
-NOTIFICATION_CATEGORIES = (
-    "PENDING_PAYMENTS",
-    "LOW_INVENTORY",
-    "UPCOMING_CHECKINS",
-    "UPCOMING_CHECKOUTS",
-    "MAINTENANCE",
-    "HOUSEKEEPING",
-)
-DEFAULT_HOTEL_ID = DEFAULT_HOTEL_ID
 
 
 def get_db():
@@ -161,83 +198,99 @@ def db_transaction():
         conn.close()
 
 
-def validate_booking_dates(checkin, checkout):
-    try:
-        ci = datetime.strptime(checkin, "%Y-%m-%d").date()
-        co = datetime.strptime(checkout, "%Y-%m-%d").date()
-    except ValueError:
-        return False, "Invalid date format."
-    if co <= ci:
-        return False, "Check-out must be after check-in."
-    return True, None
-
-
 def room_has_overlap(room_id, checkin, checkout, exclude_booking_id=None, conn=None):
-    """True if an active booking overlaps [checkin, checkout) for the room."""
-    sql = """
-        SELECT COUNT(*) c FROM bookings
-        WHERE room_id=?
-          AND status IN ('Reserved', 'Checked-in')
-          AND checkin < ? AND checkout > ?
-    """
-    params = [room_id, checkout, checkin]
-    if exclude_booking_id:
-        sql += " AND id != ?"
-        params.append(exclude_booking_id)
-    if conn:
-        row = conn.execute(sql, params).fetchone()
-        return row["c"] > 0
-    return query(sql, params, one=True)["c"] > 0
+    return _room_has_overlap(query, room_id, checkin, checkout, exclude_booking_id=exclude_booking_id, conn=conn)
 
 
-def get_idempotent_booking(idem_key):
-    if not idem_key:
-        return None
-    row = query(
-        "SELECT booking_id FROM booking_idempotency WHERE idem_key=?",
-        (idem_key,),
-        one=True,
+def booking_paid_amount(booking_id):
+    return _booking_paid_amount(query, booking_id)
+
+
+def booking_total_amount(booking):
+    return _booking_total_amount(query, booking)
+
+
+def update_booking_payment_status(booking_id):
+    return _update_booking_payment_status(query, booking_id)
+
+
+def receipt_number():
+    return _receipt_number(query)
+
+
+def get_current_hotel():
+    return _get_current_hotel(query)
+
+
+def scoped_customer(customer_id, hotel_id=None):
+    return _scoped_customer(query, customer_id, hotel_id)
+
+
+def scoped_room(room_id, hotel_id=None):
+    return _scoped_room(query, room_id, hotel_id)
+
+
+def scoped_booking(booking_id, hotel_id=None):
+    return _scoped_booking(query, booking_id, hotel_id)
+
+
+def get_available_rooms(checkin, checkout, num_guests=1, hotel_id=None):
+    return _get_available_rooms(
+        query,
+        checkin,
+        checkout,
+        num_guests=num_guests,
+        hotel_id=hotel_id or get_current_hotel_id(),
+        unavailable_statuses=UNAVAILABLE_ROOM_STATUSES,
+        room_to_dict=room_to_dict,
     )
-    return row["booking_id"] if row else None
 
 
-def store_idempotent_booking(idem_key, booking_id, conn=None):
-    if not idem_key:
-        return
-    sql = "INSERT OR IGNORE INTO booking_idempotency(idem_key, booking_id, created_at) VALUES(?,?,?)"
-    params = (idem_key, booking_id, datetime.now().isoformat(timespec="seconds"))
-    if conn:
-        conn.execute(sql, params)
-    else:
-        query(sql, params, commit=True)
+def sync_notifications_from_data(hotel_id=None):
+    hid = hotel_id or get_current_hotel_id()
+    _sync_notifications_from_data(query, booking_paid_amount, hid)
+
+
+def generate_hotel_alerts(hotel_id):
+    _generate_hotel_alerts(query, booking_paid_amount, hotel_id)
+
+
+def sync_room_status_from_bookings(room_id):
+    _sync_room_status_from_bookings(query, room_id)
+
+
+def dashboard_stats(hotel_id=None):
+    return _dashboard_stats(query, hotel_id=hotel_id, get_hotel_id_fn=get_current_hotel_id)
 
 
 def fetch_booking_detail(booking_id):
-    return query(
-        """
-        SELECT b.*, c.name customer_name, c.phone, r.room_no, r.room_type, r.price
-        FROM bookings b JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
-        WHERE b.id=?
-        """,
-        (booking_id,),
-        one=True,
-    )
+    return _fetch_booking_detail(query, booking_id)
 
 
-def create_booking_record(conn, *, customer_id, room_id, checkin, checkout, num_guests,
-                          adults, children, booking_source, special_request, total,
-                          payment_status, hid):
-    cur = conn.execute(
-        """INSERT INTO bookings(customer_id,room_id,checkin,checkout,num_guests,adults,children,
-           booking_source,special_request,total_amount,status,payment_status,notes,hotel_id)
-           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-        (
-            customer_id, room_id, checkin, checkout, num_guests, adults, children,
-            booking_source, special_request, total, "Reserved", payment_status,
-            special_request, hid,
-        ),
-    )
-    return cur.lastrowid
+def get_idempotent_booking(idem_key):
+    return _get_idempotent_booking(query, idem_key)
+
+
+def store_idempotent_booking(idem_key, booking_id, conn=None):
+    return _store_idempotent_booking(query, idem_key, booking_id, conn=conn)
+
+
+def count_unread_notifications(hotel_id):
+    return _count_unread_notifications(query, hotel_id)
+
+
+def list_notifications(hotel_id):
+    return _list_notifications(query, hotel_id)
+
+
+def booking_service_charges(booking_id):
+    return _booking_service_charges(query, booking_id)
+
+
+def api_paginated_list(query_builder, items_key, mapper, hotel_id=None):
+    sql, params, f = query_builder(hotel_id or get_current_hotel_id())
+    rows, total, page, size = paginate_sql(query, sql, params, f["page"], f["size"])
+    return paginated_api_response(items_key, rows, mapper, total, page, size)
 
 
 def table_columns(table):
@@ -281,71 +334,6 @@ def add_column_if_missing(table, column, col_type):
         pass
 
 
-def nights_between(checkin, checkout):
-    d1 = datetime.strptime(checkin, "%Y-%m-%d").date()
-    d2 = datetime.strptime(checkout, "%Y-%m-%d").date()
-    return max((d2 - d1).days, 1)
-
-
-def calc_room_charges(price, checkin, checkout):
-    return nights_between(checkin, checkout) * float(price)
-
-
-def receipt_number():
-    count = query("SELECT COUNT(*) c FROM payments", one=True)["c"]
-    return f"RCP-{datetime.now().strftime('%Y%m%d')}-{count + 1:04d}"
-
-
-def receipt_number_conn(conn):
-    count = conn.execute("SELECT COUNT(*) c FROM payments").fetchone()["c"]
-    return f"RCP-{datetime.now().strftime('%Y%m%d')}-{count + 1:04d}"
-
-
-def booking_service_charges(booking_id):
-    inv = query(
-        "SELECT COALESCE(SUM(amount),0) s FROM service_usage WHERE booking_id=?",
-        (booking_id,), one=True
-    )["s"]
-    rs = query(
-        "SELECT COALESCE(SUM(charges),0) s FROM room_service_requests WHERE booking_id=? AND status != 'Cancelled'",
-        (booking_id,), one=True
-    )["s"]
-    return float(inv) + float(rs)
-
-
-def booking_room_charges(booking):
-    return calc_room_charges(booking["price"], booking["checkin"], booking["checkout"])
-
-
-def booking_total_amount(booking):
-    return booking_room_charges(booking) + booking_service_charges(booking["id"])
-
-
-def booking_paid_amount(booking_id):
-    return float(query(
-        "SELECT COALESCE(SUM(amount),0) s FROM payments WHERE booking_id=?",
-        (booking_id,), one=True
-    )["s"])
-
-
-def update_booking_payment_status(booking_id):
-    booking = query("""
-        SELECT b.*, r.price FROM bookings b JOIN rooms r ON b.room_id=r.id WHERE b.id=?
-    """, (booking_id,), one=True)
-    if not booking:
-        return
-    total = booking_total_amount(booking)
-    paid = booking_paid_amount(booking_id)
-    if paid <= 0:
-        status = "Pending"
-    elif paid >= total:
-        status = "Paid"
-    else:
-        status = "Partial"
-    query("UPDATE bookings SET total_amount=?, payment_status=? WHERE id=?",
-          (total, status, booking_id), commit=True)
-
-
 def row_get(row, key, default=None):
     if row is None:
         return default
@@ -355,210 +343,6 @@ def row_get(row, key, default=None):
         return row[key]
     except (KeyError, IndexError, TypeError):
         return default
-
-
-def customer_to_dict(row):
-    if not row:
-        return None
-    d = dict(row)
-    return {
-        "id": d["id"],
-        "name": d["name"],
-        "phone": d["phone"],
-        "email": d["email"],
-        "address": d["address"],
-        "gender": d["gender"],
-        "age": d["age"],
-        "id_proof_type": d["id_proof_type"],
-        "id_proof_number": d["id_proof_number"],
-        "emergency_contact": d.get("emergency_contact"),
-    }
-
-
-def customer_list_row_to_dict(row, booking_count=0):
-    d = dict(row)
-    bc = booking_count if booking_count is not None else d.get("booking_count", 0)
-    loyalty = "Gold" if bc >= 5 else ("Silver" if bc >= 2 else "New")
-    return {
-        "id": d["id"],
-        "name": d["name"],
-        "phone": d["phone"],
-        "email": d.get("email"),
-        "address": d.get("address"),
-        "booking_count": bc,
-        "loyalty": loyalty,
-        "guest_type": "Returning" if bc > 1 else "New",
-        "image_url": d.get("image_url"),
-        "id_proof_type": d.get("id_proof_type"),
-        "gender": d.get("gender"),
-        "age": d.get("age"),
-    }
-
-
-def room_list_row_to_dict(row):
-    d = dict(row)
-    return {
-        "id": d["id"],
-        "room_no": d["room_no"],
-        "room_type": d.get("room_type") or d.get("category"),
-        "floor": d.get("floor") or 1,
-        "price": float(d.get("price") or 0),
-        "capacity": d.get("capacity") or 2,
-        "status": d.get("status"),
-        "amenities": d.get("amenities"),
-        "image_url": d.get("image_url"),
-    }
-
-
-def employee_list_row_to_dict(row):
-    d = dict(row)
-    return {
-        "id": d["id"],
-        "name": d["name"],
-        "phone": d.get("phone"),
-        "email": d.get("email"),
-        "role": d.get("role") or d.get("designation"),
-        "department": d.get("department"),
-        "status": d.get("status"),
-        "shift": d.get("shift"),
-        "joining_date": d.get("joining_date"),
-        "salary": float(d.get("salary") or 0),
-        "image_url": d.get("image_url"),
-    }
-
-
-def inventory_list_row_to_dict(row):
-    d = dict(row)
-    qty = int(d.get("quantity") or 0)
-    reorder = int(d.get("reorder_level") or 0)
-    stock = "out" if qty == 0 else ("low" if qty <= reorder else "in_stock")
-    return {
-        "id": d["id"],
-        "item_name": d["item_name"],
-        "category": d.get("category"),
-        "quantity": qty,
-        "unit": d.get("unit"),
-        "price": float(d.get("price") or 0),
-        "reorder_level": reorder,
-        "supplier_name": d.get("supplier_name"),
-        "last_updated": d.get("last_updated"),
-        "stock_status": stock,
-    }
-
-
-def housekeeping_list_row_to_dict(row):
-    d = dict(row)
-    return {
-        "id": d["id"],
-        "room_no": d.get("room_no"),
-        "room_type": d.get("room_type"),
-        "staff_name": d.get("staff_name"),
-        "status": d.get("status"),
-        "priority": d.get("priority"),
-        "notes": d.get("notes"),
-        "created_at": d.get("created_at"),
-        "completed_at": d.get("completed_at"),
-    }
-
-
-def room_to_dict(row):
-    return {
-        "id": row["id"],
-        "room_no": row["room_no"],
-        "room_type": row["room_type"],
-        "category": row["category"],
-        "floor": row["floor"],
-        "price": float(row["price"]),
-        "capacity": row["capacity"],
-        "status": row["status"],
-        "amenities": row["amenities"],
-    }
-
-
-def booking_row_to_dict(row):
-    return {
-        "id": row["id"],
-        "customer_name": row["customer_name"],
-        "phone": row["phone"],
-        "room_no": row["room_no"],
-        "room_type": row["room_type"],
-        "checkin": row["checkin"],
-        "checkout": row["checkout"],
-        "num_guests": row["num_guests"] or 1,
-        "total_amount": float(row["total_amount"] or 0),
-        "status": row["status"],
-        "payment_status": row["payment_status"],
-    }
-
-
-def get_available_rooms(checkin, checkout, num_guests=1, hotel_id=None):
-    hid = hotel_id or get_current_hotel_id()
-    rooms = query(
-        "SELECT * FROM rooms WHERE hotel_id=? ORDER BY CAST(room_no AS INTEGER), room_no",
-        (hid,),
-    )
-    available = []
-    for room in rooms:
-        if room["status"] in UNAVAILABLE_ROOM_STATUSES:
-            continue
-        if room_has_overlap(room["id"], checkin, checkout):
-            continue
-        if num_guests and room["capacity"] < num_guests:
-            continue
-        available.append(room_to_dict(room))
-    return available
-
-
-def api_error(message, status=400):
-    return jsonify({"ok": False, "error": message}), status
-
-
-def api_ok(**payload):
-    return jsonify({"ok": True, **payload})
-
-
-def get_current_hotel_id():
-    role = normalize_role(session.get("role"))
-    if role == "SUPER_ADMIN":
-        return int(session.get("hotel_id") or DEFAULT_HOTEL_ID)
-    user_hotel = session.get("user_hotel_id")
-    if user_hotel:
-        return int(user_hotel)
-    return int(session.get("hotel_id") or DEFAULT_HOTEL_ID)
-
-
-def get_current_hotel():
-    hid = get_current_hotel_id()
-    return query("SELECT * FROM hotels WHERE id=?", (hid,), one=True)
-
-
-def set_session_hotel(hotel_id):
-    session["hotel_id"] = int(hotel_id)
-
-
-def ensure_entity_hotel(row, hotel_id=None):
-    """Verify a record belongs to the current hotel."""
-    hid = hotel_id or get_current_hotel_id()
-    if not row:
-        return False
-    if "hotel_id" in row.keys() and row["hotel_id"] is not None:
-        return int(row["hotel_id"]) == int(hid)
-    return True
-
-
-def scoped_customer(customer_id, hotel_id=None):
-    hid = hotel_id or get_current_hotel_id()
-    return query("SELECT * FROM customers WHERE id=? AND hotel_id=?", (customer_id, hid), one=True)
-
-
-def scoped_room(room_id, hotel_id=None):
-    hid = hotel_id or get_current_hotel_id()
-    return query("SELECT * FROM rooms WHERE id=? AND hotel_id=?", (room_id, hid), one=True)
-
-
-def scoped_booking(booking_id, hotel_id=None):
-    hid = hotel_id or get_current_hotel_id()
-    return query("SELECT * FROM bookings WHERE id=? AND hotel_id=?", (booking_id, hid), one=True)
 
 
 def log_audit(action, entity_type=None, entity_id=None, details=None, hotel_id=None):
@@ -571,319 +355,6 @@ def log_audit(action, entity_type=None, entity_id=None, details=None, hotel_id=N
         hotel_id=hotel_id or get_current_hotel_id(),
         user_id=session.get("user_id"),
     )
-
-
-def notification_to_dict(row):
-    if not row:
-        return None
-    ntype = row["type"] or "BLUE"
-    return {
-        "id": row["id"],
-        "hotelId": row["hotel_id"],
-        "title": row["title"],
-        "message": row["message"],
-        "type": ntype,
-        "category": row["category"],
-        "priority": NOTIFICATION_PRIORITY.get(ntype, "general"),
-        "isRead": bool(row["is_read"]),
-        "createdAt": row["created_at"],
-        "actionUrl": row["action_url"] or "",
-        "sourceKey": row["source_key"] or "",
-        "isDemo": bool(row["is_demo"]),
-    }
-
-
-def count_unread_notifications(hotel_id):
-    return query(
-        "SELECT COUNT(*) c FROM notifications WHERE hotel_id=? AND is_read=0",
-        (hotel_id,),
-        one=True,
-    )["c"]
-
-
-def list_notifications(hotel_id):
-    rows = query(
-        "SELECT * FROM notifications WHERE hotel_id=? ORDER BY datetime(created_at) DESC, id DESC",
-        (hotel_id,),
-    )
-    return [notification_to_dict(r) for r in rows]
-
-
-def upsert_notification(hotel_id, title, message, ntype, category, action_url, source_key, is_demo=0):
-    existing = query(
-        "SELECT id FROM notifications WHERE hotel_id=? AND source_key=?",
-        (hotel_id, source_key),
-        one=True,
-    )
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    if existing:
-        query(
-            """UPDATE notifications SET title=?, message=?, type=?, category=?, action_url=?
-               WHERE id=? AND hotel_id=?""",
-            (title, message, ntype, category, action_url, existing["id"], hotel_id),
-            commit=True,
-        )
-        return existing["id"]
-    return query(
-        """INSERT INTO notifications(hotel_id,title,message,type,category,is_read,created_at,action_url,source_key,is_demo)
-           VALUES(?,?,?,?,?,0,?,?,?,?)""",
-        (hotel_id, title, message, ntype, category, now, action_url, source_key, is_demo),
-        commit=True,
-    )
-
-
-def has_demo_notification(hotel_id, source_key):
-    return bool(
-        query(
-            "SELECT id FROM notifications WHERE hotel_id=? AND source_key=? AND is_demo=1",
-            (hotel_id, source_key),
-            one=True,
-        )
-    )
-
-
-def resolve_demo_conflicts(hotel_id):
-    """Remove demo notifications when real auto-generated alerts exist for the same category."""
-    demo_map = {
-        "PENDING_PAYMENTS": f"demo_pay_{hotel_id}",
-        "LOW_INVENTORY": f"demo_low_stock_{hotel_id}",
-        "UPCOMING_CHECKINS": f"demo_checkin_{hotel_id}",
-    }
-    for category, demo_key in demo_map.items():
-        has_real = query(
-            """
-            SELECT id FROM notifications
-            WHERE hotel_id=? AND category=? AND is_demo=0 AND source_key IS NOT NULL
-            LIMIT 1
-            """,
-            (hotel_id, category),
-            one=True,
-        )
-        if has_real and has_demo_notification(hotel_id, demo_key):
-            query(
-                "DELETE FROM notifications WHERE hotel_id=? AND source_key=?",
-                (hotel_id, demo_key),
-                commit=True,
-            )
-
-
-def sync_notifications_from_data(hotel_id=None):
-    hotel_id = hotel_id or get_current_hotel_id()
-    today = date.today()
-    horizon = today + timedelta(days=7)
-    active_keys = set()
-
-    low_items = query(
-        "SELECT id, item_name, quantity, reorder_level FROM inventory WHERE hotel_id=? AND quantity <= reorder_level",
-        (hotel_id,),
-    )
-    for item in low_items:
-        key = f"LOW_INVENTORY_{item['id']}"
-        active_keys.add(key)
-        name = item["item_name"]
-        upsert_notification(
-            hotel_id,
-            "Low Inventory",
-            f"{name} stock is below minimum level ({item['quantity']} / {item['reorder_level']}).",
-            "RED",
-            "LOW_INVENTORY",
-            f"/inventory?q={name}",
-            key,
-        )
-
-    pending_bookings = query(
-        """
-        SELECT b.id, c.name, b.total_amount, b.payment_status
-        FROM bookings b JOIN customers c ON b.customer_id=c.id
-        WHERE b.hotel_id=? AND b.payment_status IN ('Pending','Partial')
-          AND b.status IN ('Reserved','Checked-in')
-        """,
-        (hotel_id,),
-    )
-    for b in pending_bookings:
-        paid = booking_paid_amount(b["id"])
-        balance = max(float(b["total_amount"] or 0) - paid, 0)
-        if balance <= 0:
-            continue
-        key = f"PENDING_PAYMENT_{b['id']}"
-        active_keys.add(key)
-        upsert_notification(
-            hotel_id,
-            "Payment Pending",
-            f"Booking #{b['id']} has ₹{balance:,.0f} pending.",
-            "RED",
-            "PENDING_PAYMENTS",
-            f"/payments?booking_id={b['id']}",
-            key,
-        )
-
-    checkins = query(
-        """
-        SELECT b.id, c.name, r.room_no, b.checkin
-        FROM bookings b
-        JOIN customers c ON b.customer_id=c.id
-        JOIN rooms r ON b.room_id=r.id
-        WHERE b.hotel_id=? AND b.status='Reserved'
-          AND date(b.checkin) BETWEEN date(?) AND date(?)
-        """,
-        (hotel_id, str(today), str(horizon)),
-    )
-    for b in checkins:
-        key = f"UPCOMING_CHECKIN_{b['id']}"
-        active_keys.add(key)
-        ci = datetime.strptime(b["checkin"], "%Y-%m-%d").date()
-        when = "today" if ci == today else f"on {b['checkin']}"
-        upsert_notification(
-            hotel_id,
-            "Upcoming Check-in",
-            f"{b['name']} arriving {when} for Room {b['room_no']}.",
-            "YELLOW",
-            "UPCOMING_CHECKINS",
-            f"/bookings?q={b['id']}",
-            key,
-        )
-
-    checkouts = query(
-        """
-        SELECT b.id, c.name, r.room_no, b.checkout
-        FROM bookings b
-        JOIN customers c ON b.customer_id=c.id
-        JOIN rooms r ON b.room_id=r.id
-        WHERE b.hotel_id=? AND b.status='Checked-in'
-          AND date(b.checkout) BETWEEN date(?) AND date(?)
-        """,
-        (hotel_id, str(today), str(horizon)),
-    )
-    for b in checkouts:
-        key = f"UPCOMING_CHECKOUT_{b['id']}"
-        active_keys.add(key)
-        co = datetime.strptime(b["checkout"], "%Y-%m-%d").date()
-        when = "today" if co == today else f"on {b['checkout']}"
-        upsert_notification(
-            hotel_id,
-            "Upcoming Check-out",
-            f"{b['name']} checking out {when} from Room {b['room_no']}.",
-            "YELLOW",
-            "UPCOMING_CHECKOUTS",
-            f"/invoice/{b['id']}",
-            key,
-        )
-
-    hk_tasks = query(
-        """
-        SELECT h.id, r.room_no, h.priority
-        FROM housekeeping_tasks h
-        JOIN rooms r ON h.room_id=r.id
-        WHERE r.hotel_id=? AND h.status='Pending'
-        """,
-        (hotel_id,),
-    )
-    for t in hk_tasks:
-        key = f"HOUSEKEEPING_{t['id']}"
-        active_keys.add(key)
-        upsert_notification(
-            hotel_id,
-            "Housekeeping Pending",
-            f"Room {t['room_no']} — {t['priority']} priority cleaning pending.",
-            "BLUE",
-            "HOUSEKEEPING",
-            "/housekeeping",
-            key,
-        )
-
-    maint_requests = query(
-        """
-        SELECT rs.id, r.room_no, rs.description, rs.status
-        FROM room_service_requests rs
-        JOIN rooms r ON rs.room_id=r.id
-        WHERE r.hotel_id=? AND rs.request_type='Maintenance'
-          AND rs.status IN ('Pending','In Progress')
-        """,
-        (hotel_id,),
-    )
-    for req in maint_requests:
-        key = f"MAINTENANCE_{req['id']}"
-        active_keys.add(key)
-        detail = (req["description"] or "Maintenance request").strip()
-        upsert_notification(
-            hotel_id,
-            "Maintenance Request",
-            f"Room {req['room_no']} — {detail} ({req['status']}).",
-            "ORANGE",
-            "MAINTENANCE",
-            f"/room-service?q={req['id']}",
-            key,
-        )
-
-    maint_rooms = query(
-        "SELECT id, room_no FROM rooms WHERE hotel_id=? AND status='Maintenance'",
-        (hotel_id,),
-    )
-    for r in maint_rooms:
-        key = f"MAINTENANCE_ROOM_{r['id']}"
-        active_keys.add(key)
-        upsert_notification(
-            hotel_id,
-            "Maintenance Required",
-            f"Room {r['room_no']} is under maintenance.",
-            "ORANGE",
-            "MAINTENANCE",
-            "/rooms?q=" + r["room_no"],
-            key,
-        )
-
-    auto_rows = query(
-        "SELECT id, source_key FROM notifications WHERE hotel_id=? AND is_demo=0 AND source_key IS NOT NULL",
-        (hotel_id,),
-    )
-    for row in auto_rows:
-        if row["source_key"] not in active_keys:
-            query("DELETE FROM notifications WHERE id=?", (row["id"],), commit=True)
-
-
-def generate_hotel_alerts(hotel_id):
-    seed_demo_notifications(hotel_id)
-    sync_notifications_from_data(hotel_id)
-    resolve_demo_conflicts(hotel_id)
-
-
-def seed_demo_notifications(hotel_id=DEFAULT_HOTEL_ID):
-    count = query(
-        "SELECT COUNT(*) c FROM notifications WHERE hotel_id=?",
-        (hotel_id,),
-        one=True,
-    )["c"]
-    if count > 0:
-        return
-    hotel = query("SELECT hotel_name, city FROM hotels WHERE id=?", (hotel_id,), one=True)
-    if not hotel:
-        return
-    seed_hotel_demo_notifications(query, hotel_id, hotel["hotel_name"], hotel["city"])
-
-
-def sync_room_status_from_bookings(room_id):
-    active = query(
-        "SELECT status FROM bookings WHERE room_id=? AND status IN ('Reserved','Checked-in') ORDER BY id DESC LIMIT 1",
-        (room_id,), one=True
-    )
-    maint = query("SELECT status FROM rooms WHERE id=?", (room_id,), one=True)
-    if maint and maint["status"] == "Maintenance":
-        return
-    hk = query(
-        "SELECT status FROM housekeeping_tasks WHERE room_id=? AND status != 'Completed' ORDER BY id DESC LIMIT 1",
-        (room_id,), one=True
-    )
-    if hk:
-        query("UPDATE rooms SET status='Cleaning' WHERE id=?", (room_id,), commit=True)
-        return
-    if active:
-        if active["status"] == "Checked-in":
-            query("UPDATE rooms SET status='Occupied' WHERE id=?", (room_id,), commit=True)
-        else:
-            query("UPDATE rooms SET status='Reserved' WHERE id=?", (room_id,), commit=True)
-    else:
-        query("UPDATE rooms SET status='Available' WHERE id=? AND status NOT IN ('Maintenance')",
-              (room_id,), commit=True)
 
 
 def init_db():
@@ -1455,28 +926,6 @@ def api_search():
     return api_ok(data=global_search_results(q, get_current_hotel_id()))
 
 
-def pending_payment_summary(hotel_id):
-    """Outstanding balance count and amount for active bookings."""
-    rows = query(
-        """
-        SELECT b.id, COALESCE(b.total_amount, 0) total_amount
-        FROM bookings b
-        WHERE b.hotel_id=? AND b.payment_status IN ('Pending','Partial')
-          AND b.status IN ('Reserved','Checked-in')
-        """,
-        (hotel_id,),
-    )
-    count = 0
-    amount = 0.0
-    for row in rows:
-        paid = booking_paid_amount(row["id"])
-        balance = max(float(row["total_amount"] or 0) - paid, 0)
-        if balance > 0:
-            count += 1
-            amount += balance
-    return count, round(amount, 2)
-
-
 def build_dashboard_activity(hotel_id, limit=8):
     """Unified recent activity feed sorted by recency."""
     activities = []
@@ -1581,79 +1030,6 @@ def build_dashboard_activity(hotel_id, limit=8):
 
     activities.sort(key=lambda a: a["sort_key"], reverse=True)
     return activities[:limit]
-
-
-def dashboard_stats(hotel_id=None):
-    hotel_id = hotel_id or get_current_hotel_id()
-    today = date.today().isoformat()
-    pending_count, pending_amount = pending_payment_summary(hotel_id)
-    revenue = query(
-        """SELECT COALESCE(SUM(p.amount),0) t FROM payments p
-           JOIN bookings b ON p.booking_id=b.id WHERE b.hotel_id=?""",
-        (hotel_id,),
-        one=True,
-    )["t"]
-    total_rooms = query("SELECT COUNT(*) c FROM rooms WHERE hotel_id=?", (hotel_id,), one=True)["c"]
-    occupied = query(
-        "SELECT COUNT(*) c FROM rooms WHERE hotel_id=? AND status='Occupied'",
-        (hotel_id,),
-        one=True,
-    )["c"]
-    stats = {
-        "total_rooms": total_rooms,
-        "available": query(
-            "SELECT COUNT(*) c FROM rooms WHERE hotel_id=? AND status='Available'",
-            (hotel_id,),
-            one=True,
-        )["c"],
-        "occupied": occupied,
-        "occupancy_rate": round((occupied / total_rooms) * 100) if total_rooms else 0,
-        "active_bookings": query(
-            "SELECT COUNT(*) c FROM bookings WHERE hotel_id=? AND status IN ('Reserved','Checked-in')",
-            (hotel_id,),
-            one=True,
-        )["c"],
-        "employees": query(
-            "SELECT COUNT(*) c FROM employees WHERE hotel_id=? AND status='Active'",
-            (hotel_id,),
-            one=True,
-        )["c"],
-        "revenue": revenue,
-        "today_revenue": query(
-            """SELECT COALESCE(SUM(p.amount),0) t FROM payments p
-               JOIN bookings b ON p.booking_id=b.id
-               WHERE b.hotel_id=? AND date(p.payment_date)=?""",
-            (hotel_id, today),
-            one=True,
-        )["t"],
-        "today_checkins": query(
-            "SELECT COUNT(*) c FROM bookings WHERE hotel_id=? AND checkin=?",
-            (hotel_id, today),
-            one=True,
-        )["c"],
-        "today_checkouts": query(
-            "SELECT COUNT(*) c FROM bookings WHERE hotel_id=? AND checkout=?",
-            (hotel_id, today),
-            one=True,
-        )["c"],
-        "pending_payments": pending_count,
-        "pending_payment_amount": pending_amount,
-        "maintenance": query(
-            "SELECT COUNT(*) c FROM rooms WHERE hotel_id=? AND status='Maintenance'",
-            (hotel_id,),
-            one=True,
-        )["c"],
-        "cleaning": query(
-            "SELECT COUNT(*) c FROM rooms WHERE hotel_id=? AND status='Cleaning'",
-            (hotel_id,),
-            one=True,
-        )["c"],
-    }
-    analytics = hotel_analytics(query, hotel_id, days=30)
-    stats["adr"] = analytics["adr"]
-    stats["revpar"] = analytics["revpar"]
-    stats["avg_room_rate"] = analytics["avgRoomRate"]
-    return stats
 
 
 @app.route("/api/analytics/overview")
@@ -1881,25 +1257,7 @@ def dashboard():
         """,
         (hid,),
     )
-    pending_payment_rows = query(
-        """
-        SELECT b.id, c.name, r.room_no, b.total_amount, b.payment_status, b.checkin
-        FROM bookings b
-        JOIN customers c ON b.customer_id = c.id
-        JOIN rooms r ON b.room_id = r.id
-        WHERE b.hotel_id = ? AND b.payment_status IN ('Pending', 'Partial')
-          AND b.status IN ('Reserved', 'Checked-in')
-        ORDER BY b.checkin ASC LIMIT 6
-        """,
-        (hid,),
-    )
-    pending_list = []
-    for row in pending_payment_rows:
-        pd = dict(row)
-        paid = booking_paid_amount(row["id"])
-        pd["balance"] = max(float(row["total_amount"] or 0) - paid, 0)
-        if pd["balance"] > 0:
-            pending_list.append(pd)
+    pending_list = pending_bookings_with_balance(query, hid, limit=6)
     analytics = hotel_analytics(query, hid, days=30)
     return render_template(
         "dashboard.html",
@@ -1923,8 +1281,7 @@ def dashboard():
 @app.route("/rooms")
 def rooms():
     sql, params, f = rooms_query(get_current_hotel_id())
-    all_rooms = query(sql, params)
-    page_rows, total, page, size = paginate_rows(all_rooms, f["page"], f["size"])
+    page_rows, total, page, size = paginate_sql(query, sql, params, f["page"], f["size"])
     types = query(
         "SELECT DISTINCT room_type FROM rooms WHERE hotel_id=? ORDER BY room_type",
         (get_current_hotel_id(),),
@@ -2177,16 +1534,7 @@ def api_available_rooms():
 
 @app.route("/api/bookings/list")
 def api_bookings_list():
-    sql, params, f = bookings_query(get_current_hotel_id())
-    rows = query(sql, params)
-    page_rows, total, page, size = paginate_rows(rows, f["page"], f["size"])
-    return api_ok(
-        bookings=[booking_row_to_dict(r) for r in page_rows],
-        total=total,
-        page=page,
-        size=size,
-        showing=len(page_rows),
-    )
+    return api_paginated_list(bookings_query, "bookings", booking_row_to_dict)
 
 
 @app.route("/api/customers/list")
@@ -2212,16 +1560,7 @@ def api_customers_list():
 
 @app.route("/api/rooms/list")
 def api_rooms_list():
-    sql, params, f = rooms_query(get_current_hotel_id())
-    rows = query(sql, params)
-    page_rows, total, page, size = paginate_rows(rows, f["page"], f["size"])
-    return api_ok(
-        rooms=[room_list_row_to_dict(r) for r in page_rows],
-        total=total,
-        page=page,
-        size=size,
-        showing=len(page_rows),
-    )
+    return api_paginated_list(rooms_query, "rooms", room_list_row_to_dict)
 
 
 @app.route("/api/employees/list")
@@ -2240,30 +1579,12 @@ def api_employees_list():
 
 @app.route("/api/inventory/list")
 def api_inventory_list():
-    sql, params, f = inventory_query(get_current_hotel_id())
-    rows = query(sql, params)
-    page_rows, total, page, size = paginate_rows(rows, f["page"], f["size"])
-    return api_ok(
-        items=[inventory_list_row_to_dict(r) for r in page_rows],
-        total=total,
-        page=page,
-        size=size,
-        showing=len(page_rows),
-    )
+    return api_paginated_list(inventory_query, "items", inventory_list_row_to_dict)
 
 
 @app.route("/api/housekeeping/list")
 def api_housekeeping_list():
-    sql, params, f = housekeeping_query(get_current_hotel_id())
-    rows = query(sql, params)
-    page_rows, total, page, size = paginate_rows(rows, f["page"], f["size"])
-    return api_ok(
-        tasks=[housekeeping_list_row_to_dict(r) for r in page_rows],
-        total=total,
-        page=page,
-        size=size,
-        showing=len(page_rows),
-    )
+    return api_paginated_list(housekeeping_query, "tasks", housekeeping_list_row_to_dict)
 
 
 @app.route("/api/bookings", methods=["POST"])
@@ -2442,8 +1763,7 @@ def api_update_booking(booking_id):
 @app.route("/bookings")
 def bookings():
     sql, params, f = bookings_query(get_current_hotel_id())
-    all_bookings = query(sql, params)
-    page_rows, total, page, size = paginate_rows(all_bookings, f["page"], f["size"])
+    page_rows, total, page, size = paginate_sql(query, sql, params, f["page"], f["size"])
     hid = get_current_hotel_id()
     all_customers = query(
         "SELECT id, name, phone FROM customers WHERE hotel_id=? ORDER BY name",
@@ -2716,25 +2036,9 @@ def checkout(booking_id):
 @app.route("/payments")
 def payments():
     sql, params, f = payments_query(get_current_hotel_id())
-    all_payments = query(sql, params)
-    page_rows, total, page, size = paginate_rows(all_payments, f["page"], f["size"])
+    page_rows, total, page, size = paginate_sql(query, sql, params, f["page"], f["size"])
     hid = get_current_hotel_id()
-    pending_bookings = query(
-        """
-        SELECT b.id, c.name, r.room_no, b.total_amount, b.payment_status, b.checkin, b.checkout
-        FROM bookings b JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
-        WHERE b.hotel_id=? AND b.payment_status IN ('Pending','Partial')
-          AND b.status IN ('Reserved','Checked-in')
-        ORDER BY b.id DESC
-        """,
-        (hid,),
-    )
-    pending = []
-    for pb in pending_bookings:
-        pd = dict(pb)
-        pd["paid"] = booking_paid_amount(pb["id"])
-        pd["balance"] = max(float(pb["total_amount"] or 0) - pd["paid"], 0)
-        pending.append(pd)
+    pending = pending_bookings_with_balance(query, hid)
     total_revenue = query(
         """
         SELECT COALESCE(SUM(p.amount),0) t FROM payments p
