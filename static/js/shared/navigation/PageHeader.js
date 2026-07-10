@@ -1,8 +1,8 @@
-import { BackButton } from './BackButton.js';
+import { IconBackButton } from '../IconBackButton.js';
 import { useSmartBackNavigation } from './useSmartBackNavigation.js';
 
 /**
- * Full-page header: [← Back] Page Title — inserted below topbar, above breadcrumbs.
+ * Full-page header: [←] Page Title — inserted below topbar, above breadcrumbs.
  */
 export class PageHeader {
   constructor({ title, subtitle = '', dirtyRoot = null, mountBefore = null } = {}) {
@@ -22,8 +22,8 @@ export class PageHeader {
 
   render() {
     this.el.innerHTML = '';
-    const back = BackButton({
-      className: 'nav-back-btn btn btn-ghost btn-sm page-nav-back',
+    const back = IconBackButton({
+      className: 'icon-back-button page-nav-back',
       onClick: () => useSmartBackNavigation({ dirtyRoot: this.dirtyRoot || document.querySelector('[data-page-nav-dirty]') }),
     });
     const titleWrap = document.createElement('div');
@@ -53,7 +53,7 @@ export function initPageHeaders(root = document) {
   const content = root.querySelector('.content-inner');
   if (!content || content.dataset.pageNavInit) return;
   if (content.querySelector('.page-header[data-nav-skip]')) return;
-  if (content.querySelector('.page-nav-bar')) return;
+  if (content.querySelector('.page-nav-bar, .screen-nav-bar')) return;
   content.dataset.pageNavInit = '1';
 
   const titleEl = root.querySelector('.page-title, .page-header h1, h1');
@@ -61,7 +61,7 @@ export function initPageHeaders(root = document) {
   const title = titleEl?.textContent?.trim() || document.title.split('—')[0].trim() || 'Page';
   const subtitle = descEl?.textContent?.trim() || '';
 
-  if (content.querySelector('.page-nav-bar')) return;
+  if (content.querySelector('.page-nav-bar, .screen-nav-bar')) return;
 
   new PageHeader({
     title,

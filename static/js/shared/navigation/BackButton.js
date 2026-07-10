@@ -1,33 +1,22 @@
 /**
- * Reusable Back button with Lucide arrow-left icon.
+ * @deprecated Use IconBackButton from '../IconBackButton.js'
  */
-export function BackButton({
-  onClick,
-  className = 'nav-back-btn btn btn-ghost btn-sm',
-  label = 'Back',
-  iconOnly = false,
-} = {}) {
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = className;
-  btn.setAttribute('aria-label', 'Go back');
-  btn.title = 'Go back';
-  if (iconOnly) {
-    btn.innerHTML = '<i data-lucide="arrow-left" class="icon"></i>';
-  } else {
-    btn.innerHTML = `<i data-lucide="arrow-left" class="icon"></i> <span class="nav-back-label">${label}</span>`;
-  }
-  btn.addEventListener('click', (e) => {
-    e.preventDefault();
-    onClick?.();
-  });
-  return btn;
+import { IconBackButton, bindIconBackButton } from '../IconBackButton.js';
+
+export function BackButton({ onClick, className = 'icon-back-button', label, iconOnly = true } = {}) {
+  void label;
+  void iconOnly;
+  return IconBackButton({ onClick, className });
 }
 
 export function mountBackButton(container, options = {}) {
-  if (!container || container.querySelector('.nav-back-btn')) return container?.querySelector('.nav-back-btn');
-  const btn = BackButton(options);
+  if (!container || container.querySelector('.icon-back-button')) {
+    return container?.querySelector('.icon-back-button');
+  }
+  const btn = IconBackButton(options);
   container.insertBefore(btn, container.firstChild);
   window.refreshIcons?.(container);
   return btn;
 }
+
+export { bindIconBackButton };

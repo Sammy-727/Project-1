@@ -16,8 +16,8 @@
 
 {% macro nav_screen_header(title, subtitle='') %}
 <div class="screen-nav-bar" data-page-nav data-nav-title="{{ title }}">
-  <button type="button" class="screen-nav-back btn btn-ghost btn-sm" data-nav-back aria-label="Go back">
-    {{ icon('arrow-left', 16) }} Back
+  <button type="button" class="icon-back-button screen-nav-back" data-nav-back aria-label="Go Back" title="Go Back">
+    {{ icon('arrow-left', 18) }}
   </button>
   <div class="screen-nav-title">
     <h1>{{ title }}</h1>

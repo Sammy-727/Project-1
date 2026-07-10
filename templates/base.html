@@ -16,6 +16,7 @@
     <link href="{{ url_for('static', filename='css/images.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/premium.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/enterprise.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/icon-back-button.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/app-drawer.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/room-drawer.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/entity-views.css') }}" rel="stylesheet">
@@ -250,8 +251,8 @@
 
 <aside class="notification-drawer" id="notificationDrawer" aria-label="Notifications and alerts" aria-hidden="true">
     <header class="notification-drawer-head">
-        <button type="button" class="drawer-nav-back btn btn-ghost btn-sm" data-notification-back aria-label="Go back">
-            <i data-lucide="arrow-left" class="icon"></i> Back
+        <button type="button" class="icon-back-button drawer-nav-back" data-notification-back aria-label="Go Back" title="Go Back">
+            <i data-lucide="arrow-left" class="icon" aria-hidden="true"></i>
         </button>
         <h2><i data-lucide="bell-ring" class="icon"></i> Notifications &amp; Alerts</h2>
         <div class="notification-drawer-actions">
@@ -308,6 +309,7 @@ window.__HMS_META__ = {
   role: {{ current_user.role|tojson }}
 };
 </script>
+<script type="module" src="{{ url_for('static', filename='js/shared/navigation/initIconBackButtons.js') }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/AppDrawer.js') }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/shared/navigation/PageHeader.js') }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/notifications/index.js') }}"></script>

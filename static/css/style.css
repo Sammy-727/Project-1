@@ -1232,10 +1232,6 @@ input:focus, select:focus, textarea:focus {
 
 .booking-drawer-back {
   flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-weight: 600;
 }
 
 .booking-drawer-header h2 { margin: 0 0 4px; font-size: 22px; }

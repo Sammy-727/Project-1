@@ -1,0 +1,95 @@
+/* IconBackButton — circular ghost back control (Linear / Notion style) */
+
+.icon-back-button,
+.icon-back-btn,
+.nav-back-btn.icon-back-button,
+.drawer-nav-back.icon-back-button,
+.page-nav-back.icon-back-button,
+.screen-nav-back.icon-back-button,
+.booking-drawer-back.icon-back-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  padding: 0 !important;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted, #64748b);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.icon-back-button:hover,
+.icon-back-btn:hover,
+.nav-back-btn.icon-back-button:hover,
+.drawer-nav-back.icon-back-button:hover,
+.page-nav-back.icon-back-button:hover,
+.screen-nav-back.icon-back-button:hover,
+.booking-drawer-back.icon-back-button:hover {
+  background: var(--bg-subtle, #f1f5f9);
+  color: var(--text, #0f172a);
+}
+
+.icon-back-button:active,
+.icon-back-btn:active {
+  transform: scale(0.96);
+}
+
+.icon-back-button:focus {
+  outline: none;
+}
+
+.icon-back-button:focus-visible,
+.icon-back-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--primary, #4f46e5) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.icon-back-button .icon,
+.icon-back-btn .icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.icon-back-button .nav-back-label,
+.icon-back-btn .nav-back-label,
+.screen-nav-back .nav-back-label {
+  display: none !important;
+}
+
+/* Page / screen nav bars */
+.page-nav-bar,
+.screen-nav-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0 14px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border-light, #e8ecf1);
+}
+
+.screen-nav-title,
+.page-nav-title-wrap {
+  min-width: 0;
+  flex: 1;
+}
+
+.screen-nav-title h1,
+.page-nav-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.screen-nav-title p,
+.page-nav-subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+}

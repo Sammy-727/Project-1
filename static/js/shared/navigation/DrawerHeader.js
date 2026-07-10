@@ -17,7 +17,7 @@ export class DrawerHeader {
     this.root.className = 'app-shell-drawer-head drawer-header';
 
     this.backBtn = IconBackButton({
-      className: 'drawer-nav-back icon-back-btn btn btn-ghost btn-sm',
+      className: 'icon-back-button drawer-nav-back',
       onClick: () => this.onBack?.(),
     });
 
@@ -84,7 +84,7 @@ export class DrawerHeader {
   }
 }
 
-/** @deprecated use BackButton */
+/** @deprecated use IconBackButton */
 export function createBackButton(opts) {
   return IconBackButton(opts);
 }

@@ -1,3 +1,4 @@
+import { normalizeIconBackButton } from '../shared/IconBackButton.js';
 import { NotificationCard } from './NotificationCard.js';
 import { GROUP_ORDER, filterNotifications, groupNotifications } from './NotificationService.js';
 
@@ -14,6 +15,7 @@ export class NotificationDrawer {
     this.tabsEl = panelEl?.querySelector('[data-notification-tabs]');
     this.closeBtn = panelEl?.querySelector('[data-notification-close]');
     this.backBtn = panelEl?.querySelector('[data-notification-back]');
+    normalizeIconBackButton(this.backBtn);
     this.clearBtn = panelEl?.querySelector('[data-notification-clear]');
     this.markAllBtn = panelEl?.querySelector('[data-notification-mark-all]');
     this.retryBtn = panelEl?.querySelector('[data-notification-retry]');

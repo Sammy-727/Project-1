@@ -54,8 +54,8 @@ export class BookingDrawer {
 
     this.drawer.innerHTML = `
       <div class="booking-drawer-header${this.embedded ? ' booking-drawer-header-embedded' : ''}">
-        <button type="button" class="btn btn-ghost btn-sm booking-drawer-back" id="bkBackHeaderBtn" hidden aria-label="Go back">
-          <i data-lucide="arrow-left" class="icon"></i> Back
+        <button type="button" class="icon-back-button booking-drawer-back" id="bkBackHeaderBtn" hidden aria-label="Go Back" title="Go Back">
+          <i data-lucide="arrow-left" class="icon" aria-hidden="true"></i>
         </button>
         <div class="booking-drawer-header-center">
           <h2>New Booking</h2>
@@ -102,7 +102,9 @@ export class BookingDrawer {
       </div>
 
       <div class="booking-drawer-footer">
-        <button type="button" class="btn btn-secondary" id="bkPrevBtn" hidden>Back</button>
+        <button type="button" class="icon-back-button" id="bkPrevBtn" hidden aria-label="Go Back" title="Go Back">
+          <i data-lucide="arrow-left" class="icon" aria-hidden="true"></i>
+        </button>
         <button type="button" class="btn btn-primary" id="bkNextBtn">Continue</button>
         <button type="button" class="btn btn-success" id="bkConfirmBtn" hidden>
           <span class="bk-confirm-label">Confirm Booking</span>
