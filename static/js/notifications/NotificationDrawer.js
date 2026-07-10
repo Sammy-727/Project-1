@@ -13,12 +13,14 @@ export class NotificationDrawer {
     this.errorEl = panelEl?.querySelector('[data-notification-error]');
     this.tabsEl = panelEl?.querySelector('[data-notification-tabs]');
     this.closeBtn = panelEl?.querySelector('[data-notification-close]');
+    this.backBtn = panelEl?.querySelector('[data-notification-back]');
     this.clearBtn = panelEl?.querySelector('[data-notification-clear]');
     this.markAllBtn = panelEl?.querySelector('[data-notification-mark-all]');
     this.retryBtn = panelEl?.querySelector('[data-notification-retry]');
     this.bellBtn = document.getElementById('notificationBellBtn');
 
     this.closeBtn?.addEventListener('click', () => this.closePanel());
+    this.backBtn?.addEventListener('click', () => this.closePanel());
     this.backdrop?.addEventListener('click', () => this.closePanel());
     this.clearBtn?.addEventListener('click', () => this.onClearAll?.());
     this.markAllBtn?.addEventListener('click', () => this.onMarkAllRead?.());

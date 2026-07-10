@@ -15,7 +15,7 @@
   <button type="button" class="settings-tab" data-settings-tab="subscription" role="tab">Subscription</button>
 </nav>
 
-<form method="post" action="{{ url_for('save_hotel_settings') }}" id="settingsForm">
+<form method="post" action="{{ url_for('save_hotel_settings') }}" id="settingsForm" data-page-nav-dirty>
 <div class="settings-panel active" id="tab-hotel" data-settings-panel="hotel">
     <div class="panel saas-panel">
         <h3 style="margin-bottom:16px">Hotel Profile</h3>

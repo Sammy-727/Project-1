@@ -14,8 +14,20 @@
 </nav>
 {% endmacro %}
 
-{% macro page_header(title, description='', actions='') %}
-<div class="page-header">
+{% macro nav_screen_header(title, subtitle='') %}
+<div class="screen-nav-bar" data-page-nav data-nav-title="{{ title }}">
+  <button type="button" class="screen-nav-back btn btn-ghost btn-sm" data-nav-back aria-label="Go back">
+    {{ icon('arrow-left', 16) }} Back
+  </button>
+  <div class="screen-nav-title">
+    <h1>{{ title }}</h1>
+    {% if subtitle %}<p class="text-muted">{{ subtitle }}</p>{% endif %}
+  </div>
+</div>
+{% endmacro %}
+
+{% macro page_header(title, description='', actions='', nav_skip=false) %}
+<div class="page-header"{% if nav_skip %} data-nav-skip{% endif %}>
   <div class="page-header-text">
     <h1 class="page-title">{{ title }}</h1>
     {% if description %}<p class="page-description">{{ description }}</p>{% endif %}

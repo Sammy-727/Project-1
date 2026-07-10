@@ -1,6 +1,9 @@
 {% extends "base.html" %}
+{% from "macros/ui.html" import nav_screen_header %}
 {% set title = "Invoice" %}
 {% block content %}
+
+{{ nav_screen_header("Invoice", "Bill #" ~ bill.id ~ " · " ~ bill.bill_date) }}
 
 <div class="panel invoice">
     <div class="invoice-head">
