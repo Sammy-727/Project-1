@@ -1,5 +1,6 @@
 /* Safe Stays PMS — Enterprise SaaS UI */
 document.addEventListener('DOMContentLoaded', function () {
+  initGlobalErrorHandlers();
   initLucide();
   initTheme();
   initSidebar();
@@ -203,6 +204,20 @@ function initCommandPalette() {
   });
 }
 
+function initGlobalErrorHandlers() {
+  window.addEventListener('error', (event) => {
+    console.error('Uncaught error:', event.error || event.message);
+  });
+  window.addEventListener('unhandledrejection', (event) => {
+    console.error('Unhandled promise rejection:', event.reason);
+  });
+}
+
+function looksLikeRuntimeException(message) {
+  if (!message || typeof message !== 'string') return false;
+  return /is not a function|is not defined|Cannot read properties of|Unexpected token|is not iterable/i.test(message);
+}
+
 function initToasts() {
   const container = document.getElementById('toastContainer');
   const flashEl = document.getElementById('flashMessages');
@@ -217,9 +232,14 @@ function initToasts() {
 function showToast(message, type) {
   const container = document.getElementById('toastContainer');
   if (!container) return;
+  const text = String(message || '');
+  if (looksLikeRuntimeException(text)) {
+    console.error('Suppressed runtime error toast:', text);
+    return;
+  }
   const toast = document.createElement('div');
   toast.className = `toast ${type === 'danger' ? 'danger' : type === 'success' ? 'success' : 'warning'}`;
-  toast.textContent = message;
+  toast.textContent = text;
   container.appendChild(toast);
   setTimeout(() => {
     toast.style.opacity = '0';

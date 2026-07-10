@@ -7,7 +7,7 @@ import { BookingCardView } from './views/BookingCardView.js';
 import { BookingTableView } from './views/BookingTableView.js';
 import { BookingCalendarView } from './views/BookingCalendarView.js';
 import { BookingKanbanView } from './views/BookingKanbanView.js';
-import { escapeHtml } from './views/BookingActions.js';
+import { createUserFacingError, isUserFacingError, logAppError } from '../shared/errors.js';
 
 export class BookingModule {
   constructor(root) {
@@ -79,7 +79,7 @@ export class BookingModule {
     try {
       const data = await fetchBookings(qs ? `?${qs}` : '?size=200');
       if (!data?.ok && !data?.bookings) {
-        throw new Error(data?.error || 'Invalid response');
+        throw createUserFacingError(data?.error || 'Could not load bookings.');
       }
       const bookings = (data.bookings || []).map((b) => ({
         ...b,
@@ -96,7 +96,8 @@ export class BookingModule {
         this.root.hidden = true;
       }
     } catch (err) {
-      if (!background) {
+      logAppError('BookingModule.loadBookings', err);
+      if (!background && isUserFacingError(err)) {
         window.showToast?.(err.message || 'Could not load bookings.', 'danger');
       }
     }

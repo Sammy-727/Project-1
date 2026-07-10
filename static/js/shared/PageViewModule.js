@@ -9,6 +9,7 @@ import { FloorView } from './views/FloorView.js';
 import { ChartPanelView } from './views/ChartPanelView.js';
 import { bindRowActions } from './views/bindActions.js';
 import { buildFilterFn } from './views/filterHelpers.js';
+import { createUserFacingError, isUserFacingError, logAppError } from './errors.js';
 
 /**
  * PageViewModule — orchestrates shared state + all view types for an HMS list page.
@@ -160,12 +161,16 @@ export class PageViewModule {
       const res = await fetch(`${this.config.apiUrl}?${qs}`);
       const data = await res.json();
       const items = data[this.config.itemsKey] || [];
-      if (!data.ok && !items.length && !initial) throw new Error(data.error || 'Could not load data');
+      if (!data.ok && !items.length && !initial) {
+        throw createUserFacingError(data.error || 'Could not load list.');
+      }
       this.store.setItems(items, data.total ?? items.length);
       this.applyFilters();
-      this.toolbar?.setMeta(`${this.store.getSnapshot().total} items`);
     } catch (err) {
-      if (!initial) window.showToast?.(err.message || 'Could not load list.', 'danger');
+      logAppError(`PageViewModule(${this.config.key})`, err);
+      if (!initial && isUserFacingError(err)) {
+        window.showToast?.(err.message || 'Could not load list.', 'danger');
+      }
     }
   }
 
