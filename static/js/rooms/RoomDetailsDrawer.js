@@ -225,3 +225,18 @@ export async function openRoomDrawerFromSelector(selector) {
   if (!roomId) return false;
   return drawer.open(roomId);
 }
+
+document.addEventListener('app-drawer:content', (e) => {
+  const entry = e.detail;
+  const drawer = instance;
+  if (!drawer?.current?.room || entry?.selectedItem?.type !== 'room') return;
+  drawer.editing = false;
+  const { room, booking, can_edit: canEdit } = drawer.current;
+  drawer.app.updateDrawerHeader?.({
+    title: formatTitle(room),
+    subtitle: `${room.room_type || ''} · Floor ${room.floor || 1}`,
+    showBack: true,
+    actionsHtml: canEdit ? editHeaderBtn(room.id) : '',
+  });
+  drawer.bindView(room, booking);
+});
