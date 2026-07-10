@@ -1,5 +1,26 @@
+/**
+ * @typedef {Object} PageToolbarOptions
+ * @property {() => void} [onRefresh]
+ * @property {() => void} [onExport]
+ * @property {boolean} [showExport]
+ * @property {boolean} [showRefresh]
+ * @property {boolean} [bulkCapable]
+ * @property {boolean} [bulkMode]
+ * @property {() => void} [onBulkModeToggle]
+ */
+
+/**
+ * @typedef {Object} PageToolbarAPI
+ * @property {(active: boolean) => void} setBulkMode
+ * @property {() => void} render
+ */
+
 /** Toolbar export action — mounts into .saas-toolbar-end on each list page */
 export class PageToolbar {
+  /**
+   * @param {HTMLElement | null} mount
+   * @param {PageToolbarOptions} options
+   */
   constructor(mount, { onRefresh, onExport, showExport = true, showRefresh = false, bulkCapable = false, bulkMode = false, onBulkModeToggle } = {}) {
     this.mount = mount;
     this.onRefresh = onRefresh;
@@ -34,6 +55,7 @@ export class PageToolbar {
     this.mount.querySelector('[data-toolbar-bulk]')?.addEventListener('click', () => this.onBulkModeToggle?.());
   }
 
+  /** @param {boolean} active */
   setBulkMode(active) {
     this.bulkMode = active;
     this.render();
