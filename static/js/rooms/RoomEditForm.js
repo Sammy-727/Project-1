@@ -45,6 +45,10 @@ export function renderRoomEditForm(room) {
           <input class="input" name="amenities" value="${escapeHtml(room.amenities || '')}" placeholder="WiFi, TV, AC (comma separated)">
         </label>
         <label class="field field-full">
+          <span class="field-label">Description</span>
+          <textarea class="input" name="description" rows="3" placeholder="Room notes, view, layout details…">${escapeHtml(room.description || '')}</textarea>
+        </label>
+        <label class="field field-full">
           <span class="field-label">Image URL</span>
           <input class="input" name="image_url" value="${escapeHtml(room.image_url || '')}" data-room-image-url>
         </label>

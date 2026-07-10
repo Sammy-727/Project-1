@@ -582,6 +582,7 @@ def migrate_db():
     add_column_if_missing("rooms", "capacity", "INTEGER DEFAULT 2")
     add_column_if_missing("rooms", "amenities", "TEXT")
     add_column_if_missing("rooms", "image_url", "TEXT")
+    add_column_if_missing("rooms", "description", "TEXT")
     add_column_if_missing("hotels", "cover_url", "TEXT")
     add_column_if_missing("employees", "image_url", "TEXT")
     add_column_if_missing("customers", "image_url", "TEXT")
@@ -1321,11 +1322,12 @@ def add_room():
 def update_room(room_id):
     try:
         query("""UPDATE rooms SET room_no=?, room_type=?, category=?, floor=?, price=?, capacity=?,
-                 status=?, amenities=?, image_url=? WHERE id=? AND hotel_id=?""",
+                 status=?, amenities=?, description=?, image_url=? WHERE id=? AND hotel_id=?""",
               (request.form["room_no"], request.form["room_type"], request.form["room_type"],
                int(request.form.get("floor") or 1), float(request.form["price"]),
                int(request.form.get("capacity") or 2), request.form["status"],
-               request.form.get("amenities", ""), request.form.get("image_url", ""), room_id, get_current_hotel_id()), commit=True)
+               request.form.get("amenities", ""), request.form.get("description", ""),
+               request.form.get("image_url", ""), room_id, get_current_hotel_id()), commit=True)
         sync_notifications_from_data(get_current_hotel_id())
         flash("Room updated.", "success")
         updated = query(

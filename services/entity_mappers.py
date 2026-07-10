@@ -51,6 +51,7 @@ def room_to_dict(row):
         "capacity": d.get("capacity") or 2,
         "status": d.get("status"),
         "amenities": d.get("amenities"),
+        "description": d.get("description") or "",
         "image_url": d.get("image_url"),
     }
 

@@ -77,14 +77,9 @@ export class RoomDetailsDrawer {
   }
 
   bindView(room, booking) {
+    this.bindHeaderEdit(room.id);
     const body = document.getElementById('appShellDrawerBody');
     if (!body) return;
-
-    const editBtn = body.querySelector(`[data-room-header-edit="${room.id}"]`);
-    if (editBtn && !editBtn.dataset.bound) {
-      editBtn.dataset.bound = '1';
-      editBtn.addEventListener('click', () => this.openEdit());
-    }
 
     bindRoomActionButtons(body, {
       book: () => this.handleBook(room),
@@ -95,6 +90,17 @@ export class RoomDetailsDrawer {
     });
 
     window.refreshIcons?.(body);
+  }
+
+  bindHeaderEdit(roomId) {
+    const editBtn = document.querySelector(`[data-room-header-edit="${roomId}"]`);
+    if (!editBtn || editBtn.dataset.bound) return;
+    editBtn.dataset.bound = '1';
+    editBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.openEdit();
+    });
   }
 
   async openEdit() {
@@ -238,5 +244,6 @@ document.addEventListener('app-drawer:content', (e) => {
     showBack: true,
     actionsHtml: canEdit ? editHeaderBtn(room.id) : '',
   });
+  drawer.bindHeaderEdit(room.id);
   drawer.bindView(room, booking);
 });

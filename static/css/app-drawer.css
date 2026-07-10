@@ -257,9 +257,18 @@ body.has-page-nav-bar .page-header .page-description {
     display: inline;
   }
 
+  .icon-back-btn .nav-back-label,
+  .drawer-nav-back.icon-back-btn .nav-back-label {
+    display: none !important;
+  }
+
   .app-shell-drawer-head,
   .drawer-header {
-    grid-template-columns: minmax(72px, auto) 1fr 36px;
+    grid-template-columns: 40px 1fr 40px;
     padding: 10px 12px;
+  }
+
+  .drawer-header.drawer-header--with-actions {
+    grid-template-columns: 36px 1fr auto 36px !important;
   }
 }

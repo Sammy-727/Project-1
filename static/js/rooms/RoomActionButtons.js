@@ -17,9 +17,11 @@ function disabledBtn(label, reason, { icon, variant = 'outline' } = {}) {
 
 function actionBtn(label, attrs = {}, { icon, variant = 'outline', primary = false } = {}) {
   const cls = primary ? 'btn-primary' : `btn-${variant}`;
-  const attrStr = Object.entries(attrs).map(([k, v]) => `${k}="${escapeHtml(v)}"`).join(' ');
+  const { class: extraClass, ...rest } = attrs;
+  const attrStr = Object.entries(rest).map(([k, v]) => `${k}="${escapeHtml(v)}"`).join(' ');
+  const classAttr = extraClass ? ` ${escapeHtml(extraClass)}` : '';
   return `
-    <button type="button" class="btn ${cls} btn-sm room-action-btn" ${attrStr}
+    <button type="button" class="btn ${cls} btn-sm room-action-btn${classAttr}" ${attrStr}
             title="${escapeHtml(label)}">
       ${icon ? `<i data-lucide="${icon}" class="icon"></i>` : ''}${escapeHtml(label)}
     </button>`;
@@ -38,12 +40,15 @@ export function renderRoomActionButtons(room, booking) {
           ? 'Room is under maintenance'
           : status === 'Reserved'
             ? 'Room is reserved for an upcoming stay'
-            : 'Room is not available for booking';
+            : status === 'Blocked'
+              ? 'Room is blocked and not available'
+              : 'Room is not available for booking';
     items.push(disabledBtn('Book Room', reason, { icon: 'calendar-plus', variant: 'primary' }));
   } else {
     items.push(actionBtn('Book Room', {
       'data-room-action': 'book',
       'data-room-no': room.room_no,
+      'class': 'write-action',
     }, { icon: 'calendar-plus', primary: true }));
   }
 
@@ -106,14 +111,15 @@ export function renderRoomDetailsBody(room, booking) {
         ${statusBadge(room.status)}
         <p class="room-details-sub">${escapeHtml(room.room_type || '')} · Floor ${room.floor || 1}</p>
       </div>
+      ${renderRoomActionButtons(room, booking)}
       <div class="room-details-grid detail-grid">
         <div><span>Capacity</span><strong>${room.capacity || 2} guests</strong></div>
         <div><span>Price</span><strong>₹${formatAmount(room.price)}/night</strong></div>
         <div><span>Current guest</span><strong>${escapeHtml(guest)}</strong></div>
         <div><span>Stay dates</span><strong>${stay}</strong></div>
         <div class="field-full"><span>Amenities</span><strong>${escapeHtml(room.amenities || '—')}</strong></div>
+        ${room.description ? `<div class="field-full"><span>Description</span><strong>${escapeHtml(room.description)}</strong></div>` : ''}
       </div>
-      ${renderRoomActionButtons(room, booking)}
     </div>`;
 }
 
