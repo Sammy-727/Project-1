@@ -5,15 +5,16 @@ import { ListTable } from '../../shared/views/ListTable.js';
 import { bindActionHandlers } from './BookingActions.js';
 
 const COLUMNS = [
-  { key: 'id', label: 'Booking ID', sortable: true, cellClass: 'list-cell-id', render: (b) => `<span class="list-cell-primary">#${b.id}</span>` },
-  { key: 'guest', label: 'Guest Name', sortable: true, render: (b) => `<div class="list-cell-primary">${escapeHtml(b.customer_name)}</div><div class="list-cell-sub">${escapeHtml(b.phone || '')}</div>` },
-  { key: 'room', label: 'Room', sortable: true, render: (b) => `<span class="list-cell-primary">${escapeHtml(b.room_no)}</span>` },
-  { key: 'checkin', label: 'Check-in', sortable: true },
-  { key: 'checkout', label: 'Check-out', sortable: true },
-  { key: 'guests', label: 'Guests', sortable: false, render: (b) => b.num_guests || 1 },
-  { key: 'status', label: 'Booking Status', sortable: true, render: (b) => statusBadge(b.status) },
-  { key: 'payment', label: 'Payment Status', sortable: true, render: (b) => statusBadge(b.payment_status) },
-  { key: 'amount', label: 'Amount', sortable: true, render: (b) => `<span class="list-cell-amount">₹${formatAmount(b.total_amount)}</span>` },
+  { key: 'id', label: 'Booking ID', sortable: true, className: 'col-id', cellClass: 'list-cell-id', render: (b) => `<span class="list-cell-id-text">#${b.id}</span>` },
+  { key: 'guest', label: 'Guest Name', sortable: true, className: 'col-guest', render: (b) => `<div class="list-cell-primary">${escapeHtml(b.customer_name)}</div><div class="list-cell-sub">${escapeHtml(b.phone || '')}</div>` },
+  { key: 'room', label: 'Room Number', sortable: true, className: 'col-room', render: (b) => escapeHtml(b.room_no) },
+  { key: 'room_type', label: 'Room Type', sortable: true, className: 'col-room-type', render: (b) => escapeHtml(b.room_type || '—') },
+  { key: 'checkin', label: 'Check-in', sortable: true, className: 'col-date' },
+  { key: 'checkout', label: 'Check-out', sortable: true, className: 'col-date' },
+  { key: 'guests', label: 'Guests', sortable: false, className: 'col-num', render: (b) => b.num_guests || 1 },
+  { key: 'status', label: 'Booking Status', sortable: true, className: 'col-status', render: (b) => statusBadge(b.status) },
+  { key: 'payment', label: 'Payment Status', sortable: true, className: 'col-status', render: (b) => statusBadge(b.payment_status) },
+  { key: 'amount', label: 'Amount', sortable: true, className: 'col-amount', cellClass: 'list-cell-amount', render: (b) => `₹${formatAmount(b.total_amount)}` },
 ];
 
 function bookingActionMenu(b) {
@@ -61,8 +62,7 @@ export class BookingTableView {
         rows: snap.pageRows,
         sortBy: snap.sortBy,
         sortDir: snap.sortDir,
-        bulkSelect: true,
-        selectedIds: snap.selectedIds,
+        bulkMode: false,
         actions: bookingActionMenu,
         rowClass: '',
         rowAttrs: (b) => ({ 'data-booking-id': b.id }),
@@ -80,8 +80,6 @@ export class BookingTableView {
         if (sortDir) sortDir.value = dir;
       },
       onPage: (page) => this.store.setPage(page),
-      onSelectAll: () => this.store.selectAll(snap.pageRows.map((b) => b.id)),
-      onToggleSelect: (id) => this.store.toggleSelect(id),
       onBindActions: (el) => bindActionHandlers(el, this.store),
     });
 

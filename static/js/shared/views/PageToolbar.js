@@ -1,11 +1,14 @@
 /** Toolbar export action — mounts into .saas-toolbar-end on each list page */
 export class PageToolbar {
-  constructor(mount, { onRefresh, onExport, showExport = true, showRefresh = false }) {
+  constructor(mount, { onRefresh, onExport, showExport = true, showRefresh = false, bulkCapable = false, bulkMode = false, onBulkModeToggle } = {}) {
     this.mount = mount;
     this.onRefresh = onRefresh;
     this.onExport = onExport;
     this.showExport = showExport;
     this.showRefresh = showRefresh;
+    this.bulkCapable = bulkCapable;
+    this.bulkMode = bulkMode;
+    this.onBulkModeToggle = onBulkModeToggle;
     this.render();
   }
 
@@ -14,6 +17,9 @@ export class PageToolbar {
     this.mount.innerHTML = `
       <div class="page-view-toolbar">
         <div class="page-view-toolbar-actions">
+          ${this.bulkCapable ? `<button type="button" class="btn btn-ghost btn-sm ${this.bulkMode ? 'active' : ''}" data-toolbar-bulk title="Select rows for bulk actions">
+            <i data-lucide="check-square" class="icon"></i> ${this.bulkMode ? 'Done' : 'Select'}
+          </button>` : ''}
           ${this.showRefresh ? `<button type="button" class="btn btn-ghost btn-sm" data-toolbar-refresh title="Refresh">
             <i data-lucide="refresh-cw" class="icon"></i>
           </button>` : ''}
@@ -25,10 +31,12 @@ export class PageToolbar {
     window.refreshIcons?.(this.mount);
     this.mount.querySelector('[data-toolbar-refresh]')?.addEventListener('click', () => this.onRefresh?.());
     this.mount.querySelector('[data-toolbar-export]')?.addEventListener('click', () => this.onExport?.());
+    this.mount.querySelector('[data-toolbar-bulk]')?.addEventListener('click', () => this.onBulkModeToggle?.());
   }
 
-  setMeta() {
-    /* Meta moved to filter-meta row below toolbar */
+  setBulkMode(active) {
+    this.bulkMode = active;
+    this.render();
   }
 }
 

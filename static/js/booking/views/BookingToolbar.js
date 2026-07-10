@@ -11,11 +11,9 @@ export class BookingToolbar {
 
   render(snap) {
     if (!this.mount) return;
-    const sel = snap.selectedIds.size;
     this.mount.innerHTML = `
       <div class="booking-toolbar">
         <div class="booking-toolbar-actions">
-          ${sel ? `<span class="booking-bulk-count muted" style="font-size:12px">${sel} selected</span>` : ''}
           <button type="button" class="btn btn-outline btn-sm" data-export-csv title="Export CSV">
             <i data-lucide="download" class="icon"></i> Export
           </button>

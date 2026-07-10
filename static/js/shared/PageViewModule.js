@@ -52,6 +52,12 @@ export class PageViewModule {
         onRefresh: () => this.loadData(),
         onExport: () => this.exportCsv(),
         showExport: configHasExport(this.config),
+        bulkCapable: Boolean(this.config.bulkCapable),
+        bulkMode: this.store.bulkMode,
+        onBulkModeToggle: () => {
+          this.store.setBulkMode(!this.store.bulkMode);
+          document.querySelector('[data-bulk-actions-bar]')?.toggleAttribute('hidden', !this.store.bulkMode);
+        },
       });
     }
 
@@ -60,7 +66,7 @@ export class PageViewModule {
       this.tableView = new DataTableView(tableMount, this.store, {
         columns: this.config.columns,
         actions: this.config.actions,
-        bulkSelect: this.config.bulkSelect,
+        bulkCapable: Boolean(this.config.bulkCapable),
         onSortChange: (key, dir) => this.syncSortForm(key, dir),
         bindActions: (el) => bindRowActions(el),
         onRowClick: this.config.onRowClick,
@@ -95,6 +101,7 @@ export class PageViewModule {
     this.metaEl = this.root.querySelector('[data-list-meta]');
     this.store.subscribe((snap) => {
       this.togglePanels(snap);
+      this.toolbar?.setBulkMode?.(snap.bulkMode);
       if (this.ssrGrid) syncSsrCardGrid(this.ssrGrid, snap);
       if (this.ssrKanban) syncSsrCardGrid(this.ssrKanban, snap);
     });

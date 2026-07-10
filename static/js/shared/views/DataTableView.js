@@ -19,7 +19,7 @@ export class DataTableView {
         rows: snap.pageRows,
         sortBy: snap.sortBy,
         sortDir: snap.sortDir,
-        bulkSelect: this.config.bulkSelect,
+        bulkMode: Boolean(this.config.bulkCapable && snap.bulkMode),
         selectedIds: snap.selectedIds,
         actions: this.config.actions,
         clickable: this.config.rowClickable !== false,

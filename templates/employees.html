@@ -29,7 +29,7 @@
 {{ saas_toolbar_below_end() }}
 
 {% if employees %}
-<div class="bulk-bar">
+<div class="bulk-bar" hidden data-bulk-actions-bar>
     <label class="bulk-select-all"><input type="checkbox" id="selectAllEmployees"> Select all</label>
     <form class="inline-form" method="post" action="{{ url_for('employees_bulk', **request.args) }}" id="employeeBulkForm">
         <button type="submit" name="action" value="activate" class="btn btn-success btn-sm">Activate Selected</button>

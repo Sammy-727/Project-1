@@ -127,9 +127,6 @@
 {% macro table_toolbar(search_placeholder='Search...', show_export=true, table_id='') %}
 <div class="table-toolbar" {% if table_id %}data-table-id="{{ table_id }}"{% endif %}>
   <div class="table-toolbar-left">
-    <label class="table-check-all" title="Select all">
-      <input type="checkbox" class="table-select-all" aria-label="Select all rows">
-    </label>
     <div class="table-search-wrap">
       {{ icon('search', 16) }}
       <input type="search" class="table-search" placeholder="{{ search_placeholder }}" data-table-search>
