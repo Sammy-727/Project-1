@@ -20,6 +20,7 @@ export class ListStore {
     this.sortKeys = {};
     this.filterFn = null;
     this.selectedIds = new Set();
+    this.bulkMode = false;
     this.listeners = new Set();
   }
 
@@ -64,6 +65,7 @@ export class ListStore {
       sortBy: this.sortBy,
       sortDir: this.sortDir,
       selectedIds: this.selectedIds,
+      bulkMode: this.bulkMode,
     };
   }
 
@@ -101,6 +103,12 @@ export class ListStore {
     const all = ids.every((id) => this.selectedIds.has(id));
     if (all) ids.forEach((id) => this.selectedIds.delete(id));
     else ids.forEach((id) => this.selectedIds.add(id));
+    this.notify();
+  }
+
+  setBulkMode(active) {
+    this.bulkMode = Boolean(active);
+    if (!this.bulkMode) this.selectedIds.clear();
     this.notify();
   }
 

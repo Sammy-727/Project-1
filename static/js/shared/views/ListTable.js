@@ -17,7 +17,7 @@ export class ListTable {
     rows = [],
     sortBy = '',
     sortDir = 'desc',
-    bulkSelect = false,
+    bulkMode = false,
     selectedIds = new Set(),
     actions,
     emptyColSpan,
@@ -30,15 +30,16 @@ export class ListTable {
       if (sortBy !== key) return '';
       return sortDir === 'asc' ? 'sort-asc' : 'sort-desc';
     };
-    const colSpan = emptyColSpan ?? columns.length + (actions ? 1 : 0) + (bulkSelect ? 1 : 0);
+    const colSpan = emptyColSpan ?? columns.length + (actions ? 1 : 0) + (bulkMode ? 1 : 0);
+    const bulkClass = bulkMode ? ' list-table-wrap--bulk-mode' : '';
 
     return `
-      <div class="list-table-wrap">
+      <div class="list-table-wrap${bulkClass}">
         <div class="list-table-scroll">
           <table class="list-table" role="grid">
             <thead class="list-table-head">
               <tr>
-                ${bulkSelect ? '<th class="list-table-th col-check" scope="col"><input type="checkbox" class="table-select-all" aria-label="Select all"></th>' : ''}
+                ${bulkMode ? '<th class="list-table-th col-check" scope="col"><input type="checkbox" class="table-select-all" aria-label="Select all"></th>' : ''}
                 ${columns.map((c) => `
                   <th class="list-table-th ${c.sortable ? `sortable ${sortIcon(c.key)}` : ''} ${c.className || ''}"
                       scope="col" data-sort-key="${c.key}">${escapeHtml(c.label)}</th>`).join('')}
@@ -47,7 +48,7 @@ export class ListTable {
             </thead>
             <tbody class="list-table-body">
               ${rows.length
-                ? rows.map((row) => ListTable.rowHtml(row, columns, { bulkSelect, selectedIds, actions, rowClass, rowAttrs, clickable })).join('')
+                ? rows.map((row) => ListTable.rowHtml(row, columns, { bulkMode, selectedIds, actions, rowClass, rowAttrs, clickable })).join('')
                 : `<tr class="list-table-empty"><td colspan="${colSpan}">${escapeHtml(emptyMessage)}</td></tr>`}
             </tbody>
           </table>
@@ -55,7 +56,7 @@ export class ListTable {
       </div>`;
   }
 
-  static rowHtml(row, columns, { bulkSelect, selectedIds, actions, rowClass, rowAttrs, clickable = true }) {
+  static rowHtml(row, columns, { bulkMode, selectedIds, actions, rowClass, rowAttrs, clickable = true }) {
     const attrs = rowAttrs(row) || {};
     const attrStr = Object.entries(attrs).map(([k, v]) => `${k}="${escapeHtml(v)}"`).join(' ');
     const selected = selectedIds?.has(row.id) ? ' is-selected' : '';
@@ -65,7 +66,7 @@ export class ListTable {
       const cellCls = c.cellClass ? ` class="${c.cellClass}"` : '';
       return `<td class="list-table-td" data-label="${escapeHtml(c.label)}"${cellCls}>${val}</td>`;
     }).join('');
-    const check = bulkSelect
+    const check = bulkMode
       ? `<td class="list-table-td col-check" data-label="Select">
           <input type="checkbox" class="row-check" data-id="${row.id}" ${selectedIds?.has(row.id) ? 'checked' : ''} aria-label="Select row">
         </td>`

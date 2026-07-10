@@ -161,7 +161,7 @@ export const PAGE_CONFIGS = {
     ssrGrid: '#employeeCardGrid',
     views: CARD_TABLE,
     defaultSort: 'name',
-    bulkSelect: true,
+    bulkCapable: true,
     filterRules: {
       searchFields: ['name', 'role', 'department', 'phone'],
       statusField: 'status',
@@ -310,7 +310,7 @@ export const PAGE_CONFIGS = {
     views: TABLE_CARD,
     defaultView: 'table',
     defaultSort: 'username',
-    bulkSelect: true,
+    bulkCapable: true,
     filterRules: {
       searchFields: ['username', 'full_name', 'role'],
       statusField: 'status',
