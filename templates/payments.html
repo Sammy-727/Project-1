@@ -42,8 +42,9 @@
   {% if pending_bookings %}
   <div class="entity-grid wide" id="billingPendingGrid" data-view-panel="cards">
     {% for pb in pending_bookings %}
-    <article class="entity-card status-Pending" data-entity-id="{{ pb.id }}" data-searchable
-             data-search="booking {{ pb.id }} {{ pb.name }} {{ pb.room_no }}">
+    <article class="entity-card clickable-record status-Pending" data-entity-id="{{ pb.id }}" data-searchable
+             data-search="booking {{ pb.id }} {{ pb.name }} {{ pb.room_no }}"
+             data-card-booking="{{ pb.id }}">
       <div class="entity-card-header">
         <div>
           <div class="entity-card-sub">Booking #{{ pb.id }}</div>

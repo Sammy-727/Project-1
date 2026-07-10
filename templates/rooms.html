@@ -47,7 +47,6 @@
         <div class="entity-card-sub">{{ r.room_type or r.category }} · Floor {{ r.floor or 1 }}</div>
       </div>
       {{ card_menu([
-        {'type': 'button', 'label': 'View', 'icon': 'eye', 'drawer': '#drawerRoom' ~ r.id},
         {'type': 'button', 'label': 'Edit', 'icon': 'pencil', 'target': '#editRoom' ~ r.id, 'class': 'modal-trigger'},
         {'type': 'button', 'label': 'Book', 'icon': 'calendar-plus', 'drawer_action': 'booking', 'booking_room': r.room_no},
         {'type': 'link', 'label': 'Check-in', 'icon': 'log-in', 'url': url_for('checkin_out')},

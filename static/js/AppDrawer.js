@@ -4,6 +4,7 @@
 import { createNavigationContext, shouldPushEntry } from './shared/navigation/NavigationContext.js';
 import { DrawerHeader } from './shared/navigation/DrawerHeader.js';
 import { confirmDiscard, isFormDirty } from './shared/navigation/unsavedChanges.js';
+import { rebindClickableSurfaces } from './shared/clickableRecords.js';
 
 const nav = createNavigationContext();
 
@@ -405,6 +406,8 @@ async function refreshBackgroundList() {
     if (fresh) {
       list.innerHTML = fresh.innerHTML;
       window.CardUI?.init?.();
+      window.__pageViewModules?.forEach((m) => m.bindClickableSurfaces?.());
+      rebindClickableSurfaces(list);
       window.initDropdowns?.(list);
       window.ImageUpload?.bind?.(list);
       rebind(document);

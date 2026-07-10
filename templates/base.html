@@ -19,6 +19,7 @@
     <link href="{{ url_for('static', filename='css/app-drawer.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/entity-views.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/list-table.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/clickable-records.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/page-toolbar.css') }}" rel="stylesheet">
 </head>
 <body class="{% if current_user.get('user_id') %}app-body{% if is_read_only %} read-only-mode{% endif %}{% else %}auth-body{% endif %}">
@@ -293,7 +294,7 @@
 <script src="https://cdn.jsdelivr.net/npm/axios@1.7.9/dist/axios.min.js"></script>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 {% block scripts %}{% endblock %}
-<script src="{{ url_for('static', filename='js/cards.js') }}"></script>
+<script type="module" src="{{ url_for('static', filename='js/cards.js') }}"></script>
 <script src="{{ url_for('static', filename='js/filters.js') }}"></script>
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 {% if current_user.get("user_id") %}

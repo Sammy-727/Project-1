@@ -1,4 +1,5 @@
 import { escapeHtml, statusBadge, formatAmount } from '../utils.js';
+import { bindClickableCards } from '../clickableRecords.js';
 
 /** Floor-grouped room layout from shared store */
 export class FloorView {
@@ -24,7 +25,7 @@ export class FloorView {
         <h3 class="floor-section-title">Floor ${floor}</h3>
         <div class="entity-grid wide floor-room-grid">
           ${floors[floor].map((r) => `
-            <article class="entity-card status-${escapeHtml(String(r.status || '').replace(/\s+/g, '-'))} floor-room-card"
+            <article class="entity-card status-${escapeHtml(String(r.status || '').replace(/\s+/g, '-'))} floor-room-card clickable-record"
               data-entity-id="${r.id}" data-card-drawer="#drawerRoom${r.id}">
               <div class="entity-card-header">
                 <div>
@@ -41,10 +42,14 @@ export class FloorView {
       </section>`).join('') || `<div class="page-empty-view"><p>No rooms match your filters.</p></div>`;
 
     this.mount.querySelectorAll('[data-card-drawer]').forEach((card) => {
-      card.addEventListener('click', (e) => {
-        if (e.target.closest('a, button, form')) return;
-        window.AppDrawer?.openDrawerSelector(card.dataset.cardDrawer);
-      });
+      card.dataset.cardDrawer = card.dataset.cardDrawer || card.getAttribute('data-card-drawer');
+    });
+    bindClickableCards(this.mount, {
+      cardSelector: '.floor-room-card',
+      onOpen: (record, card) => {
+        const drawer = card.dataset.cardDrawer;
+        if (drawer) window.AppDrawer?.openDrawerSelector?.(drawer);
+      },
     });
   }
 }

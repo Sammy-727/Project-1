@@ -2,7 +2,8 @@ import { escapeHtml, formatAmount } from './BookingActions.js';
 import { statusBadge } from '../../shared/views/StatusBadge.js';
 import { renderActionMenu } from '../../shared/views/ActionMenu.js';
 import { ListTable } from '../../shared/views/ListTable.js';
-import { bindActionHandlers } from './BookingActions.js';
+import { bindClickableRows } from '../../shared/clickableRecords.js';
+import { openBookingDetail } from './BookingActions.js';
 
 const COLUMNS = [
   { key: 'id', label: 'Booking ID', sortable: true, className: 'col-id', cellClass: 'list-cell-id', render: (b) => `<span class="list-cell-id-text">#${b.id}</span>` },
@@ -19,7 +20,6 @@ const COLUMNS = [
 
 function bookingActionMenu(b) {
   const items = [
-    { type: 'button', label: 'View', icon: 'eye', attrs: { 'booking-action': 'view', 'booking-id': b.id } },
     { type: 'button', label: 'Edit', icon: 'pencil', attrs: { 'booking-action': 'edit', 'booking-id': b.id } },
     { type: 'link', label: 'Invoice', icon: 'file-text', href: `/invoice/${b.id}` },
   ];
@@ -81,18 +81,14 @@ export class BookingTableView {
       },
       onPage: (page) => this.store.setPage(page),
       onBindActions: (el) => bindActionHandlers(el, this.store),
-    });
-
-    this.mount.querySelectorAll('.list-table-row').forEach((row) => {
-      row.addEventListener('click', (e) => {
-        if (e.target.closest('a, button, form, .actions-dropdown, input, label')) return;
-        const id = Number(row.dataset.bookingId);
-        const booking = this.store.bookings.find((x) => x.id === id);
+      onRowClick: (record) => {
+        const booking = this.store.bookings.find((x) => x.id === record.id);
         if (booking) {
-          this.store.setSelectedBooking(id);
-          import('./BookingActions.js').then((m) => m.openBookingDetail(booking));
+          this.store.setSelectedBooking(booking.id);
+          openBookingDetail(booking);
         }
-      });
+      },
+      getRowRecord: (row) => ({ id: Number(row.dataset.bookingId) }),
     });
   }
 }

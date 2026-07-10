@@ -35,9 +35,8 @@ export function calendarColor(status, paymentStatus) {
 
 export function renderActionMenu(b, { compact = false } = {}) {
   const items = [
-    `<button type="button" class="actions-item" data-booking-action="view" data-booking-id="${b.id}"><i data-lucide="eye" class="icon"></i>View</button>`,
     `<button type="button" class="actions-item" data-booking-action="edit" data-booking-id="${b.id}"><i data-lucide="pencil" class="icon"></i>Edit</button>`,
-    `<a href="/invoice/${b.id}" class="actions-item"><i data-lucide="file-text" class="icon"></i>Invoice</a>`,
+    `<a href="/invoice/${b.id}" class="actions-item" data-no-row-open><i data-lucide="file-text" class="icon"></i>Invoice</a>`,
   ];
   if (b.status === 'Reserved') {
     items.push(`<a href="/checkin-out" class="actions-item"><i data-lucide="log-in" class="icon"></i>Check-in</a>`);
@@ -101,17 +100,6 @@ export function openBookingDetail(b) {
 }
 
 export function bindActionHandlers(root, store) {
-  root.querySelectorAll('[data-booking-action="view"]').forEach((btn) => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const id = Number(btn.dataset.bookingId);
-      const booking = store.bookings.find((x) => x.id === id);
-      if (booking) {
-        store.setSelectedBooking(id);
-        openBookingDetail(booking);
-      }
-    });
-  });
   root.querySelectorAll('[data-booking-action="edit"]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();

@@ -1,4 +1,5 @@
-import { escapeHtml, formatAmount, statusBadge, renderActionMenu, bindActionHandlers } from './BookingActions.js';
+import { escapeHtml, formatAmount, statusBadge, renderActionMenu, bindActionHandlers, openBookingDetail } from './BookingActions.js';
+import { bindClickableCards } from '../../shared/clickableRecords.js';
 
 export class BookingCardView {
   constructor(mount, store) {
@@ -21,16 +22,15 @@ export class BookingCardView {
       <div class="entity-grid wide booking-card-grid" id="bookingCardGrid">
         ${snap.filtered.map((b) => this.cardHtml(b)).join('')}
       </div>`;
-    this.mount.querySelectorAll('.booking-card-item').forEach((card) => {
-      card.addEventListener('click', (e) => {
-        if (e.target.closest('a, button, form, .actions-dropdown')) return;
-        const id = Number(card.dataset.bookingId);
-        const booking = this.store.bookings.find((x) => x.id === id);
+    bindClickableCards(this.mount, {
+      cardSelector: '.booking-card-item',
+      onOpen: (record) => {
+        const booking = this.store.bookings.find((x) => x.id === record.id);
         if (booking) {
-          this.store.setSelectedBooking(id);
-          import('./BookingActions.js').then((m) => m.openBookingDetail(booking));
+          this.store.setSelectedBooking(booking.id);
+          openBookingDetail(booking);
         }
-      });
+      },
     });
     bindActionHandlers(this.mount, this.store);
   }
@@ -38,7 +38,7 @@ export class BookingCardView {
   cardHtml(b) {
     const selected = this.store.selectedBookingId === b.id ? ' is-selected' : '';
     return `
-      <article class="entity-card booking-card-item status-${escapeHtml(b.status).replace(/\s+/g, '-')}${selected}"
+      <article class="entity-card booking-card-item clickable-record status-${escapeHtml(b.status).replace(/\s+/g, '-')}${selected}"
         data-booking-id="${b.id}" data-status="${escapeHtml(b.status)}" data-payment="${escapeHtml(b.payment_status)}">
         <div class="entity-card-header gradient">
           <div>

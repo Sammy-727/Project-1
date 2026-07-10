@@ -42,7 +42,8 @@
     </div>
     <div class="kanban-column-body" data-status="{{ col_status }}">
       {% for t in tasks if t.status == col_status %}
-      <div class="kanban-card priority-{{ t.priority }}" data-status="{{ t.status }}" data-searchable
+      <div class="kanban-card priority-{{ t.priority }} clickable-record" data-entity-id="{{ t.id }}" data-status="{{ t.status }}"
+           data-card-modal="#editHK{{ t.id }}" data-searchable
            data-search="room {{ t.room_no }} {{ t.staff_name }}">
         <strong>Room {{ t.room_no }}</strong>
         <div class="muted">{{ t.room_type }}</div>
@@ -58,7 +59,6 @@
           <input type="hidden" name="priority" value="{{ t.priority }}">
           <input type="hidden" name="notes" value="{{ t.notes or '' }}">
         </form>
-        <button type="button" class="btn btn-ghost btn-sm modal-trigger" data-target="#editHK{{ t.id }}" style="margin-top:8px">Update</button>
       </div>
       {% endfor %}
     </div>

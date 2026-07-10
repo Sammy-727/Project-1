@@ -45,7 +45,6 @@
         </div>
       </div>
       {{ card_menu([
-        {'type': 'button', 'label': 'View Profile', 'icon': 'user', 'drawer': '#drawerGuest' ~ c.id},
         {'type': 'button', 'label': 'New Booking', 'icon': 'calendar-plus', 'drawer_action': 'booking', 'booking_customer': c.id},
         {'type': 'button', 'label': 'Edit', 'icon': 'pencil', 'target': '#editCustomer' ~ c.id},
         {'type': 'link', 'label': 'Call', 'icon': 'phone', 'url': 'tel:' ~ c.phone},

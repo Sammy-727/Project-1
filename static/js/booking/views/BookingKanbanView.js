@@ -1,4 +1,5 @@
-import { escapeHtml, formatAmount, statusBadge, renderActionMenu, bindActionHandlers } from './BookingActions.js';
+import { escapeHtml, formatAmount, statusBadge, renderActionMenu, bindActionHandlers, openBookingDetail } from './BookingActions.js';
+import { bindClickableKanban } from '../../shared/clickableRecords.js';
 
 const COLUMNS = ['Reserved', 'Checked-in', 'Checked-out', 'Cancelled'];
 
@@ -30,23 +31,22 @@ export class BookingKanbanView {
         }).join('')}
       </div>`;
 
-    this.mount.querySelectorAll('.kanban-card').forEach((card) => {
-      card.addEventListener('click', (e) => {
-        if (e.target.closest('a, button, form, .actions-dropdown')) return;
-        const id = Number(card.dataset.bookingId);
-        const booking = this.store.bookings.find((x) => x.id === id);
+    bindClickableKanban(this.mount, {
+      getRecord: (card) => ({ id: Number(card.dataset.bookingId) }),
+      onOpen: (record) => {
+        const booking = this.store.bookings.find((x) => x.id === record.id);
         if (booking) {
-          this.store.setSelectedBooking(id);
-          import('./BookingActions.js').then((m) => m.openBookingDetail(booking));
+          this.store.setSelectedBooking(booking.id);
+          openBookingDetail(booking);
         }
-      });
+      },
     });
     bindActionHandlers(this.mount, this.store);
   }
 
   cardHtml(b) {
     return `
-      <div class="kanban-card booking-kanban-card" data-booking-id="${b.id}" data-status="${escapeHtml(b.status)}">
+      <div class="kanban-card booking-kanban-card clickable-record" data-booking-id="${b.id}" data-status="${escapeHtml(b.status)}">
         <strong>#${b.id} · ${escapeHtml(b.customer_name)}</strong>
         <div class="muted">Room ${escapeHtml(b.room_no)}</div>
         <div style="margin:8px 0;display:flex;gap:6px;flex-wrap:wrap">

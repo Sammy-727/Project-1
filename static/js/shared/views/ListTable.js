@@ -1,4 +1,5 @@
 import { escapeHtml } from '../utils.js';
+import { bindClickableRows } from '../clickableRecords.js';
 import { bindActionMenus } from './ActionMenu.js';
 
 /**
@@ -89,7 +90,7 @@ export class ListTable {
       </div>`;
   }
 
-  static bind(mount, { columns, onSort, onPage, onSelectAll, onToggleSelect, onBindActions }) {
+  static bind(mount, { columns, onSort, onPage, onSelectAll, onToggleSelect, onBindActions, onRowClick, getRowRecord }) {
     mount.querySelector('.table-select-all')?.addEventListener('change', (e) => {
       onSelectAll?.(e.target.checked);
     });
@@ -106,6 +107,12 @@ export class ListTable {
     });
     bindActionMenus(mount);
     onBindActions?.(mount);
+    if (onRowClick) {
+      bindClickableRows(mount, {
+        getRecord: (row) => getRowRecord?.(row) ?? { id: Number(row.dataset.entityId || row.dataset.bookingId) },
+        onOpen: (record) => onRowClick(record),
+      });
+    }
     window.refreshIcons?.(mount);
   }
 }

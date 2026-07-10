@@ -36,20 +36,15 @@ export class DataTableView {
       onPage: (page) => this.store.setPage(page),
       onSelectAll: () => this.store.selectAll(snap.pageRows.map((r) => r.id)),
       onToggleSelect: (id) => this.store.toggleSelect(id),
-      onBindActions: (el) => {
-        this.config.bindActions?.(el);
-        if (this.config.onRowClick) {
-          el.querySelectorAll('.list-table-row:not(.list-table-row--static)').forEach((row) => {
-            row.addEventListener('click', (e) => {
-              if (e.target.closest('a, button, form, .actions-dropdown, input, label')) return;
-              const id = Number(row.dataset.entityId);
-              const item = this.store.getSnapshot().pageRows.find((r) => r.id === id)
-                || this.store.items.find((r) => r.id === id);
-              if (item) this.config.onRowClick(item, row);
-            });
-          });
-        }
-      },
+      onBindActions: (el) => this.config.bindActions?.(el),
+      onRowClick: this.config.onRowClick
+        ? (record) => {
+            const item = this.store.getSnapshot().pageRows.find((r) => r.id === record.id)
+              || this.store.items.find((r) => r.id === record.id)
+              || record;
+            this.config.onRowClick(item);
+          }
+        : null,
     });
   }
 }

@@ -1,4 +1,4 @@
-import { escapeHtml } from '../utils.js';
+import { bindClickableCards } from '../clickableRecords.js';
 
 /** Client-rendered card grid from shared store */
 export class CardGridView {
@@ -19,6 +19,16 @@ export class CardGridView {
       <div class="entity-grid wide page-card-grid">
         ${snap.filtered.map((row) => this.config.renderCard(row)).join('')}
       </div>`;
+    if (this.config.onRowClick) {
+      bindClickableCards(this.mount, {
+        getRecord: (card) => {
+          const id = Number(card.dataset.entityId);
+          return snap.filtered.find((r) => r.id === id)
+            || this.store.items.find((r) => r.id === id);
+        },
+        onOpen: (record) => this.config.onRowClick(record),
+      });
+    }
     this.config.bindCards?.(this.mount, this.store);
     window.refreshIcons?.(this.mount);
   }

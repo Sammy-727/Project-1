@@ -59,7 +59,6 @@
         </div>
       </div>
       {{ card_menu([
-        {'type': 'button', 'label': 'View', 'icon': 'eye', 'drawer': '#drawerEmp' ~ e.id},
         {'type': 'button', 'label': 'Edit', 'icon': 'pencil', 'target': '#editEmp' ~ e.id},
       ] + ([{'type': 'form', 'label': 'Deactivate', 'icon': 'user-x', 'url': url_for('deactivate_employee', emp_id=e.id, **request.args), 'confirm': 'Deactivate ' ~ e.name ~ '?'}] if e.status != 'Inactive' and e.status != 'Archived' else [])
         + ([{'type': 'form', 'label': 'Archive', 'icon': 'archive', 'url': url_for('archive_employee', emp_id=e.id, **request.args), 'confirm': 'Archive ' ~ e.name ~ '?'}] if e.status != 'Archived' else [])

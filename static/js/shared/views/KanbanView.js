@@ -1,4 +1,5 @@
 import { escapeHtml, statusBadge } from '../utils.js';
+import { bindClickableKanban } from '../clickableRecords.js';
 
 /** Status-based kanban columns from shared store */
 export class KanbanView {
@@ -32,6 +33,16 @@ export class KanbanView {
       </div>`;
 
     this.config.bindCards?.(this.mount, this.store);
+    if (this.config.onRowClick) {
+      bindClickableKanban(this.mount, {
+        getRecord: (card) => {
+          const id = Number(card.dataset.entityId);
+          return snap.filtered.find((r) => r.id === id)
+            || this.store.items.find((r) => r.id === id);
+        },
+        onOpen: (record) => this.config.onRowClick(record),
+      });
+    }
     if (this.config.draggable) this.initDrag();
     window.refreshIcons?.(this.mount);
   }
@@ -58,9 +69,11 @@ export class KanbanView {
   }
 }
 
-export function kanbanCardHtml(row, { title, subtitle, badges = [], footer = '', entityId }) {
+export function kanbanCardHtml(row, { title, subtitle, badges = [], footer = '', entityId, cardModal, cardDrawer }) {
+  const modalAttr = cardModal ? ` data-card-modal="${cardModal}"` : '';
+  const drawerAttr = cardDrawer ? ` data-card-drawer="${cardDrawer}"` : '';
   return `
-    <div class="kanban-card" data-entity-id="${entityId || row.id}" data-status="${escapeHtml(row.status || '')}">
+    <div class="kanban-card clickable-record" data-entity-id="${entityId || row.id}" data-status="${escapeHtml(row.status || '')}"${modalAttr}${drawerAttr}>
       <strong>${escapeHtml(title)}</strong>
       ${subtitle ? `<div class="muted">${escapeHtml(subtitle)}</div>` : ''}
       ${badges.length ? `<div style="margin:8px 0;display:flex;gap:6px;flex-wrap:wrap">${badges.join('')}</div>` : ''}

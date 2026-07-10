@@ -32,8 +32,9 @@
 <div id="inventoryTableView" class="entity-view-panel" hidden></div>
 <div class="entity-grid" id="inventoryCardGrid" data-view-panel="cards" data-page="inventory">
   {% for i in items %}
-  <article class="entity-card {% if i.quantity <= i.reorder_level %}low-stock{% endif %}" data-entity-id="{{ i.id }}" data-searchable
-           data-search="{{ i.item_name }} {{ i.category }} {{ i.supplier_name or '' }}">
+  <article class="entity-card clickable-record {% if i.quantity <= i.reorder_level %}low-stock{% endif %}" data-entity-id="{{ i.id }}" data-searchable
+           data-search="{{ i.item_name }} {{ i.category }} {{ i.supplier_name or '' }}"
+           data-card-modal="#editInv{{ i.id }}">
     <div class="entity-card-header">
       <div class="service-icon" style="width:40px;height:40px;margin:0">{{ icon('package', 20) }}</div>
       <div style="flex:1">

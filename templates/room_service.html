@@ -58,8 +58,9 @@
   <div id="servicesTableView" class="entity-view-panel" data-view-panel="table" hidden></div>
   <div class="entity-grid wide" id="serviceRequestGrid" data-view-panel="cards">
     {% for r in requests %}
-    <article class="entity-card {% if r.request_type == 'Maintenance' %}status-Maintenance{% endif %}" data-entity-id="{{ r.id }}" data-searchable
-             data-status="{{ r.status }}" data-search="room {{ r.room_no }} {{ r.request_type }} {{ r.customer_name or '' }}">
+    <article class="entity-card clickable-record {% if r.request_type == 'Maintenance' %}status-Maintenance{% endif %}" data-entity-id="{{ r.id }}" data-searchable
+             data-status="{{ r.status }}" data-search="room {{ r.room_no }} {{ r.request_type }} {{ r.customer_name or '' }}"
+             data-card-modal="#editRS{{ r.id }}">
       <div class="entity-card-header">
         <div>
           <div class="entity-card-sub">Room {{ r.room_no }}</div>

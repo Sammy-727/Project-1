@@ -1,4 +1,5 @@
 /** Bind drawer, modal, and booking actions on dynamically rendered rows/cards */
+import { bindClickableCards } from '../clickableRecords.js';
 import { bindActionMenus } from './ActionMenu.js';
 
 export function bindRowActions(root) {
@@ -25,13 +26,8 @@ export function bindRowActions(root) {
       }
     });
   });
-  root.querySelectorAll('[data-card-drawer]').forEach((card) => {
-    if (card.dataset.cardBound) return;
-    card.dataset.cardBound = '1';
-    card.addEventListener('click', (e) => {
-      if (e.target.closest('a, button, form, .actions-dropdown, input, label')) return;
-      window.AppDrawer?.openDrawerSelector(card.dataset.cardDrawer);
-    });
+  bindClickableCards(root, {
+    cardSelector: '.entity-card[data-card-drawer], .entity-card[data-card-modal], .entity-card[data-card-href]',
   });
   bindActionMenus(root);
 }

@@ -7,6 +7,7 @@ import { BookingCardView } from './views/BookingCardView.js';
 import { BookingTableView } from './views/BookingTableView.js';
 import { BookingCalendarView } from './views/BookingCalendarView.js';
 import { BookingKanbanView } from './views/BookingKanbanView.js';
+import { bindListKeyboard } from '../shared/clickableRecords.js';
 import { createUserFacingError, isUserFacingError, logAppError } from '../shared/errors.js';
 
 export class BookingModule {
@@ -52,6 +53,8 @@ export class BookingModule {
     this.tableView = new BookingTableView(this.mounts.table, this.store);
     this.calendarView = new BookingCalendarView(this.mounts.calendar, this.store);
     this.kanbanView = new BookingKanbanView(this.mounts.kanban, this.store);
+
+    bindListKeyboard(this.root, { itemSelector: '.clickable-record' });
 
     const bootstrap = document.getElementById('bookingsBootstrap');
     let hasBootstrap = false;

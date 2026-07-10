@@ -3,10 +3,14 @@ import { statusBadge } from '../shared/views/StatusBadge.js';
 import { renderActionMenu } from '../shared/views/ActionMenu.js';
 import { kanbanCardHtml } from '../shared/views/KanbanView.js';
 import { bindRowActions } from '../shared/views/bindActions.js';
+import { openDrawerSelector, openModalSelector } from '../shared/clickableRecords.js';
+
+const openDrawer = (selector) => (record) => openDrawerSelector(typeof selector === 'function' ? selector(record) : selector);
+const openModal = (selector) => (record) => openModalSelector(typeof selector === 'function' ? selector(record) : selector);
+const openHref = (href) => (record) => { window.location.href = typeof href === 'function' ? href(record) : href; };
 
 function guestActions(r) {
   return renderActionMenu([
-    { type: 'button', label: 'View Profile', icon: 'eye', drawer: `#drawerGuest${r.id}` },
     { type: 'button', label: 'Edit', icon: 'pencil', modal: `#editCustomer${r.id}` },
     { type: 'button', label: 'New Booking', icon: 'calendar-plus', bookingCustomer: String(r.id) },
   ]);
@@ -14,7 +18,6 @@ function guestActions(r) {
 
 function roomActions(r) {
   return renderActionMenu([
-    { type: 'button', label: 'View', icon: 'eye', drawer: `#drawerRoom${r.id}` },
     { type: 'button', label: 'Edit', icon: 'pencil', modal: `#editRoom${r.id}` },
     { type: 'button', label: 'Book', icon: 'calendar-plus', bookingRoom: r.room_no },
   ]);
@@ -22,7 +25,6 @@ function roomActions(r) {
 
 function employeeActions(r) {
   return renderActionMenu([
-    { type: 'button', label: 'View', icon: 'eye', drawer: `#drawerEmp${r.id}` },
     { type: 'button', label: 'Edit', icon: 'pencil', modal: `#editEmp${r.id}` },
   ]);
 }
@@ -37,7 +39,6 @@ function hkActions(r) {
 
 function userActions(r) {
   return renderActionMenu([
-    { type: 'button', label: 'View Details', icon: 'eye', modal: `#viewUser${r.id}` },
     { type: 'button', label: 'Edit', icon: 'pencil', modal: `#editUser${r.id}` },
   ]);
 }
@@ -48,13 +49,13 @@ function serviceActions(r) {
 
 function invoiceActions(r) {
   return renderActionMenu([
-    { type: 'link', label: 'View Invoice', icon: 'file-text', href: `/invoice/${r.booking_id}` },
+    { type: 'link', label: 'Print', icon: 'printer', href: `/invoice/${r.booking_id}`, target: '_blank' },
   ]);
 }
 
 function billingActions(r) {
   return renderActionMenu([
-    { type: 'link', label: 'View Receipt', icon: 'file-text', href: `/receipt/${r.id}`, target: '_blank' },
+    { type: 'link', label: 'Print Receipt', icon: 'printer', href: `/receipt/${r.id}`, target: '_blank' },
   ]);
 }
 
@@ -104,7 +105,7 @@ export const PAGE_CONFIGS = {
     exportHeaders: ['ID', 'Name', 'Phone', 'Email', 'Type', 'Stays', 'Loyalty'],
     exportRow: (r) => [r.id, r.name, r.phone, r.email || '', r.guest_type, r.booking_count, r.loyalty],
     actions: guestActions,
-    onRowClick: (r) => window.AppDrawer?.openDrawerSelector?.(`#drawerGuest${r.id}`),
+    onRowClick: openDrawer((r) => `#drawerGuest${r.id}`),
   },
 
   rooms: {
@@ -145,7 +146,7 @@ export const PAGE_CONFIGS = {
     exportHeaders: ['Room', 'Type', 'Floor', 'Capacity', 'Price', 'Status'],
     exportRow: (r) => [r.room_no, r.room_type, r.floor, r.capacity, r.price, r.status],
     actions: roomActions,
-    onRowClick: (r) => window.AppDrawer?.openDrawerSelector?.(`#drawerRoom${r.id}`),
+    onRowClick: openDrawer((r) => `#drawerRoom${r.id}`),
   },
 
   employees: {
@@ -189,7 +190,7 @@ export const PAGE_CONFIGS = {
     exportHeaders: ['ID', 'Name', 'Role', 'Department', 'Phone', 'Shift', 'Status'],
     exportRow: (r) => [r.id, r.name, r.role, r.department || '', r.phone || '', r.shift || '', r.status],
     actions: employeeActions,
-    onRowClick: (r) => window.AppDrawer?.openDrawerSelector?.(`#drawerEmp${r.id}`),
+    onRowClick: openDrawer((r) => `#drawerEmp${r.id}`),
   },
 
   inventory: {
@@ -227,6 +228,8 @@ export const PAGE_CONFIGS = {
     exportHeaders: ['ID', 'Item', 'Category', 'Stock', 'Unit', 'Min Level', 'Price', 'Supplier'],
     exportRow: (r) => [r.id, r.item_name, r.category, r.quantity, r.unit, r.reorder_level, r.price, r.supplier_name || ''],
     actions: inventoryActions,
+    onRowClick: openModal((r) => `#editInv${r.id}`),
+    modalSelector: (r) => `#editInv${r.id}`,
   },
 
   housekeeping: {
@@ -262,13 +265,13 @@ export const PAGE_CONFIGS = {
         title: `Room ${r.room_no}`,
         subtitle: r.room_type,
         badges: [statusBadge(r.priority), statusBadge(r.status)],
-        footer: `<div class="muted" style="margin-top:6px">${escapeHtml(r.staff_name || 'Unassigned')} · ${escapeHtml(r.created_at || '')}</div>
-          <button type="button" class="btn btn-ghost btn-sm modal-trigger" data-target="#editHK${r.id}" style="margin-top:8px">Update</button>`,
+        footer: `<div class="muted" style="margin-top:6px">${escapeHtml(r.staff_name || 'Unassigned')} · ${escapeHtml(r.created_at || '')}</div>`,
+        cardModal: `#editHK${r.id}`,
       }),
       bindCards: bindRowActions,
     },
     renderCard: (r) => `
-      <article class="entity-card" data-entity-id="${r.id}" data-card-drawer="">
+      <article class="entity-card clickable-record" data-entity-id="${r.id}" data-card-modal="#editHK${r.id}">
         <div class="entity-card-header">
           <div><div class="entity-card-sub">Room ${escapeHtml(r.room_no)}</div>
           <div class="entity-card-title">${escapeHtml(r.room_type || '')}</div></div>
@@ -280,7 +283,7 @@ export const PAGE_CONFIGS = {
             <div class="entity-stat">Priority<strong>${escapeHtml(r.priority)}</strong></div>
           </div>
         </div>
-        <div class="entity-card-footer">${statusBadge(r.priority)} ${cardModalBtn(`#editHK${r.id}`, 'Update')}</div>
+        <div class="entity-card-footer">${statusBadge(r.priority)}</div>
       </article>`,
     bindCards: bindRowActions,
     columns: [
@@ -294,6 +297,8 @@ export const PAGE_CONFIGS = {
     exportHeaders: ['ID', 'Room', 'Type', 'Staff', 'Priority', 'Status', 'Created'],
     exportRow: (r) => [r.id, r.room_no, r.room_type, r.staff_name || '', r.priority, r.status, r.created_at],
     actions: hkActions,
+    onRowClick: openModal((r) => `#editHK${r.id}`),
+    modalSelector: (r) => `#editHK${r.id}`,
   },
 
   users: {
@@ -335,16 +340,18 @@ export const PAGE_CONFIGS = {
       { key: 'last_login', label: 'Last Login', sortable: false, render: (r) => escapeHtml(r.last_login || '—') },
     ],
     renderCard: (r) => `
-      <article class="entity-card" data-entity-id="${r.id}">
+      <article class="entity-card clickable-record" data-entity-id="${r.id}" data-card-modal="#viewUser${r.id}">
         <div class="entity-card-header gradient">
           <div><div class="entity-card-title">${escapeHtml(r.full_name || r.username)}</div>
           <div class="entity-card-sub">@${escapeHtml(r.username)} · ${escapeHtml(r.role)}</div></div>
           ${statusBadge(r.status)}
         </div>
-        <div class="entity-card-footer">${cardModalBtn(`#viewUser${r.id}`, 'View')} ${cardModalBtn(`#editUser${r.id}`, 'Edit')}</div>
+        <div class="entity-card-footer">${cardModalBtn(`#editUser${r.id}`, 'Edit')}</div>
       </article>`,
     bindCards: bindRowActions,
     actions: userActions,
+    onRowClick: openModal((r) => `#viewUser${r.id}`),
+    modalSelector: (r) => `#viewUser${r.id}`,
   },
 
   services: {
@@ -375,6 +382,8 @@ export const PAGE_CONFIGS = {
     actions: serviceActions,
     exportHeaders: ['ID', 'Room', 'Type', 'Guest', 'Status', 'Charges', 'Created'],
     exportRow: (r) => [r.id, r.room_no, r.request_type, r.customer_name || '', r.status, r.charges, r.created_at],
+    onRowClick: openModal((r) => `#editRS${r.id}`),
+    modalSelector: (r) => `#editRS${r.id}`,
   },
 
   maintenance: {
@@ -407,10 +416,11 @@ export const PAGE_CONFIGS = {
         subtitle: r.description || 'Maintenance',
         badges: [statusBadge(r.status)],
         footer: `<span class="muted">${escapeHtml(r.created_at || '')}</span>`,
+        cardModal: `#editRS${r.id}`,
       }),
     },
     renderCard: (r) => `
-      <article class="entity-card status-Maintenance" data-entity-id="${r.id}">
+      <article class="entity-card status-Maintenance clickable-record" data-entity-id="${r.id}" data-card-modal="#editRS${r.id}">
         <div class="entity-card-title">Room ${escapeHtml(r.room_no)}</div>
         <div class="entity-card-sub">${escapeHtml(r.description || 'Maintenance')}</div>
         <div style="margin-top:8px">${statusBadge(r.status)}</div>
@@ -422,6 +432,8 @@ export const PAGE_CONFIGS = {
       { key: 'created_at', label: 'Reported', sortable: true },
     ],
     actions: serviceActions,
+    onRowClick: openModal((r) => `#editRS${r.id}`),
+    modalSelector: (r) => `#editRS${r.id}`,
   },
 
   billing: {
@@ -454,7 +466,7 @@ export const PAGE_CONFIGS = {
       { key: 'payment_date', label: 'Date', sortable: true },
     ],
     renderCard: (r) => `
-      <article class="entity-card" data-entity-id="${r.id}">
+      <article class="entity-card clickable-record" data-entity-id="${r.id}" data-card-href="/receipt/${r.id}">
         <div class="entity-card-header">
           <div><div class="entity-card-sub">${escapeHtml(r.receipt_number)}</div>
           <div class="entity-card-title">${escapeHtml(r.customer_name)}</div>
@@ -468,6 +480,10 @@ export const PAGE_CONFIGS = {
     exportHeaders: ['Receipt', 'Guest', 'Room', 'Amount', 'Mode', 'Date'],
     exportRow: (r) => [r.receipt_number, r.customer_name, r.room_no, r.amount, r.payment_mode, r.payment_date],
     actions: billingActions,
+    onRowClick: (r) => {
+      if (r.receipt_number) window.open(`/receipt/${r.id}`, '_blank');
+      else window.AppDrawer?.openDetailFromPage?.('/bookings', `#drawerBooking${r.id}`, `Booking #${r.id}`);
+    },
   },
 
   invoices: {
@@ -501,7 +517,7 @@ export const PAGE_CONFIGS = {
       { key: 'bill_date', label: 'Date', sortable: true },
     ],
     renderCard: (r) => `
-      <article class="entity-card" data-entity-id="${r.booking_id}">
+      <article class="entity-card clickable-record" data-entity-id="${r.booking_id}" data-card-href="/invoice/${r.booking_id}">
         <div class="entity-card-header">
           <div><div class="entity-card-sub">Invoice #${r.invoice_id || r.booking_id}</div>
           <div class="entity-card-title">${escapeHtml(r.customer_name)}</div>
@@ -510,10 +526,11 @@ export const PAGE_CONFIGS = {
         </div>
         <div class="entity-card-footer">
           <span class="booking-card-amount">₹${formatAmount(r.total)}</span>
-          <a href="/invoice/${r.booking_id}" class="btn btn-ghost btn-sm">View</a>
         </div>
       </article>`,
     actions: invoiceActions,
+    onRowClick: openHref((r) => `/invoice/${r.booking_id}`),
+    hrefSelector: (r) => `/invoice/${r.booking_id}`,
     exportHeaders: ['Invoice', 'Booking', 'Guest', 'Room', 'Amount', 'Status', 'Date'],
     exportRow: (r) => [r.invoice_id || r.booking_id, r.booking_id, r.customer_name, r.room_no, r.total, r.payment_status, r.bill_date],
   },
@@ -551,6 +568,8 @@ export const PAGE_CONFIGS = {
     ],
     exportHeaders: ['Receipt', 'Guest', 'Room', 'Amount', 'Mode', 'Date'],
     exportRow: (r) => [r.receipt_number, r.customer_name, r.room_no, r.amount, r.payment_mode, r.payment_date],
+    onRowClick: openHref((r) => `/receipt/${r.id}`),
+    hrefSelector: (r) => `/receipt/${r.id}`,
   },
 };
 

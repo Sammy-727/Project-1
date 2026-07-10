@@ -8,6 +8,7 @@ import { KanbanView } from './views/KanbanView.js';
 import { FloorView } from './views/FloorView.js';
 import { ChartPanelView } from './views/ChartPanelView.js';
 import { bindRowActions } from './views/bindActions.js';
+import { bindClickableCards, bindListKeyboard, openEntityRecord } from './clickableRecords.js';
 import { buildFilterFn } from './views/filterHelpers.js';
 import { debounce } from './hooks/useDebounce.js';
 import { createUserFacingError, isUserFacingError, logAppError } from './errors.js';
@@ -82,12 +83,16 @@ export class PageViewModule {
       this.cardView = new CardGridView(cardMount, this.store, {
         renderCard: this.config.renderCard,
         bindCards: this.config.bindCards,
+        onRowClick: this.config.onRowClick,
       });
     }
 
     const kanbanMount = this.config.kanbanMount ? this.q(this.config.kanbanMount) : null;
     if (kanbanMount && this.config.kanban) {
-      this.kanbanView = new KanbanView(kanbanMount, this.store, this.config.kanban);
+      this.kanbanView = new KanbanView(kanbanMount, this.store, {
+        ...this.config.kanban,
+        onRowClick: this.config.onRowClick,
+      });
     }
 
     const floorMount = this.config.floorMount ? this.q(this.config.floorMount) : null;
@@ -110,8 +115,41 @@ export class PageViewModule {
     });
 
     this.bindFilters();
+    this.bindClickableSurfaces();
     this.loadData(true);
     this.store.setView(this.store.activeView);
+  }
+
+  bindClickableSurfaces() {
+    const open = (record) => openEntityRecord(record, this.config);
+    const bindGrid = (grid) => {
+      if (!grid) return;
+      bindClickableCards(grid, {
+        onOpen: (record, card) => {
+          const bookingId = card.dataset.cardBooking;
+          if (bookingId) {
+            window.AppDrawer?.openDetailFromPage?.('/bookings', `#drawerBooking${bookingId}`, `Booking #${bookingId}`);
+            return;
+          }
+          const drawer = card.dataset.cardDrawer;
+          const modal = card.dataset.cardModal;
+          const href = card.dataset.cardHref;
+          if (drawer || modal || href) {
+            openEntityRecord({ drawer, modal, href });
+            return;
+          }
+          const id = Number(card.dataset.entityId);
+          const item = this.store.items.find((r) => r.id === id) || record;
+          open(item);
+        },
+      });
+    };
+    bindGrid(this.ssrGrid);
+    bindGrid(this.ssrKanban);
+    if (!this.root.dataset.keyboardNavBound) {
+      this.root.dataset.keyboardNavBound = '1';
+      bindListKeyboard(this.root, { itemSelector: '.clickable-record' });
+    }
   }
 
   bindFilters() {
