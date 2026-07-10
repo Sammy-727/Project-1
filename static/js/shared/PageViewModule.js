@@ -9,7 +9,9 @@ import { FloorView } from './views/FloorView.js';
 import { ChartPanelView } from './views/ChartPanelView.js';
 import { bindRowActions } from './views/bindActions.js';
 import { buildFilterFn } from './views/filterHelpers.js';
+import { debounce } from './hooks/useDebounce.js';
 import { createUserFacingError, isUserFacingError, logAppError } from './errors.js';
+import { fetchJson } from './apiClient.js';
 
 /**
  * PageViewModule — orchestrates shared state + all view types for an HMS list page.
@@ -130,11 +132,8 @@ export class PageViewModule {
 
     const search = this.form.querySelector('[name="q"]');
     if (search && this.form.dataset.autoSearch === 'true') {
-      let timer;
-      search.addEventListener('input', () => {
-        clearTimeout(timer);
-        timer = setTimeout(() => this.applyFilters(), 400);
-      });
+      const applyDebounced = debounce(() => this.applyFilters(), 400);
+      search.addEventListener('input', applyDebounced);
     }
   }
 
@@ -158,8 +157,7 @@ export class PageViewModule {
     if (!this.config.apiUrl) return;
     const qs = this.getQueryString();
     try {
-      const res = await fetch(`${this.config.apiUrl}?${qs}`);
-      const data = await res.json();
+      const data = await fetchJson(`${this.config.apiUrl}?${qs}`);
       const items = data[this.config.itemsKey] || [];
       if (!data.ok && !items.length && !initial) {
         throw createUserFacingError(data.error || 'Could not load list.');

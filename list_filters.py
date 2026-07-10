@@ -45,6 +45,24 @@ def paginate_rows(rows, page=None, size=None):
     return rows[start:start + size], total, page, size
 
 
+def split_sql_order(sql):
+    upper = sql.upper()
+    idx = upper.rfind(" ORDER BY ")
+    if idx == -1:
+        return sql, ""
+    return sql[:idx], sql[idx:]
+
+
+def paginate_sql(query_fn, sql, params, page=None, size=None):
+    """SQL-level pagination — avoids loading full result sets into memory."""
+    page = max(1, page or 1)
+    size = min(max(1, size or 50), 200)
+    base, order = split_sql_order(sql)
+    total = query_fn(f"SELECT COUNT(*) c FROM ({base})", tuple(params), one=True)["c"]
+    rows = query_fn(f"{base}{order} LIMIT ? OFFSET ?", (*params, size, (page - 1) * size))
+    return rows, total, page, size
+
+
 def filters_dict(**kwargs):
     return {k: v for k, v in kwargs.items() if v not in (None, "", "all")}
 

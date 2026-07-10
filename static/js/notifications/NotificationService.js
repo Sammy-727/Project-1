@@ -1,4 +1,6 @@
 /** Fetch, cache, and mutate hotel notifications */
+import api from '../shared/apiClient.js';
+
 const NOTIFICATIONS_API = '/api/notifications';
 const REFRESH_MS = 60_000;
 
@@ -35,8 +37,7 @@ function applyLocalUpdate(mutator) {
 }
 
 export async function fetchNotifications() {
-  const res = await axios.get(NOTIFICATIONS_API);
-  const data = res.data;
+  const data = await api.get(NOTIFICATIONS_API).then((r) => r.data);
   if (!data?.ok) {
     throw new Error(data?.error || 'Failed to load notifications');
   }
@@ -44,8 +45,7 @@ export async function fetchNotifications() {
 }
 
 export async function fetchUnreadCount() {
-  const res = await axios.get(`${NOTIFICATIONS_API}/unread-count`);
-  const data = res.data;
+  const data = await api.get(`${NOTIFICATIONS_API}/unread-count`).then((r) => r.data);
   if (!data?.ok) throw new Error(data?.error || 'Failed to load unread count');
   if (_cache) {
     setCache({ ..._cache, unreadCount: data.unreadCount });
@@ -56,8 +56,7 @@ export async function fetchUnreadCount() {
 }
 
 export async function generateAlerts() {
-  const res = await axios.post(`${NOTIFICATIONS_API}/generate-alerts`);
-  const data = res.data;
+  const data = await api.post(`${NOTIFICATIONS_API}/generate-alerts`).then((r) => r.data);
   if (!data?.ok) throw new Error(data?.error || 'Failed to generate alerts');
   return setCache(data);
 }
@@ -68,8 +67,7 @@ export async function markNotificationRead(id) {
     notifications: c.notifications.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
     unreadCount: Math.max(0, (c.unreadCount || 0) - (c.notifications.find((n) => n.id === id && !n.isRead) ? 1 : 0)),
   }));
-  const res = await axios.patch(`${NOTIFICATIONS_API}/${id}/read`);
-  const data = res.data;
+  const data = await api.patch(`${NOTIFICATIONS_API}/${id}/read`).then((r) => r.data);
   if (!data?.ok) throw new Error(data?.error || 'Failed to mark as read');
   if (_cache) setCache({ ..._cache, unreadCount: data.unreadCount });
   return _cache;
@@ -81,8 +79,7 @@ export async function markAllNotificationsRead() {
     notifications: c.notifications.map((n) => ({ ...n, isRead: true })),
     unreadCount: 0,
   }));
-  const res = await axios.patch(`${NOTIFICATIONS_API}/read-all`);
-  const data = res.data;
+  const data = await api.patch(`${NOTIFICATIONS_API}/read-all`).then((r) => r.data);
   if (!data?.ok) throw new Error(data?.error || 'Failed to mark all as read');
   if (_cache) setCache({ ..._cache, unreadCount: data.unreadCount });
   return _cache;
@@ -95,8 +92,7 @@ export async function deleteNotification(id) {
     notifications: c.notifications.filter((n) => n.id !== id),
     unreadCount: Math.max(0, (c.unreadCount || 0) - (wasUnread ? 1 : 0)),
   }));
-  const res = await axios.delete(`${NOTIFICATIONS_API}/${id}`);
-  const data = res.data;
+  const data = await api.delete(`${NOTIFICATIONS_API}/${id}`).then((r) => r.data);
   if (!data?.ok) throw new Error(data?.error || 'Failed to delete notification');
   if (_cache) setCache({ ..._cache, unreadCount: data.unreadCount });
   return _cache;
@@ -104,8 +100,7 @@ export async function deleteNotification(id) {
 
 export async function clearAllNotifications() {
   setCache({ notifications: [], unreadCount: 0 });
-  const res = await axios.delete(`${NOTIFICATIONS_API}/clear-all`);
-  const data = res.data;
+  const data = await api.delete(`${NOTIFICATIONS_API}/clear-all`).then((r) => r.data);
   if (!data?.ok) throw new Error(data?.error || 'Failed to clear notifications');
   return setCache({ notifications: [], unreadCount: data.unreadCount || 0 });
 }
