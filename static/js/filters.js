@@ -20,12 +20,32 @@ const FilterUI = {
     const toggle = form.querySelector('[data-advanced-toggle]');
     const panel = form.querySelector('[data-advanced-panel]');
     if (toggle && panel) {
-      const open = localStorage.getItem(`hms-filters-open-${form.id}`) === '1'
-        || new URLSearchParams(window.location.search).toString().length > 0;
-      panel.classList.toggle('open', open);
-      toggle.addEventListener('click', () => {
-        panel.classList.toggle('open');
-        localStorage.setItem(`hms-filters-open-${form.id}`, panel.classList.contains('open') ? '1' : '0');
+      const closePanel = () => {
+        panel.classList.remove('open');
+        toggle.classList.remove('is-active');
+        toggle.setAttribute('aria-expanded', 'false');
+      };
+      const openPanel = () => {
+        panel.classList.add('open');
+        toggle.classList.add('is-active');
+        toggle.setAttribute('aria-expanded', 'true');
+      };
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (panel.classList.contains('open')) closePanel();
+        else openPanel();
+      });
+      panel.querySelectorAll('[type="submit"]').forEach((btn) => {
+        btn.addEventListener('click', () => setTimeout(closePanel, 0));
+      });
+      document.addEventListener('click', (e) => {
+        if (!panel.classList.contains('open')) return;
+        if (panel.contains(e.target) || toggle.contains(e.target)) return;
+        closePanel();
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closePanel();
       });
     }
 

@@ -1,0 +1,302 @@
+/* Enterprise SaaS page toolbar — [ + New ] [ Search ] [ Filters ] [ Sort ] [ View ] … [ Export ] */
+
+.saas-page-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--bg-elevated, #fff) 92%, transparent);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border-light, #e8ecf1);
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+.saas-toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.saas-toolbar-primary {
+  flex-shrink: 0;
+}
+
+.saas-toolbar-primary-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 18px;
+  border-radius: 11px;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.saas-toolbar-primary-btn .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.saas-toolbar-form-wrap,
+.saas-toolbar-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: min(100%, 280px);
+  flex-wrap: wrap;
+}
+
+.saas-toolbar-search {
+  flex: 1;
+  min-width: 180px;
+  max-width: 360px;
+}
+
+.saas-toolbar-search input {
+  width: 100%;
+  min-height: 38px;
+}
+
+.saas-toolbar-filters-btn {
+  flex-shrink: 0;
+}
+
+.saas-toolbar-filters-btn.is-active {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-light, #eef2ff);
+}
+
+.saas-toolbar-sort {
+  flex-shrink: 0;
+}
+
+.saas-toolbar-sort .filter-sort-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  background: var(--bg-elevated, #fff);
+}
+
+.saas-toolbar-sort .filter-sort-group select {
+  height: 34px;
+  border: none;
+  background: transparent;
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 0 8px;
+  min-width: 0;
+}
+
+.saas-toolbar-sort .filter-sort-group select:focus {
+  outline: none;
+}
+
+.saas-toolbar-view {
+  flex-shrink: 0;
+}
+
+.saas-toolbar-end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.saas-toolbar-end .page-view-toolbar,
+.saas-toolbar-end .booking-toolbar {
+  margin: 0;
+  gap: 8px;
+}
+
+.saas-toolbar-end .page-view-toolbar-actions,
+.saas-toolbar-end .booking-toolbar-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.saas-toolbar-below {
+  margin-top: 8px;
+}
+
+.saas-toolbar-below .filter-meta {
+  margin-bottom: 8px;
+}
+
+/* Filter popover (advanced filters) */
+.saas-filter-popover-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.filter-advanced-panel.saas-filter-popover {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 40;
+  width: min(520px, calc(100vw - 32px));
+  padding: 0;
+  margin: 0;
+  border-radius: 14px;
+  border: 1px solid var(--border-light);
+  background: var(--bg-elevated, #fff);
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.12);
+  overflow: hidden;
+}
+
+.filter-advanced-panel.saas-filter-popover.open {
+  display: block;
+  animation: saasPopoverIn 0.18s ease;
+}
+
+@keyframes saasPopoverIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.saas-filter-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.saas-filter-popover-body {
+  padding: 14px;
+  max-height: min(50vh, 400px);
+  overflow: auto;
+}
+
+.saas-filter-popover-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border-light);
+  background: var(--bg-subtle, #f8fafc);
+}
+
+/* Quick filters inline in toolbar */
+.saas-toolbar-quick-filters {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.saas-toolbar-quick-filters select {
+  height: 38px;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border-light);
+  background: var(--bg-elevated);
+  font-size: 13px;
+}
+
+/* Hide legacy split rows when unified toolbar is used */
+.saas-page-toolbar ~ .entity-filter-toolbar-row,
+.saas-page-toolbar ~ .page-filter-toolbar-row,
+.saas-page-toolbar ~ .booking-filter-toolbar-row {
+  display: none;
+}
+
+.page-header:has(+ .page-view-module .saas-page-toolbar) .page-header-actions,
+.page-header:has(+ .booking-module .saas-page-toolbar) .page-header-actions,
+.page-header:has(+ .saas-page-toolbar) .page-header-actions {
+  display: none;
+}
+
+.page-header:has(+ .page-view-module .saas-page-toolbar),
+.page-header:has(+ .booking-module .saas-page-toolbar) {
+  margin-bottom: 8px;
+}
+
+/* Booking module */
+.booking-module .saas-page-toolbar {
+  margin-bottom: 10px;
+}
+
+.booking-toolbar-meta {
+  display: none;
+}
+
+/* Tablet: two rows */
+@media (max-width: 1024px) {
+  .saas-toolbar-row {
+    gap: 8px;
+  }
+  .saas-toolbar-primary {
+    order: 1;
+  }
+  .saas-toolbar-form-wrap,
+  .saas-toolbar-form {
+    order: 3;
+    flex: 1 1 100%;
+    min-width: 100%;
+  }
+  .saas-toolbar-view {
+    order: 2;
+  }
+  .saas-toolbar-end {
+    order: 4;
+    margin-left: auto;
+  }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .saas-page-toolbar {
+    padding: 10px;
+    position: sticky;
+    top: 0;
+  }
+  .saas-toolbar-primary {
+    order: 1;
+    width: 100%;
+  }
+  .saas-toolbar-primary-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .saas-toolbar-form-wrap,
+  .saas-toolbar-form {
+    order: 2;
+    width: 100%;
+  }
+  .saas-toolbar-search {
+    max-width: none;
+    width: 100%;
+  }
+  .saas-toolbar-view {
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+  }
+  .saas-toolbar-end {
+    order: 4;
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .filter-advanced-panel.saas-filter-popover {
+    position: fixed;
+    left: 16px;
+    right: 16px;
+    width: auto;
+    top: auto;
+    bottom: 16px;
+    max-height: 70vh;
+  }
+}

@@ -1,4 +1,4 @@
-/** BookingToolbar — counts, bulk actions, export */
+/** Booking toolbar — export action in unified SaaS toolbar */
 
 export class BookingToolbar {
   constructor(mount, store, { onExport, onRefresh }) {
@@ -10,24 +10,18 @@ export class BookingToolbar {
   }
 
   render(snap) {
+    if (!this.mount) return;
     const sel = snap.selectedIds.size;
     this.mount.innerHTML = `
       <div class="booking-toolbar">
-        <div class="booking-toolbar-meta">
-          <span data-list-meta data-showing="${snap.total}">Showing <strong>${snap.pageRows.length}</strong> of <strong>${snap.total}</strong> bookings</span>
-        </div>
         <div class="booking-toolbar-actions">
-          ${sel ? `<span class="booking-bulk-count">${sel} selected</span>` : ''}
-          <button type="button" class="btn btn-ghost btn-sm" data-export-csv title="Export CSV">
+          ${sel ? `<span class="booking-bulk-count muted" style="font-size:12px">${sel} selected</span>` : ''}
+          <button type="button" class="btn btn-outline btn-sm" data-export-csv title="Export CSV">
             <i data-lucide="download" class="icon"></i> Export
-          </button>
-          <button type="button" class="btn btn-ghost btn-sm" data-refresh-bookings title="Refresh">
-            <i data-lucide="refresh-cw" class="icon"></i>
           </button>
         </div>
       </div>`;
     this.mount.querySelector('[data-export-csv]')?.addEventListener('click', () => this.onExport?.(snap.filtered));
-    this.mount.querySelector('[data-refresh-bookings]')?.addEventListener('click', () => this.onRefresh?.());
     window.refreshIcons?.(this.mount);
   }
 }

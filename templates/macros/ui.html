@@ -180,7 +180,7 @@
 {% endmacro %}
 
 {% macro sort_controls(sort_by, sort_dir, options) %}
-<div class="filter-sort-group">
+<div class="filter-sort-group saas-toolbar-sort-group">
   <select name="sortBy" aria-label="Sort by">
     {% for val, label in options %}
     <option value="{{ val }}" {% if sort_by == val %}selected{% endif %}>{{ label }}</option>
@@ -190,6 +190,83 @@
     <option value="asc" {% if sort_dir == 'asc' %}selected{% endif %}>Asc</option>
     <option value="desc" {% if sort_dir != 'asc' %}selected{% endif %}>Desc</option>
   </select>
+</div>
+{% endmacro %}
+
+{% macro toolbar_primary_submit(label, icon_name='plus', form_id='', btn_id='') %}
+<button type="submit"{% if form_id %} form="{{ form_id }}"{% endif %}
+  class="btn btn-primary saas-toolbar-primary-btn"
+  {% if btn_id %}id="{{ btn_id }}"{% endif %}>
+  {{ icon(icon_name, 18) }} {{ label }}
+</button>
+{% endmacro %}
+
+{% macro toolbar_primary_link(label, href, icon_name='plus') %}
+<a href="{{ href }}" class="btn btn-primary saas-toolbar-primary-btn">
+  {{ icon(icon_name, 18) }} {{ label }}
+</a>
+{% endmacro %}
+
+{% macro toolbar_primary(label, icon_name='plus', modal='', btn_id='', btn_class='') %}
+<button type="button"
+  class="btn btn-primary saas-toolbar-primary-btn {{ btn_class }}{% if modal %} modal-trigger{% endif %}"
+  {% if modal %}data-target="{{ modal }}"{% endif %}
+  {% if btn_id %}id="{{ btn_id }}"{% endif %}>
+  {{ icon(icon_name, 18) }} {{ label }}
+</button>
+{% endmacro %}
+
+{% macro toolbar_search(placeholder='Search...', value='', local_search=false) %}
+<div class="table-search-wrap filter-search saas-toolbar-search">
+  {{ icon('search', 16) }}
+  <input type="search" name="q" placeholder="{{ placeholder }}" value="{{ value }}"{% if local_search %} data-local-search{% endif %}>
+</div>
+{% endmacro %}
+
+{% macro toolbar_filters_btn() %}
+<div class="saas-filter-popover-wrap">
+  <button type="button" class="btn btn-outline btn-sm saas-toolbar-filters-btn filter-advanced-toggle" data-advanced-toggle aria-expanded="false">
+    {{ icon('sliders-horizontal', 14) }} Filters
+  </button>
+{% endmacro %}
+
+{% macro toolbar_filter_panel_open(title='Filters') %}
+<div class="filter-advanced-panel saas-filter-popover" data-advanced-panel>
+  <div class="saas-filter-popover-header"><span>{{ title }}</span></div>
+  <div class="saas-filter-popover-body">
+{% endmacro %}
+
+{% macro toolbar_filter_footer(clear_label='Clear All', clear_attrs='data-reset-entity-filters data-clear-filters') %}
+<div class="saas-filter-popover-footer filter-toolbar-actions">
+  <button type="button" class="btn btn-ghost btn-sm" {{ clear_attrs }}>{{ clear_label }}</button>
+  <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+</div>
+{% endmacro %}
+
+{% macro toolbar_filter_panel_close(clear_label='Clear All', clear_attrs='data-reset-entity-filters data-clear-filters') %}
+  </div>
+  {{ toolbar_filter_footer(clear_label, clear_attrs) }}
+</div>
+</div>
+{% endmacro %}
+
+{% macro saas_toolbar_open(primary='', view_switcher_id='', toolbar_end_id='') %}
+<div class="saas-page-toolbar" data-sticky-toolbar>
+  <div class="saas-toolbar-row">
+    {% if primary %}<div class="saas-toolbar-primary">{{ primary }}</div>{% endif %}
+    <div class="saas-toolbar-form-wrap">
+{% endmacro %}
+
+{% macro saas_toolbar_close(view_switcher_id='', toolbar_end_id='') %}
+    </div>
+    {% if view_switcher_id %}<div class="saas-toolbar-view" id="{{ view_switcher_id }}"></div>{% endif %}
+    <div class="saas-toolbar-end" {% if toolbar_end_id %}id="{{ toolbar_end_id }}"{% endif %}></div>
+  </div>
+</div>
+<div class="saas-toolbar-below">
+{% endmacro %}
+
+{% macro saas_toolbar_below_end() %}
 </div>
 {% endmacro %}
 

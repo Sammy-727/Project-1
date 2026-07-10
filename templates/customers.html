@@ -1,34 +1,17 @@
 {% extends "base.html" %}
-{% from "macros/ui.html" import breadcrumb, page_header, status_badge, empty_state, card_menu, icon, filter_meta, filter_empty, sort_controls, avatar %}
+{% from "macros/ui.html" import breadcrumb, page_header, status_badge, empty_state, card_menu, icon, filter_meta, filter_empty, sort_controls, toolbar_primary, toolbar_search, toolbar_filters_btn, toolbar_filter_panel_open, toolbar_filter_panel_close, saas_toolbar_open, saas_toolbar_close, saas_toolbar_below_end, avatar %}
 {% set title = "Guests" %}
 {% block content %}
 
 {{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Front Desk"}, {"label": "Guests"}]) }}
-<div class="page-header">
-  <div class="page-header-text">
-    <h1 class="page-title">Guests</h1>
-    <p class="page-description">Guest profiles and booking history</p>
-  </div>
-  <div class="page-header-actions">
-    <button class="btn btn-primary modal-trigger" data-target="#addCustomerModal">{{ icon('user-plus', 16) }} Add Guest</button>
-  </div>
-</div>
+{{ page_header("Guests", "Guest profiles and booking history") }}
 
 <div class="page-view-module" data-page-module="guests" id="guestsModule">
-<div class="entity-filter-toolbar-row">
-<div class="list-filter-shell">
-<form class="filter-toolbar-basic" method="get" id="guestsFilterForm" data-list-filters data-entity-api="true" data-auto-search="false">
-  <div class="table-search-wrap filter-search">
-    {{ icon('search', 16) }}
-    <input type="search" name="q" placeholder="Search name, phone, email..." value="{{ search_q }}" data-local-search>
-  </div>
-  {{ sort_controls(sort_by|default('id'), sort_dir|default('desc'), [('name', 'Name'), ('phone', 'Phone'), ('email', 'Email'), ('date', 'Date added')]) }}
-  <button type="button" class="btn btn-ghost btn-sm filter-advanced-toggle" data-advanced-toggle>{{ icon('sliders-horizontal', 14) }} Advanced</button>
-  <div class="filter-toolbar-actions">
-    <button type="button" class="btn btn-ghost btn-sm" data-reset-entity-filters data-clear-filters>Clear All</button>
-    <button type="submit" class="btn btn-primary btn-sm">Apply</button>
-  </div>
-  <div class="filter-advanced-panel" data-advanced-panel style="width:100%">
+{{ saas_toolbar_open(toolbar_primary("Add Guest", icon_name="user-plus", modal="#addCustomerModal")) }}
+<form class="saas-toolbar-form filter-toolbar-basic" method="get" id="guestsFilterForm" data-list-filters data-entity-api="true" data-auto-search="false">
+  {{ toolbar_search("Search guest, phone, email...", search_q, true) }}
+  {{ toolbar_filters_btn() }}
+  {{ toolbar_filter_panel_open() }}
     <div class="filter-advanced-grid">
       <label>Email<input type="text" name="email" value="{{ email or '' }}"></label>
       <label>City<input type="text" name="city" value="{{ city or '' }}" placeholder="City in address"></label>
@@ -37,15 +20,13 @@
       <label>Added from<input type="date" name="from" value="{{ date_from or '' }}"></label>
       <label>Added to<input type="date" name="to" value="{{ date_to or '' }}"></label>
     </div>
-  </div>
+  {{ toolbar_filter_panel_close() }}
+  <div class="saas-toolbar-sort">{{ sort_controls(sort_by|default('id'), sort_dir|default('desc'), [('name', 'Name'), ('phone', 'Phone'), ('email', 'Email'), ('date', 'Date added')]) }}</div>
 </form>
+{{ saas_toolbar_close('guestsViewSwitcher', 'guestsToolbar') }}
 {{ filter_meta(list_showing|default(customers|length), list_total|default(customers|length)) }}
 {{ filter_empty() }}
-</div>
-<div id="guestsViewSwitcher"></div>
-</div>
-
-<div id="guestsToolbar" hidden></div>
+{{ saas_toolbar_below_end() }}
 
 {% if customers %}
 <div class="entity-views-container" data-list-results>

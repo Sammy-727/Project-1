@@ -373,6 +373,8 @@ export const PAGE_CONFIGS = {
       { key: 'created_at', label: 'Created', sortable: true },
     ],
     actions: serviceActions,
+    exportHeaders: ['ID', 'Room', 'Type', 'Guest', 'Status', 'Charges', 'Created'],
+    exportRow: (r) => [r.id, r.room_no, r.request_type, r.customer_name || '', r.status, r.charges, r.created_at],
   },
 
   maintenance: {
@@ -512,6 +514,8 @@ export const PAGE_CONFIGS = {
         </div>
       </article>`,
     actions: invoiceActions,
+    exportHeaders: ['Invoice', 'Booking', 'Guest', 'Room', 'Amount', 'Status', 'Date'],
+    exportRow: (r) => [r.invoice_id || r.booking_id, r.booking_id, r.customer_name, r.room_no, r.total, r.payment_status, r.bill_date],
   },
 
   reports: {

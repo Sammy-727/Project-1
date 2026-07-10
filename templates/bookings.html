@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros/ui.html" import breadcrumb, page_header, empty_state, status_badge, card_menu, icon, filter_meta, filter_empty, sort_controls %}
+{% from "macros/ui.html" import breadcrumb, page_header, empty_state, status_badge, card_menu, icon, filter_meta, filter_empty, sort_controls, toolbar_primary, toolbar_search, toolbar_filters_btn, toolbar_filter_panel_open, toolbar_filter_panel_close, saas_toolbar_open, saas_toolbar_close, saas_toolbar_below_end %}
 {% set title = "Bookings" %}
 {% block content %}
 <link href="{{ url_for('static', filename='css/booking-views.css') }}" rel="stylesheet">
@@ -8,59 +8,43 @@
 {{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Front Desk"}, {"label": "Bookings"}]) }}
 {{ page_header("Bookings", "Manage reservations and guest stays") }}
 
-<div class="page-header-actions-bar">
-    <button type="button" class="btn btn-secondary" id="quickAddCustomerBtn">{{ icon('user-plus', 16) }} Add Guest</button>
-    <button type="button" class="btn btn-primary" id="newBookingBtn">{{ icon('plus', 16) }} New Booking</button>
-</div>
-
 <div class="booking-module" id="bookingModule" {% if not bookings %}hidden{% endif %}>
-  <div class="booking-filter-toolbar-row">
-    <div class="list-filter-shell">
-      <form class="filter-toolbar-basic" method="get" id="bookingsFilterForm" data-list-filters data-auto-search="false">
-        <div class="table-search-wrap filter-search">
-          {{ icon('search', 16) }}
-          <input type="search" name="q" placeholder="Search guest, room, ID, phone..." value="{{ search_q }}">
-        </div>
-        {{ sort_controls(sort_by|default('id'), sort_dir|default('desc'), [
-            ('id', 'Booking ID'), ('guest', 'Guest'), ('room', 'Room'), ('checkin', 'Check-in'),
-            ('checkout', 'Check-out'), ('amount', 'Amount'), ('status', 'Status'), ('payment', 'Payment')
-        ]) }}
-        <button type="button" class="btn btn-ghost btn-sm filter-advanced-toggle" data-advanced-toggle>
-          {{ icon('sliders-horizontal', 14) }} Advanced
-        </button>
-        <div class="filter-toolbar-actions">
-          <button type="button" class="btn btn-ghost btn-sm" data-reset-booking-filters>Reset Filters</button>
-          <button type="submit" class="btn btn-primary btn-sm">Apply</button>
-        </div>
-        <div class="filter-advanced-panel" data-advanced-panel style="width:100%">
-          <div class="filter-advanced-grid">
-            <label>Status<select name="status"><option value="">All</option>{% for s in booking_statuses %}<option value="{{ s }}" {% if filter_status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
-            <label>Payment<select name="payment_status"><option value="">All</option>{% for s in ['Pending','Partial','Paid'] %}<option value="{{ s }}" {% if payment_status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
-            <label>Room Type<select name="room_type"><option value="">All</option>{% for t in room_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}</select></label>
-            <label>Phone<input type="text" name="phone" value="{{ phone or '' }}" placeholder="Phone"></label>
-            <label>Room<input type="text" name="room_no" value="{{ room_no or '' }}" placeholder="Room no"></label>
-            <label>Source<select name="booking_source"><option value="">All</option>{% for s in booking_sources %}<option value="{{ s }}" {% if booking_source == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
-            <label>Check-in from<input type="date" name="checkin_from" value="{{ checkin_from or '' }}"></label>
-            <label>Check-in to<input type="date" name="checkin_to" value="{{ checkin_to or '' }}"></label>
-            <label>Check-out from<input type="date" name="checkout_from" value="{{ checkout_from or '' }}"></label>
-            <label>Check-out to<input type="date" name="checkout_to" value="{{ checkout_to or '' }}"></label>
-            <label>Min amount<input type="number" name="amount_min" value="{{ amount_min or '' }}" min="0" step="1"></label>
-            <label>Max amount<input type="number" name="amount_max" value="{{ amount_max or '' }}" min="0" step="1"></label>
-          </div>
-        </div>
-      </form>
-      <div class="filter-chips-row" data-filter-chips></div>
-      <div class="filter-meta" data-list-meta data-showing="{{ list_showing|default(0) }}" data-total="{{ list_total|default(0) }}">
-        <div class="filter-result-count">Showing {{ list_showing|default(0) }} of {{ list_total|default(0) }} results</div>
-      </div>
-      {{ filter_empty() }}
+{{ saas_toolbar_open(toolbar_primary("New Booking", btn_id="newBookingBtn")) }}
+<form class="saas-toolbar-form filter-toolbar-basic" method="get" id="bookingsFilterForm" data-list-filters data-auto-search="false">
+  {{ toolbar_search("Search guest, room, booking...", search_q) }}
+  {{ toolbar_filters_btn() }}
+  {{ toolbar_filter_panel_open() }}
+    <div class="filter-advanced-grid">
+      <label>Status<select name="status"><option value="">All</option>{% for s in booking_statuses %}<option value="{{ s }}" {% if filter_status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
+      <label>Payment<select name="payment_status"><option value="">All</option>{% for s in ['Pending','Partial','Paid'] %}<option value="{{ s }}" {% if payment_status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
+      <label>Room Type<select name="room_type"><option value="">All</option>{% for t in room_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}</select></label>
+      <label>Phone<input type="text" name="phone" value="{{ phone or '' }}" placeholder="Phone"></label>
+      <label>Room<input type="text" name="room_no" value="{{ room_no or '' }}" placeholder="Room no"></label>
+      <label>Source<select name="booking_source"><option value="">All</option>{% for s in booking_sources %}<option value="{{ s }}" {% if booking_source == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
+      <label>Check-in from<input type="date" name="checkin_from" value="{{ checkin_from or '' }}"></label>
+      <label>Check-in to<input type="date" name="checkin_to" value="{{ checkin_to or '' }}"></label>
+      <label>Check-out from<input type="date" name="checkout_from" value="{{ checkout_from or '' }}"></label>
+      <label>Check-out to<input type="date" name="checkout_to" value="{{ checkout_to or '' }}"></label>
+      <label>Min amount<input type="number" name="amount_min" value="{{ amount_min or '' }}" min="0" step="1"></label>
+      <label>Max amount<input type="number" name="amount_max" value="{{ amount_max or '' }}" min="0" step="1"></label>
     </div>
-    <div id="bookingViewSwitcher"></div>
-  </div>
+  {{ toolbar_filter_panel_close('Reset Filters', 'data-reset-booking-filters') }}
+  <div class="saas-toolbar-sort">{{ sort_controls(sort_by|default('id'), sort_dir|default('desc'), [
+      ('id', 'Booking ID'), ('guest', 'Guest'), ('room', 'Room'), ('checkin', 'Check-in'),
+      ('checkout', 'Check-out'), ('amount', 'Amount'), ('status', 'Status'), ('payment', 'Payment')
+  ]) }}</div>
+</form>
+{{ saas_toolbar_close('bookingViewSwitcher', 'bookingToolbar') }}
+<div class="filter-chips-row" data-filter-chips></div>
+<div class="filter-meta" data-list-meta data-showing="{{ list_showing|default(0) }}" data-total="{{ list_total|default(0) }}">
+  <div class="filter-result-count">Showing {{ list_showing|default(0) }} of {{ list_total|default(0) }} results</div>
+</div>
+{{ filter_empty() }}
+{{ saas_toolbar_below_end() }}
 
-  <div id="bookingToolbar"></div>
+<button type="button" id="quickAddCustomerBtn" hidden aria-hidden="true"></button>
 
-  <div class="booking-views-container" data-list-results>
+<div class="booking-views-container" data-list-results>
     <div id="bookingCardView" class="booking-view-panel" data-view-panel="cards"></div>
     <div id="bookingTableView" class="booking-view-panel" data-view-panel="table" hidden></div>
     <div id="bookingCalendarView" class="booking-view-panel" data-view-panel="calendar" hidden></div>

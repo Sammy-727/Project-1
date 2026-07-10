@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros/ui.html" import breadcrumb, page_header, empty_state, kpi_card, icon, status_badge, filter_meta, filter_empty, sort_controls %}
+{% from "macros/ui.html" import breadcrumb, page_header, empty_state, kpi_card, icon, status_badge, filter_meta, filter_empty, sort_controls, toolbar_primary, toolbar_search, toolbar_filters_btn, toolbar_filter_panel_open, toolbar_filter_panel_close, saas_toolbar_open, saas_toolbar_close, saas_toolbar_below_end %}
 {% set title = "Billing" %}
 {% block content %}
 
@@ -15,40 +15,27 @@
   {{ kpi_card("Completed", payments|length, "check-circle", "emerald") }}
 </div>
 
-<div class="page-filter-toolbar-row">
-<div class="list-filter-shell">
-  <form class="filter-toolbar-basic" method="get" id="billingFilterForm" data-list-filters data-entity-api="true" data-auto-search="false">
-    <div class="table-search-wrap filter-search">
-      {{ icon('search', 16) }}
-      <input type="search" name="q" placeholder="Search receipts, guest, booking..." value="{{ search_q }}">
+{{ saas_toolbar_open(toolbar_primary("Record Payment", modal="#addPaymentModal")) }}
+<form class="saas-toolbar-form filter-toolbar-basic" method="get" id="billingFilterForm" data-list-filters data-entity-api="true" data-auto-search="false">
+  {{ toolbar_search("Search receipt, guest, booking...", search_q) }}
+  {{ toolbar_filters_btn() }}
+  {{ toolbar_filter_panel_open() }}
+    <div class="filter-advanced-grid">
+      <label>Booking ID<input type="number" name="booking_id" value="{{ booking_id or '' }}" min="1"></label>
+      <label>Payment status<select name="payment_status"><option value="">All</option>{% for s in ['Pending','Partial','Paid'] %}<option value="{{ s }}" {% if payment_status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
+      <label>Payment mode<select name="payment_mode"><option value="">All</option>{% for m in payment_modes %}<option value="{{ m }}" {% if payment_mode == m %}selected{% endif %}>{{ m }}</option>{% endfor %}</select></label>
+      <label>From<input type="date" name="from" value="{{ date_from or '' }}"></label>
+      <label>To<input type="date" name="to" value="{{ date_to or '' }}"></label>
+      <label>Min amount<input type="number" name="amount_min" value="{{ amount_min or '' }}" min="0"></label>
+      <label>Max amount<input type="number" name="amount_max" value="{{ amount_max or '' }}" min="0"></label>
     </div>
-    {{ sort_controls(sort_by|default('id'), sort_dir|default('desc'), [('id', 'ID'), ('guest', 'Guest'), ('amount', 'Amount'), ('date', 'Date'), ('mode', 'Mode')]) }}
-    <button type="button" class="btn btn-ghost btn-sm filter-advanced-toggle" data-advanced-toggle>{{ icon('sliders-horizontal', 14) }} Advanced</button>
-    <div class="filter-toolbar-actions">
-      <button type="button" class="btn btn-ghost btn-sm" data-reset-entity-filters data-clear-filters>Clear All</button>
-      <button type="submit" class="btn btn-primary btn-sm">Apply</button>
-      <a href="{{ url_for('export_reports', **request.args) }}" class="btn btn-outline btn-sm">{{ icon('download', 14) }} Export</a>
-      <button class="btn btn-primary modal-trigger" data-target="#addPaymentModal">{{ icon('plus', 16) }} Record Payment</button>
-    </div>
-    <div class="filter-advanced-panel" data-advanced-panel style="width:100%">
-      <div class="filter-advanced-grid">
-        <label>Booking ID<input type="number" name="booking_id" value="{{ booking_id or '' }}" min="1"></label>
-        <label>Payment status<select name="payment_status"><option value="">All</option>{% for s in ['Pending','Partial','Paid'] %}<option value="{{ s }}" {% if payment_status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
-        <label>Payment mode<select name="payment_mode"><option value="">All</option>{% for m in payment_modes %}<option value="{{ m }}" {% if payment_mode == m %}selected{% endif %}>{{ m }}</option>{% endfor %}</select></label>
-        <label>From<input type="date" name="from" value="{{ date_from or '' }}"></label>
-        <label>To<input type="date" name="to" value="{{ date_to or '' }}"></label>
-        <label>Min amount<input type="number" name="amount_min" value="{{ amount_min or '' }}" min="0"></label>
-        <label>Max amount<input type="number" name="amount_max" value="{{ amount_max or '' }}" min="0"></label>
-      </div>
-    </div>
-  </form>
-  {{ filter_meta(list_showing|default(payments|length), list_total|default(payments|length)) }}
-  {{ filter_empty() }}
-</div>
-<div id="billingViewSwitcher"></div>
-</div>
-
-<div id="billingToolbar" hidden></div>
+  {{ toolbar_filter_panel_close() }}
+  <div class="saas-toolbar-sort">{{ sort_controls(sort_by|default('id'), sort_dir|default('desc'), [('id', 'ID'), ('guest', 'Guest'), ('amount', 'Amount'), ('date', 'Date'), ('mode', 'Mode')]) }}</div>
+</form>
+{{ saas_toolbar_close('billingViewSwitcher', 'billingToolbar') }}
+{{ filter_meta(list_showing|default(payments|length), list_total|default(payments|length)) }}
+{{ filter_empty() }}
+{{ saas_toolbar_below_end() }}
 
 <div class="entity-views-container" data-list-results>
   <div id="billingTableView" class="entity-view-panel" data-view-panel="table" hidden></div>

@@ -242,7 +242,7 @@ export class PageViewModule {
     if (floorMount) floorMount.hidden = !show('floor');
 
     const toolbarMount = this.q(this.config.toolbarMount);
-    if (toolbarMount) toolbarMount.hidden = !['table', 'cards', 'kanban'].includes(v);
+    if (toolbarMount) toolbarMount.hidden = false;
 
     this.root.classList.toggle('view-active-table', show('table'));
     this.root.classList.toggle('view-active-cards', show('cards'));

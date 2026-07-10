@@ -1,44 +1,38 @@
 {% extends "base.html" %}
-{% from "macros/ui.html" import breadcrumb, status_badge, empty_state %}
+{% from "macros/ui.html" import breadcrumb, status_badge, empty_state, toolbar_primary, toolbar_search, toolbar_filters_btn, toolbar_filter_panel_open, toolbar_filter_panel_close, saas_toolbar_open, saas_toolbar_close, saas_toolbar_below_end, sort_controls, filter_meta, filter_empty, page_header, icon %}
 {% set title = "User Management" %}
 {% block content %}
 
 {{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Staff"}, {"label": "Users"}]) }}
-
-<div class="page-header">
-  <div class="page-header-text">
-    <h1 class="page-title">User Management</h1>
-    <p class="page-description">Control staff access, roles, and account lifecycle</p>
-  </div>
-  <div class="page-header-actions">
-    <button class="btn btn-primary modal-trigger" data-target="#addUserModal">+ Add User</button>
-  </div>
-</div>
+{{ page_header("User Management", "Control staff access, roles, and account lifecycle") }}
 
 <div class="page-view-module" data-page-module="users" id="usersModule">
-<div class="page-filter-toolbar-row">
-<div class="page-actions" style="flex:1">
-    <form class="filter-bar" method="get" id="usersFilterForm" data-list-filters data-entity-api="true" data-auto-search="false">
-        <input type="search" name="q" placeholder="Search users..." value="{{ search_q }}">
-        <select name="status">
-            <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Users</option>
-            <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
-            <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
-            <option value="archived" {% if status_filter == 'archived' %}selected{% endif %}>Archived Users</option>
-        </select>
-        <select name="role">
-            <option value="">All Roles</option>
-            {% for r in roles %}
-            <option value="{{ r }}" {% if role == r %}selected{% endif %}>{{ r }}</option>
-            {% endfor %}
-        </select>
-        <button type="submit" class="btn btn-outline btn-sm">Apply</button>
-    </form>
-</div>
-<div id="usersViewSwitcher"></div>
-</div>
-
-<div id="usersToolbar" hidden></div>
+{{ saas_toolbar_open(toolbar_primary("Add User", modal="#addUserModal")) }}
+<form class="saas-toolbar-form filter-toolbar-basic" method="get" id="usersFilterForm" data-list-filters data-entity-api="true" data-auto-search="false">
+  {{ toolbar_search("Search user, name, role...", search_q) }}
+  {{ toolbar_filters_btn() }}
+  {{ toolbar_filter_panel_open() }}
+    <div class="filter-advanced-grid">
+      <label>Status<select name="status">
+        <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Users</option>
+        <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+        <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+        <option value="archived" {% if status_filter == 'archived' %}selected{% endif %}>Archived</option>
+      </select></label>
+      <label>Role<select name="role">
+        <option value="">All Roles</option>
+        {% for r in roles %}
+        <option value="{{ r }}" {% if role == r %}selected{% endif %}>{{ r }}</option>
+        {% endfor %}
+      </select></label>
+    </div>
+  {{ toolbar_filter_panel_close() }}
+  <div class="saas-toolbar-sort">{{ sort_controls(sort_by|default('username'), sort_dir|default('asc'), [('username', 'Username'), ('name', 'Name'), ('role', 'Role'), ('status', 'Status'), ('date', 'Last login')]) }}</div>
+</form>
+{{ saas_toolbar_close('usersViewSwitcher', 'usersToolbar') }}
+{{ filter_meta(list_showing|default(users|length), list_total|default(users|length)) }}
+{{ filter_empty() }}
+{{ saas_toolbar_below_end() }}
 
 {% if users %}
 <div class="bulk-bar">

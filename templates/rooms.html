@@ -1,37 +1,17 @@
 {% extends "base.html" %}
-{% from "macros/ui.html" import breadcrumb, page_header, status_badge, empty_state, card_menu, icon, filter_meta, filter_empty, sort_controls, room_image, avatar %}
+{% from "macros/ui.html" import breadcrumb, page_header, status_badge, empty_state, card_menu, icon, filter_meta, filter_empty, sort_controls, toolbar_primary, toolbar_search, toolbar_filters_btn, toolbar_filter_panel_open, toolbar_filter_panel_close, saas_toolbar_open, saas_toolbar_close, saas_toolbar_below_end, room_image, avatar %}
 {% set title = "Rooms" %}
 {% block content %}
 
 {{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Front Desk"}, {"label": "Rooms"}]) }}
-
-<div class="page-header">
-  <div class="page-header-text">
-    <h1 class="page-title">Rooms</h1>
-    <p class="page-description">Manage inventory, pricing, and availability</p>
-  </div>
-  <div class="page-header-actions">
-    <button class="btn btn-primary modal-trigger" data-target="#addRoomModal">{{ icon('plus', 16) }} Add Room</button>
-  </div>
-</div>
+{{ page_header("Rooms", "Manage inventory, pricing, and availability") }}
 
 <div class="page-view-module" data-page-module="rooms" id="roomsModule">
-<div class="entity-filter-toolbar-row">
-<div class="list-filter-shell">
-<form class="filter-toolbar-basic" method="get" id="roomsFilterForm" data-list-filters data-entity-api="true" data-enrich-bookings data-auto-search="false">
-  <div class="table-search-wrap filter-search">
-    {{ icon('search', 16) }}
-    <input type="search" name="q" placeholder="Search rooms..." value="{{ search_q }}" data-local-search>
-  </div>
-  {{ sort_controls(sort_by|default('room_no'), sort_dir|default('asc'), [
-    ('room_no', 'Room'), ('type', 'Type'), ('floor', 'Floor'), ('price', 'Price'), ('capacity', 'Capacity'), ('status', 'Status')
-  ]) }}
-  <button type="button" class="btn btn-ghost btn-sm filter-advanced-toggle" data-advanced-toggle>{{ icon('sliders-horizontal', 14) }} Advanced</button>
-  <div class="filter-toolbar-actions">
-    <button type="button" class="btn btn-ghost btn-sm" data-reset-entity-filters data-clear-filters>Clear All</button>
-    <button type="submit" class="btn btn-primary btn-sm">Apply</button>
-  </div>
-  <div class="filter-advanced-panel" data-advanced-panel style="width:100%">
+{{ saas_toolbar_open(toolbar_primary("Add Room", modal="#addRoomModal")) }}
+<form class="saas-toolbar-form filter-toolbar-basic" method="get" id="roomsFilterForm" data-list-filters data-entity-api="true" data-enrich-bookings data-auto-search="false">
+  {{ toolbar_search("Search room, type, status...", search_q, true) }}
+  {{ toolbar_filters_btn() }}
+  {{ toolbar_filter_panel_open() }}
     <div class="filter-advanced-grid">
       <label>Status<select name="status"><option value="">All</option>{% for s in room_statuses %}<option value="{{ s }}" {% if filter_status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
       <label>Type<select name="type"><option value="">All</option>{% for t in types %}<option value="{{ t.room_type }}" {% if filter_type == t.room_type %}selected{% endif %}>{{ t.room_type }}</option>{% endfor %}</select></label>
@@ -40,15 +20,15 @@
       <label>Min price<input type="number" name="price_min" value="{{ price_min or '' }}" min="0"></label>
       <label>Max price<input type="number" name="price_max" value="{{ price_max or '' }}" min="0"></label>
     </div>
-  </div>
+  {{ toolbar_filter_panel_close() }}
+  <div class="saas-toolbar-sort">{{ sort_controls(sort_by|default('room_no'), sort_dir|default('asc'), [
+    ('room_no', 'Room'), ('type', 'Type'), ('floor', 'Floor'), ('price', 'Price'), ('capacity', 'Capacity'), ('status', 'Status')
+  ]) }}</div>
 </form>
+{{ saas_toolbar_close('roomsViewSwitcher', 'roomsToolbar') }}
 {{ filter_meta(list_showing|default(rooms|length), list_total|default(rooms|length)) }}
 {{ filter_empty() }}
-</div>
-<div id="roomsViewSwitcher"></div>
-</div>
-
-<div id="roomsToolbar" hidden></div>
+{{ saas_toolbar_below_end() }}
 
 {% if rooms %}
 <div class="entity-views-container" data-list-results>

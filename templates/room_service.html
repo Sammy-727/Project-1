@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros/ui.html" import breadcrumb, page_header, empty_state, status_badge, card_menu, icon, filter_meta, filter_empty, sort_controls %}
+{% from "macros/ui.html" import breadcrumb, page_header, empty_state, status_badge, card_menu, icon, filter_meta, filter_empty, sort_controls, toolbar_primary, toolbar_search, toolbar_filters_btn, toolbar_filter_panel_open, toolbar_filter_panel_close, saas_toolbar_open, saas_toolbar_close, saas_toolbar_below_end %}
 {% set title = "Room Service" %}
 {% block content %}
 
@@ -33,36 +33,25 @@
 
 <h3 class="page-title" style="font-size:14px;margin-bottom:10px">Active Requests</h3>
 <div class="page-view-module" data-page-module="services" id="servicesModule">
-<div class="page-filter-toolbar-row">
-<div class="list-filter-shell" style="margin:0;flex:1">
-  <form class="filter-toolbar-basic" method="get" id="servicesFilterForm" data-list-filters data-entity-api="true" data-auto-search="false">
-    <div class="table-search-wrap filter-search">
-      {{ icon('search', 16) }}
-      <input type="search" name="q" placeholder="Room, guest, description..." value="{{ search_q or '' }}">
+{{ saas_toolbar_open(toolbar_primary("Add Service", modal="#addRSModal")) }}
+<form class="saas-toolbar-form filter-toolbar-basic" method="get" id="servicesFilterForm" data-list-filters data-entity-api="true" data-auto-search="false">
+  {{ toolbar_search("Search room, guest, service...", search_q or '') }}
+  {{ toolbar_filters_btn() }}
+  {{ toolbar_filter_panel_open() }}
+    <div class="filter-advanced-grid">
+      <label>Status<select name="status"><option value="">All</option>{% for s in rs_statuses %}<option value="{{ s }}" {% if filter_status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
+      <label>Request type<select name="request_type"><option value="">All</option>{% for t in rs_types %}<option value="{{ t }}" {% if request_type == t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></label>
+      <label>Room<input type="text" name="room_no" value="{{ room_no or '' }}"></label>
+      <label>From<input type="date" name="from" value="{{ date_from or '' }}"></label>
+      <label>To<input type="date" name="to" value="{{ date_to or '' }}"></label>
     </div>
-    {{ sort_controls(sort_by|default('id'), sort_dir|default('desc'), [('room', 'Room'), ('type', 'Type'), ('status', 'Status'), ('date', 'Date')]) }}
-    <button type="button" class="btn btn-ghost btn-sm filter-advanced-toggle" data-advanced-toggle>{{ icon('sliders-horizontal', 14) }} Advanced</button>
-    <div class="filter-toolbar-actions">
-      <button type="button" class="btn btn-ghost btn-sm" data-reset-entity-filters data-clear-filters>Clear All</button>
-      <button type="submit" class="btn btn-primary btn-sm">Apply</button>
-      <button class="btn btn-primary modal-trigger" data-target="#addRSModal">{{ icon('plus', 16) }} New Request</button>
-    </div>
-    <div class="filter-advanced-panel" data-advanced-panel style="width:100%">
-      <div class="filter-advanced-grid">
-        <label>Status<select name="status"><option value="">All</option>{% for s in rs_statuses %}<option value="{{ s }}" {% if filter_status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
-        <label>Request type<select name="request_type"><option value="">All</option>{% for t in rs_types %}<option value="{{ t }}" {% if request_type == t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></label>
-        <label>Room<input type="text" name="room_no" value="{{ room_no or '' }}"></label>
-        <label>From<input type="date" name="from" value="{{ date_from or '' }}"></label>
-        <label>To<input type="date" name="to" value="{{ date_to or '' }}"></label>
-      </div>
-    </div>
-  </form>
-  {{ filter_meta(list_showing|default(requests|length), list_total|default(requests|length)) }}
-  {{ filter_empty() }}
-</div>
-<div id="servicesViewSwitcher"></div>
-</div>
-<div id="servicesToolbar" hidden></div>
+  {{ toolbar_filter_panel_close() }}
+  <div class="saas-toolbar-sort">{{ sort_controls(sort_by|default('id'), sort_dir|default('desc'), [('room', 'Room'), ('type', 'Type'), ('status', 'Status'), ('date', 'Date')]) }}</div>
+</form>
+{{ saas_toolbar_close('servicesViewSwitcher', 'servicesToolbar') }}
+{{ filter_meta(list_showing|default(requests|length), list_total|default(requests|length)) }}
+{{ filter_empty() }}
+{{ saas_toolbar_below_end() }}
 
 {% if requests %}
 <div class="entity-views-container" data-list-results>
@@ -105,13 +94,12 @@
 {% if maintenance %}
 <h3 class="page-title" style="font-size:14px;margin:20px 0 10px">Maintenance Issues</h3>
 <div class="page-view-module" data-page-module="maintenance" id="maintenanceModule">
-  <div class="page-filter-toolbar-row" style="justify-content:flex-end;margin-bottom:12px">
-    <div id="maintenanceViewSwitcher"></div>
-  </div>
-  <div id="maintenanceToolbar" hidden></div>
-  <form id="maintenanceFilterForm" data-list-filters data-entity-api="true" hidden>
-    <input type="search" name="q" value="">
-  </form>
+{{ saas_toolbar_open(toolbar_primary("Create Request", modal="#addRSModal")) }}
+<form class="saas-toolbar-form filter-toolbar-basic" method="get" id="maintenanceFilterForm" data-list-filters data-entity-api="true" data-auto-search="false">
+  {{ toolbar_search("Search room, issue...", '') }}
+</form>
+{{ saas_toolbar_close('maintenanceViewSwitcher', 'maintenanceToolbar') }}
+{{ saas_toolbar_below_end() }}
   <div class="entity-views-container">
     <div id="maintenanceKanbanView" class="entity-view-panel" data-view-panel="kanban" hidden></div>
     <div id="maintenanceCardView" class="entity-view-panel" data-view-panel="cards" hidden></div>

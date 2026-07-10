@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros/ui.html" import breadcrumb, page_header, empty_state, filter_meta, sort_controls, icon, status_badge %}
+{% from "macros/ui.html" import breadcrumb, page_header, empty_state, filter_meta, sort_controls, icon, toolbar_primary_submit, toolbar_search, toolbar_filters_btn, toolbar_filter_panel_open, toolbar_filter_panel_close, saas_toolbar_open, saas_toolbar_close, saas_toolbar_below_end %}
 {% set title = "Reports" %}
 {% block content %}
 
@@ -7,24 +7,21 @@
 {{ page_header("Reports & Analytics", "Interactive insights across revenue, occupancy, and bookings") }}
 
 <div class="page-view-module" data-page-module="reports" id="reportsModule">
-<div class="page-filter-toolbar-row">
-<div class="list-filter-shell">
-  <form class="filter-toolbar-basic" method="get" id="reportsFilterForm" data-list-filters data-entity-api="true" data-auto-search="false">
-    <label style="font-size:12px;color:var(--text-muted)">Date range</label>
-    <input type="date" name="from" value="{{ date_from or '' }}">
-    <input type="date" name="to" value="{{ date_to or '' }}">
-    <div class="filter-toolbar-actions">
-      <button type="button" class="btn btn-ghost btn-sm" data-reset-entity-filters data-clear-filters>Clear All</button>
-      <button type="submit" class="btn btn-primary btn-sm">Apply</button>
-      <a href="{{ url_for('export_reports', **request.args) }}" class="btn btn-outline btn-sm">{{ icon('download', 14) }} Export CSV</a>
+{{ saas_toolbar_open(toolbar_primary_submit("Generate Report", "bar-chart-3", "reportsFilterForm")) }}
+<form class="saas-toolbar-form filter-toolbar-basic" method="get" id="reportsFilterForm" data-list-filters data-entity-api="true" data-auto-search="false">
+  {{ toolbar_search("Search receipt, guest, room...", '') }}
+  {{ toolbar_filters_btn() }}
+  {{ toolbar_filter_panel_open("Date range") }}
+    <div class="filter-advanced-grid">
+      <label>From<input type="date" name="from" value="{{ date_from or '' }}"></label>
+      <label>To<input type="date" name="to" value="{{ date_to or '' }}"></label>
     </div>
-  </form>
-  {{ filter_meta(list_showing|default(payment_rows|length), list_total|default(payment_rows|length)) }}
-</div>
-<div id="reportsViewSwitcher"></div>
-</div>
-
-<div id="reportsToolbar" hidden></div>
+  {{ toolbar_filter_panel_close('Clear', 'data-clear-filters') }}
+  <div class="saas-toolbar-sort">{{ sort_controls('guest', 'desc', [('guest', 'Guest'), ('amount', 'Amount'), ('date', 'Date')]) }}</div>
+</form>
+{{ saas_toolbar_close('reportsViewSwitcher', 'reportsToolbar') }}
+{{ filter_meta(list_showing|default(payment_rows|length), list_total|default(payment_rows|length)) }}
+{{ saas_toolbar_below_end() }}
 
 <div id="reportsCharts">
 <div id="reportsKpis" class="kpi-grid">

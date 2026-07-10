@@ -19,6 +19,7 @@
     <link href="{{ url_for('static', filename='css/app-drawer.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/entity-views.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/list-table.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/page-toolbar.css') }}" rel="stylesheet">
 </head>
 <body class="{% if current_user.get('user_id') %}app-body{% if is_read_only %} read-only-mode{% endif %}{% else %}auth-body{% endif %}">
 

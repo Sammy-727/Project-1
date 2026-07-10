@@ -1,49 +1,32 @@
 {% extends "base.html" %}
-{% from "macros/ui.html" import breadcrumb, page_header, status_badge, empty_state, card_menu, icon, filter_meta, filter_empty, sort_controls, avatar %}
+{% from "macros/ui.html" import breadcrumb, page_header, status_badge, empty_state, card_menu, icon, filter_meta, filter_empty, sort_controls, toolbar_primary, toolbar_search, toolbar_filters_btn, toolbar_filter_panel_open, toolbar_filter_panel_close, saas_toolbar_open, saas_toolbar_close, saas_toolbar_below_end, avatar %}
 {% set title = "Employees" %}
 {% block content %}
 
 {{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Staff", "url": "#"}, {"label": "Employees"}]) }}
-
-<div class="page-header">
-  <div class="page-header-text">
-    <h1 class="page-title">Employees</h1>
-    <p class="page-description">Manage your hotel staff, roles, and lifecycle</p>
-  </div>
-  <div class="page-header-actions">
-    <button class="btn btn-primary modal-trigger" data-target="#addEmployeeModal">{{ icon('plus', 16) }} Add Employee</button>
-  </div>
-</div>
+{{ page_header("Employees", "Manage your hotel staff, roles, and lifecycle") }}
 
 <div class="page-view-module" data-page-module="employees" id="employeesModule">
-<div class="entity-filter-toolbar-row">
-<div class="list-filter-shell">
-<form class="filter-toolbar-basic" method="get" id="employeesFilterForm" data-list-filters data-entity-api="true" data-auto-search="false">
-    <input type="search" name="q" placeholder="Search employees..." value="{{ search_q }}" data-local-search class="filter-search">
-    {{ sort_controls(sort_by|default('name'), sort_dir|default('asc'), [('name', 'Name'), ('role', 'Role'), ('department', 'Department'), ('status', 'Status'), ('date', 'Joined')]) }}
-    <button type="button" class="btn btn-ghost btn-sm filter-advanced-toggle" data-advanced-toggle>{{ icon('sliders-horizontal', 14) }} Advanced</button>
-    <div class="filter-toolbar-actions">
-        <button type="button" class="btn btn-ghost btn-sm" data-reset-entity-filters data-clear-filters>Clear All</button>
-        <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+{{ saas_toolbar_open(toolbar_primary("Add Employee", modal="#addEmployeeModal")) }}
+<form class="saas-toolbar-form filter-toolbar-basic" method="get" id="employeesFilterForm" data-list-filters data-entity-api="true" data-auto-search="false">
+  {{ toolbar_search("Search employee, role, department...", search_q, true) }}
+  {{ toolbar_filters_btn() }}
+  {{ toolbar_filter_panel_open() }}
+    <div class="filter-advanced-grid">
+      <label>Status<select name="status"><option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option><option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option><option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option><option value="archived" {% if status_filter == 'archived' %}selected{% endif %}>Archived</option></select></label>
+      <label>Department<select name="department"><option value="">All</option>{% for d in departments %}<option value="{{ d }}" {% if department == d %}selected{% endif %}>{{ d }}</option>{% endfor %}</select></label>
+      <label>Role<select name="role"><option value="">All</option>{% for r in roles if r != 'Super Admin' %}<option value="{{ r }}" {% if role == r %}selected{% endif %}>{{ r }}</option>{% endfor %}</select></label>
+      <label>Shift<input type="text" name="shift" value="{{ shift or '' }}"></label>
+      <label>Joined from<input type="date" name="from" value="{{ date_from or '' }}"></label>
+      <label>Joined to<input type="date" name="to" value="{{ date_to or '' }}"></label>
     </div>
-    <div class="filter-advanced-panel" data-advanced-panel style="width:100%">
-      <div class="filter-advanced-grid">
-        <label>Status<select name="status"><option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option><option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option><option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option><option value="archived" {% if status_filter == 'archived' %}selected{% endif %}>Archived</option></select></label>
-        <label>Department<select name="department"><option value="">All</option>{% for d in departments %}<option value="{{ d }}" {% if department == d %}selected{% endif %}>{{ d }}</option>{% endfor %}</select></label>
-        <label>Role<select name="role"><option value="">All</option>{% for r in roles if r != 'Super Admin' %}<option value="{{ r }}" {% if role == r %}selected{% endif %}>{{ r }}</option>{% endfor %}</select></label>
-        <label>Shift<input type="text" name="shift" value="{{ shift or '' }}"></label>
-        <label>Joined from<input type="date" name="from" value="{{ date_from or '' }}"></label>
-        <label>Joined to<input type="date" name="to" value="{{ date_to or '' }}"></label>
-      </div>
-    </div>
+  {{ toolbar_filter_panel_close() }}
+  <div class="saas-toolbar-sort">{{ sort_controls(sort_by|default('name'), sort_dir|default('asc'), [('name', 'Name'), ('role', 'Role'), ('department', 'Department'), ('status', 'Status'), ('date', 'Joined')]) }}</div>
 </form>
+{{ saas_toolbar_close('employeesViewSwitcher', 'employeesToolbar') }}
 {{ filter_meta(list_showing|default(employees|length), list_total|default(employees|length)) }}
 {{ filter_empty() }}
-</div>
-<div id="employeesViewSwitcher"></div>
-</div>
-
-<div id="employeesToolbar" hidden></div>
+{{ saas_toolbar_below_end() }}
 
 {% if employees %}
 <div class="bulk-bar">

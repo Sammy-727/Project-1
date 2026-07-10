@@ -1,18 +1,26 @@
 {% extends "base.html" %}
-{% from "macros/ui.html" import breadcrumb, page_header, icon, status_badge %}
+{% from "macros/ui.html" import breadcrumb, page_header, icon, status_badge, toolbar_primary, toolbar_search, saas_toolbar_open, saas_toolbar_close, saas_toolbar_below_end %}
 {% set title = "Platform Hotels" %}
 {% block content %}
 
 {{ breadcrumb([{"label": "Platform", "url": url_for('platform_dashboard')}, {"label": "Hotels"}]) }}
 {{ page_header("Hotels", "Manage properties on the platform") }}
 
-<div class="page-header-actions-bar">
-    <button type="button" class="btn btn-primary write-action modal-trigger" data-target="#addHotelModal">
-        {{ icon('plus', 16) }} Add Hotel
-    </button>
+<div class="saas-page-toolbar" data-sticky-toolbar>
+  <div class="saas-toolbar-row">
+    <div class="saas-toolbar-primary">
+      {{ toolbar_primary("Add Hotel", modal="#addHotelModal", btn_class="write-action") }}
+    </div>
+    <div class="saas-toolbar-form-wrap">
+      <div class="table-search-wrap filter-search saas-toolbar-search">
+        {{ icon('search', 16) }}
+        <input type="search" id="platformHotelSearch" placeholder="Search hotel, city, code..." aria-label="Search hotels">
+      </div>
+    </div>
+  </div>
 </div>
 
-<div class="entity-grid wide">
+<div class="entity-grid wide" id="platformHotelGrid">
     {% for h in hotels %}
     <article class="entity-card platform-hotel-card">
         <div class="entity-card-header gradient">
@@ -87,4 +95,16 @@
         </form>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.getElementById('platformHotelSearch')?.addEventListener('input', (e) => {
+  const q = e.target.value.toLowerCase().trim();
+  document.querySelectorAll('#platformHotelGrid > article').forEach((card) => {
+    card.hidden = Boolean(q && !card.textContent.toLowerCase().includes(q));
+  });
+});
+</script>
 {% endblock %}
