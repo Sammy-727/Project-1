@@ -1,12 +1,22 @@
 /**
  * Reusable Back button with Lucide arrow-left icon.
  */
-export function BackButton({ onClick, className = 'nav-back-btn btn btn-ghost btn-sm', label = 'Back' } = {}) {
+export function BackButton({
+  onClick,
+  className = 'nav-back-btn btn btn-ghost btn-sm',
+  label = 'Back',
+  iconOnly = false,
+} = {}) {
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = className;
   btn.setAttribute('aria-label', 'Go back');
-  btn.innerHTML = `<i data-lucide="arrow-left" class="icon"></i> <span class="nav-back-label">${label}</span>`;
+  btn.title = 'Go back';
+  if (iconOnly) {
+    btn.innerHTML = '<i data-lucide="arrow-left" class="icon"></i>';
+  } else {
+    btn.innerHTML = `<i data-lucide="arrow-left" class="icon"></i> <span class="nav-back-label">${label}</span>`;
+  }
   btn.addEventListener('click', (e) => {
     e.preventDefault();
     onClick?.();

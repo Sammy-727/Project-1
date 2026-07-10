@@ -241,6 +241,16 @@ export class BookingDrawer {
       await this.customerSearch.selectById(options.customerId);
       this.state.customer = this.customerSearch.getValue();
     }
+    if (options.roomNo && !(options.checkin && options.checkout)) {
+      const base = new Date();
+      const checkin = new Date(base);
+      checkin.setDate(checkin.getDate() + 1);
+      const checkout = new Date(base);
+      checkout.setDate(checkout.getDate() + 2);
+      const fmt = (d) => d.toISOString().slice(0, 10);
+      options.checkin = fmt(checkin);
+      options.checkout = fmt(checkout);
+    }
     if (options.checkin) {
       this.checkinInput.value = options.checkin;
       this.checkoutInput.min = options.checkin;

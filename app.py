@@ -1319,18 +1319,29 @@ def add_room():
 
 @app.route("/rooms/update/<int:room_id>", methods=["POST"])
 def update_room(room_id):
-    query("""UPDATE rooms SET room_no=?, room_type=?, category=?, floor=?, price=?, capacity=?,
-             status=?, amenities=?, image_url=? WHERE id=? AND hotel_id=?""",
-          (request.form["room_no"], request.form["room_type"], request.form["room_type"],
-           int(request.form.get("floor") or 1), float(request.form["price"]),
-           int(request.form.get("capacity") or 2), request.form["status"],
-           request.form.get("amenities", ""), request.form.get("image_url", ""), room_id, get_current_hotel_id()), commit=True)
-    sync_notifications_from_data(get_current_hotel_id())
-    flash("Room updated.", "success")
-    drawer_resp = drawer_json_response("Room updated.")
-    if drawer_resp:
-        return drawer_resp
-    return redirect(url_for("rooms"))
+    try:
+        query("""UPDATE rooms SET room_no=?, room_type=?, category=?, floor=?, price=?, capacity=?,
+                 status=?, amenities=?, image_url=? WHERE id=? AND hotel_id=?""",
+              (request.form["room_no"], request.form["room_type"], request.form["room_type"],
+               int(request.form.get("floor") or 1), float(request.form["price"]),
+               int(request.form.get("capacity") or 2), request.form["status"],
+               request.form.get("amenities", ""), request.form.get("image_url", ""), room_id, get_current_hotel_id()), commit=True)
+        sync_notifications_from_data(get_current_hotel_id())
+        flash("Room updated.", "success")
+        updated = query(
+            "SELECT * FROM rooms WHERE id=? AND hotel_id=?",
+            (room_id, get_current_hotel_id()),
+            one=True,
+        )
+        drawer_resp = drawer_json_response("Room updated.", room_id=room_id, room=room_list_row_to_dict(updated) if updated else None)
+        if drawer_resp:
+            return drawer_resp
+        return redirect(url_for("rooms"))
+    except Exception as e:
+        if is_drawer_request():
+            return jsonify(ok=False, error=str(e)), 400
+        flash(f"Error: {e}", "danger")
+        return redirect(url_for("rooms"))
 
 
 @app.route("/rooms/delete/<int:room_id>", methods=["POST"])
@@ -1561,6 +1572,175 @@ def api_customers_list():
 @app.route("/api/rooms/list")
 def api_rooms_list():
     return api_paginated_list(rooms_query, "rooms", room_list_row_to_dict)
+
+
+@app.route("/api/rooms/<int:room_id>")
+def api_room_detail(room_id):
+    from services.room_detail import build_room_detail
+
+    detail = build_room_detail(
+        query,
+        room_id,
+        get_current_hotel_id(),
+        session.get("role"),
+        can_write_hotel_ops(),
+        booking_paid_amount,
+        booking_total_amount,
+    )
+    if not detail:
+        return api_error("Room not found.", 404)
+    return api_ok(**detail)
+
+
+@app.route("/api/rooms/<int:room_id>/mark-cleaning", methods=["POST"])
+def api_room_mark_cleaning(room_id):
+    room = query(
+        "SELECT * FROM rooms WHERE id=? AND hotel_id=?",
+        (room_id, get_current_hotel_id()),
+        one=True,
+    )
+    if not room:
+        return api_error("Room not found.", 404)
+    hk_staff = query(
+        "SELECT id FROM employees WHERE hotel_id=? AND department='Housekeeping' AND status='Active' LIMIT 1",
+        (get_current_hotel_id(),),
+        one=True,
+    )
+    query(
+        """INSERT INTO housekeeping_tasks(room_id,assigned_to,status,priority,notes,created_at)
+           VALUES(?,?,?,?,?,?)""",
+        (
+            room_id,
+            hk_staff["id"] if hk_staff else None,
+            "Pending",
+            "Medium",
+            f"Cleaning requested for room {room['room_no']}",
+            datetime.now().strftime("%Y-%m-%d %H:%M"),
+        ),
+        commit=True,
+    )
+    query("UPDATE rooms SET status='Cleaning' WHERE id=?", (room_id,), commit=True)
+    sync_notifications_from_data(get_current_hotel_id())
+    return api_ok(message="Room marked for cleaning.")
+
+
+@app.route("/api/rooms/<int:room_id>/maintenance", methods=["POST"])
+def api_room_maintenance(room_id):
+    room = query(
+        "SELECT * FROM rooms WHERE id=? AND hotel_id=?",
+        (room_id, get_current_hotel_id()),
+        one=True,
+    )
+    if not room:
+        return api_error("Room not found.", 404)
+    data = request.get_json(silent=True) or {}
+    description = (data.get("description") or request.form.get("description") or "Maintenance issue reported").strip()
+    booking = query(
+        "SELECT id FROM bookings WHERE room_id=? AND hotel_id=? AND status='Checked-in' LIMIT 1",
+        (room_id, get_current_hotel_id()),
+        one=True,
+    )
+    query(
+        """INSERT INTO room_service_requests(booking_id,room_id,request_type,description,status,charges,add_to_bill,created_at)
+           VALUES(?,?,?,?,?,?,?,?)""",
+        (
+            booking["id"] if booking else None,
+            room_id,
+            "Maintenance",
+            description,
+            "Pending",
+            0,
+            0,
+            datetime.now().strftime("%Y-%m-%d %H:%M"),
+        ),
+        commit=True,
+    )
+    query("UPDATE rooms SET status='Maintenance' WHERE id=?", (room_id,), commit=True)
+    sync_notifications_from_data(get_current_hotel_id())
+    return api_ok(message="Maintenance request created.")
+
+
+@app.route("/api/bookings/<int:booking_id>/checkin", methods=["POST"])
+def api_booking_checkin(booking_id):
+    booking = scoped_booking(booking_id)
+    if not booking or booking["status"] != "Reserved":
+        return api_error("No reserved booking available for check-in.", 400)
+    query("UPDATE bookings SET status='Checked-in' WHERE id=?", (booking_id,), commit=True)
+    query("UPDATE rooms SET status='Occupied' WHERE id=?", (booking["room_id"],), commit=True)
+    update_booking_payment_status(booking_id)
+    sync_notifications_from_data(get_current_hotel_id())
+    return api_ok(message="Guest checked in successfully.")
+
+
+@app.route("/api/bookings/<int:booking_id>/quick-checkout", methods=["POST"])
+def api_booking_quick_checkout(booking_id):
+    booking = query(
+        """
+        SELECT b.*, r.price, r.id room_id FROM bookings b
+        JOIN rooms r ON b.room_id=r.id
+        WHERE b.id=? AND b.hotel_id=?
+        """,
+        (booking_id, get_current_hotel_id()),
+        one=True,
+    )
+    if not booking or booking["status"] != "Checked-in":
+        return api_error("No active stay available for check-out.", 400)
+
+    room_charges = booking_room_charges(booking)
+    service_charges = booking_service_charges(booking_id)
+    subtotal = max(room_charges + service_charges, 0)
+    tax = subtotal * 0.12
+    total = subtotal + tax
+    paid = booking_paid_amount(booking_id)
+    balance = max(total - paid, 0)
+    if balance > 0:
+        return api_error(f"Outstanding balance of ₹{balance:,.0f}. Collect payment before check-out.", 400)
+
+    try:
+        query(
+            """INSERT INTO bills(booking_id,room_charges,service_charges,tax,discount,total,payment_status,bill_date)
+               VALUES(?,?,?,?,?,?,?,?)""",
+            (
+                booking_id,
+                room_charges,
+                service_charges,
+                tax,
+                0,
+                total,
+                "Paid",
+                datetime.now().strftime("%Y-%m-%d %H:%M"),
+            ),
+            commit=True,
+        )
+    except Exception:
+        pass
+
+    query(
+        "UPDATE bookings SET status='Checked-out', total_amount=?, payment_status=? WHERE id=?",
+        (total, "Paid", booking_id),
+        commit=True,
+    )
+    query("UPDATE rooms SET status='Cleaning' WHERE id=?", (booking["room_id"],), commit=True)
+    hk_staff = query(
+        "SELECT id FROM employees WHERE hotel_id=? AND department='Housekeeping' AND status='Active' LIMIT 1",
+        (get_current_hotel_id(),),
+        one=True,
+    )
+    query(
+        """INSERT INTO housekeeping_tasks(room_id,assigned_to,status,priority,notes,created_at)
+           VALUES(?,?,?,?,?,?)""",
+        (
+            booking["room_id"],
+            hk_staff["id"] if hk_staff else None,
+            "Pending",
+            "High",
+            "Post checkout cleaning",
+            datetime.now().strftime("%Y-%m-%d %H:%M"),
+        ),
+        commit=True,
+    )
+    sync_notifications_from_data(get_current_hotel_id())
+    return api_ok(message="Guest checked out successfully.", invoice_url=url_for("invoice", booking_id=booking_id))
 
 
 @app.route("/api/employees/list")
