@@ -4,26 +4,45 @@
 {% block content %}
 
 {{ breadcrumb([{"label": "Home", "url": url_for('dashboard')}, {"label": "Calendar"}]) }}
-{{ page_header("Booking Calendar", "Visual room occupancy and reservations") }}
+{{ page_header("Booking Calendar", "Rooms across the top, dates down the left — reservation grid view") }}
 
 <div class="calendar-toolbar">
   <div class="calendar-view-tabs" id="calendarViewTabs">
     <button type="button" data-view="week" class="active">Week</button>
     <button type="button" data-view="day">Day</button>
-    <button type="button" data-view="month" disabled title="Coming soon">Month</button>
+    <button type="button" data-view="month">Month</button>
   </div>
-  <div style="display:flex;gap:8px;align-items:center">
-    <button type="button" class="btn btn-ghost btn-sm" id="calPrev">{{ icon('chevron-left', 16) }}</button>
-    <span id="calRangeLabel" class="muted" style="font-size:13px;min-width:140px;text-align:center"></span>
-    <button type="button" class="btn btn-ghost btn-sm" id="calNext">{{ icon('chevron-right', 16) }}</button>
+  <div class="calendar-toolbar-nav">
+    <button type="button" class="btn btn-ghost btn-sm" id="calPrev" aria-label="Previous">{{ icon('chevron-left', 16) }}</button>
+    <span id="calRangeLabel" class="muted cal-range-label"></span>
+    <button type="button" class="btn btn-ghost btn-sm" id="calNext" aria-label="Next">{{ icon('chevron-right', 16) }}</button>
     <button type="button" class="btn btn-outline btn-sm" id="calToday">Today</button>
     <button type="button" class="btn btn-primary btn-sm write-action" data-app-drawer-action="booking">{{ icon('plus', 14) }} New Booking</button>
   </div>
 </div>
 
-<div class="calendar-grid-wrap">
-  <div id="calendarGrid" class="calendar-grid" aria-live="polite">
-    <p class="ops-empty" style="padding:24px">Loading calendar…</p>
+<div class="calendar-filters" id="calendarFilters">
+  <label>Floor<select data-cal-filter="floor"><option value="">All floors</option></select></label>
+  <label>Room type<select data-cal-filter="room_type"><option value="">All types</option></select></label>
+  <label>Room status<select data-cal-filter="room_status">
+    <option value="">All statuses</option>
+    <option value="Available">Available</option>
+    <option value="Reserved">Reserved</option>
+    <option value="Occupied">Occupied</option>
+    <option value="Maintenance">Maintenance</option>
+    <option value="Cleaning">Cleaning</option>
+  </select></label>
+  <label>Booking status<select data-cal-filter="booking_status">
+    <option value="">All bookings</option>
+    <option value="Reserved">Reserved</option>
+    <option value="Checked-in">Checked-in</option>
+    <option value="Checked-out">Checked-out</option>
+  </select></label>
+</div>
+
+<div class="reservation-grid-wrap">
+  <div id="calendarGrid" class="reservation-grid-mount" aria-live="polite">
+    <p class="ops-empty rg-empty">Loading calendar…</p>
   </div>
 </div>
 
@@ -31,5 +50,5 @@
 
 {% block scripts %}
 {{ super() }}
-<script src="{{ url_for('static', filename='js/calendar.js') }}"></script>
+<script type="module" src="{{ url_for('static', filename='js/calendar/index.js') }}"></script>
 {% endblock %}

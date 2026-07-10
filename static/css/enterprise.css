@@ -296,6 +296,262 @@
   box-shadow: var(--shadow-sm);
 }
 
+.calendar-toolbar-nav {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.cal-range-label {
+  font-size: 13px;
+  min-width: 140px;
+  text-align: center;
+}
+
+.calendar-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+}
+
+.calendar-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.calendar-filters select {
+  min-width: 130px;
+  font-size: 13px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+  background: var(--bg-elevated);
+}
+
+/* Reservation grid — rooms horizontal, dates vertical */
+.reservation-grid-wrap {
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  background: var(--bg-elevated);
+  overflow: hidden;
+  max-height: calc(100vh - 280px);
+}
+
+.reservation-grid-mount,
+.reservation-grid {
+  min-width: 100%;
+}
+
+.reservation-grid {
+  display: flex;
+  flex-direction: column;
+}
+
+.rg-top {
+  display: flex;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.rg-corner {
+  width: 88px;
+  min-width: 88px;
+  padding: 10px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: var(--bg-subtle);
+  border-right: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rg-rooms-header-scroll {
+  overflow-x: auto;
+  flex: 1;
+}
+
+.rg-rooms-header {
+  display: flex;
+  min-width: max-content;
+}
+
+.rg-room-header {
+  width: 140px;
+  min-width: 140px;
+  padding: 10px 8px;
+  text-align: center;
+  border-right: 1px solid var(--border-light);
+  background: var(--bg-subtle);
+}
+
+.rg-room-header strong {
+  display: block;
+  font-size: 13px;
+}
+
+.rg-room-meta {
+  display: block;
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.rg-main {
+  display: flex;
+  overflow: auto;
+  max-height: calc(100vh - 340px);
+}
+
+.rg-date-column {
+  width: 88px;
+  min-width: 88px;
+  flex-shrink: 0;
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  background: var(--bg-subtle);
+  border-right: 1px solid var(--border-light);
+}
+
+.rg-date-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px;
+}
+
+.rg-date-label small {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.rg-tracks-scroll {
+  overflow-x: auto;
+  flex: 1;
+}
+
+.rg-tracks {
+  display: flex;
+  min-width: max-content;
+}
+
+.rg-room-track {
+  position: relative;
+  width: 140px;
+  min-width: 140px;
+  border-right: 1px solid var(--border-light);
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 47px,
+    var(--border-light) 47px,
+    var(--border-light) 48px
+  );
+}
+
+.rg-room-track.rg-drop-target {
+  background-color: rgba(59, 130, 246, 0.08);
+}
+
+.rg-slot {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 48px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.rg-slot:hover {
+  background: rgba(59, 130, 246, 0.06);
+}
+
+.rg-booking-block {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  text-align: left;
+  padding: 6px 8px;
+  cursor: pointer;
+  overflow: hidden;
+  z-index: 2;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rg-booking-block.rg-dragging {
+  opacity: 0.85;
+  z-index: 5;
+  cursor: grabbing;
+}
+
+.rg-block-name {
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rg-block-dates {
+  font-size: 10px;
+  opacity: 0.9;
+}
+
+.rg-resize-handle {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 8px;
+  cursor: ns-resize;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.rg-empty {
+  padding: 24px;
+  text-align: center;
+}
+
+.read-only-mode .rg-resize-handle {
+  display: none;
+}
+
+.read-only-mode .rg-slot {
+  cursor: default;
+}
+
+/* Legacy calendar grid (bookings module) */
 .calendar-grid-wrap {
   overflow-x: auto;
   border: 1px solid var(--border-light);

@@ -4,7 +4,7 @@
 {% block content %}
 
 {{ breadcrumb([{"label": "Platform", "url": url_for('platform_dashboard')}, {"label": "Dashboard"}]) }}
-{{ page_header("Safe Stays Platform Dashboard", "Manage and monitor all registered hotels.") }}
+{{ page_header("Safe Stays Platform Dashboard", "Manage and monitor all registered hotels.", nav_skip=true) }}
 
 <div id="platformDashboardRoot" data-view-hotel-base="/platform/hotels/">
     <div class="kpi-grid" id="platformKpiGrid">

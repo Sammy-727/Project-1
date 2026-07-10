@@ -242,17 +242,15 @@
 <div class="drawer-backdrop" id="drawerBackdrop"></div>
 
 <aside id="appShellDrawer" class="app-shell-drawer" aria-hidden="true" aria-label="Quick action panel">
-  <header class="app-shell-drawer-head">
-    <h2 id="appShellDrawerTitle"></h2>
-    <button type="button" class="app-shell-drawer-close" aria-label="Close panel">
-      <i data-lucide="x" class="icon"></i>
-    </button>
-  </header>
+  <header class="app-shell-drawer-head" id="appShellDrawerHead"></header>
   <div class="app-shell-drawer-body" id="appShellDrawerBody"></div>
 </aside>
 
 <aside class="notification-drawer" id="notificationDrawer" aria-label="Notifications and alerts" aria-hidden="true">
     <header class="notification-drawer-head">
+        <button type="button" class="drawer-nav-back btn btn-ghost btn-sm" data-notification-back aria-label="Go back">
+            <i data-lucide="arrow-left" class="icon"></i> Back
+        </button>
         <h2><i data-lucide="bell-ring" class="icon"></i> Notifications &amp; Alerts</h2>
         <div class="notification-drawer-actions">
             <button type="button" class="btn btn-sm btn-ghost" data-notification-mark-all title="Mark all as read">Mark all read</button>
@@ -303,6 +301,7 @@
 window.__BOOKING_META__ = { sources: {{ booking_sources|tojson }}, modes: {{ payment_modes|tojson }} };
 </script>
 <script type="module" src="{{ url_for('static', filename='js/AppDrawer.js') }}"></script>
+<script type="module" src="{{ url_for('static', filename='js/shared/navigation/PageHeader.js') }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/notifications/index.js') }}"></script>
 <script src="{{ url_for('static', filename='js/command-palette.js') }}"></script>
 <script src="{{ url_for('static', filename='js/quick-actions.js') }}"></script>

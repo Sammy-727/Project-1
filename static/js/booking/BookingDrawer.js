@@ -14,11 +14,12 @@ const STEPS = [
 ];
 
 export class BookingDrawer {
-  constructor(drawerEl, { bookingSources, paymentModes, onSuccess, embedded = false }) {
+  constructor(drawerEl, { bookingSources, paymentModes, onSuccess, onStepChange, embedded = false }) {
     this.drawer = drawerEl;
     this.bookingSources = bookingSources;
     this.paymentModes = paymentModes;
     this.onSuccess = onSuccess;
+    this.onStepChange = onStepChange;
     this.embedded = embedded;
     this.step = 1;
     this.state = this.defaultState();
@@ -52,7 +53,7 @@ export class BookingDrawer {
       .join('');
 
     this.drawer.innerHTML = `
-      <div class="booking-drawer-header">
+      <div class="booking-drawer-header${this.embedded ? ' booking-drawer-header-embedded' : ''}">
         <button type="button" class="btn btn-ghost btn-sm booking-drawer-back" id="bkBackHeaderBtn" hidden aria-label="Go back">
           <i data-lucide="arrow-left" class="icon"></i> Back
         </button>
@@ -168,7 +169,7 @@ export class BookingDrawer {
   }
 
   bind() {
-    this.drawer.querySelector('.drawer-close').addEventListener('click', () => this.close());
+    this.drawer.querySelector('.drawer-close')?.addEventListener('click', () => this.close());
     const goBack = () => this.goStep(this.step - 1);
     this.prevBtn.addEventListener('click', goBack);
     this.backHeaderBtn.addEventListener('click', goBack);
@@ -206,13 +207,23 @@ export class BookingDrawer {
     this.panels.forEach((p) => {
       p.hidden = Number(p.dataset.step) !== this.step;
     });
-    const showBack = this.step > 1;
+    const showBack = this.step > 1 && !this.embedded;
     this.prevBtn.hidden = !showBack;
-    this.backHeaderBtn.hidden = !showBack;
+    if (this.backHeaderBtn) this.backHeaderBtn.hidden = !showBack;
     this.nextBtn.hidden = this.step === 5;
     this.confirmBtn.hidden = this.step !== 5;
     this.errorEl.hidden = true;
     window.refreshIcons?.(this.drawer);
+    this.onStepChange?.(this.step);
+    if (this.embedded) window.AppDrawer?.updateHeader?.();
+  }
+
+  isDirty() {
+    if (this.step > 1) return true;
+    if (this.state.customer) return true;
+    if (this.specialInput?.value?.trim()) return true;
+    if (this.state.advance_amount > 0) return true;
+    return false;
   }
 
   async open(options = {}) {
@@ -229,6 +240,37 @@ export class BookingDrawer {
     if (options.customerId) {
       await this.customerSearch.selectById(options.customerId);
       this.state.customer = this.customerSearch.getValue();
+    }
+    if (options.checkin) {
+      this.checkinInput.value = options.checkin;
+      this.checkoutInput.min = options.checkin;
+    }
+    if (options.checkout) {
+      this.checkoutInput.value = options.checkout;
+    }
+    if (options.checkin && options.checkout) {
+      this.readDatesStep();
+      const guests = this.state.adults + this.state.children;
+      await this.roomPicker.load({
+        checkin: options.checkin,
+        checkout: options.checkout,
+        guests,
+      });
+      if (options.roomNo) {
+        const match = this.roomPicker.rooms.find((r) => String(r.room_no) === String(options.roomNo));
+        if (match) {
+          this.roomPicker.select(match.id);
+          this.state.room = match;
+          this.updateTotals();
+        }
+      }
+      if (options.customerId && this.state.room) {
+        this.goStep(4);
+      } else if (this.state.room) {
+        this.goStep(3);
+      } else {
+        this.goStep(2);
+      }
     }
     if (!this.embedded) {
       this.drawer.classList.add('open');

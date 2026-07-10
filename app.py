@@ -1737,9 +1737,27 @@ def api_calendar_bookings():
     hid = get_current_hotel_id()
     start = request.args.get("start", date.today().isoformat())
     end = request.args.get("end", (date.today() + timedelta(days=6)).isoformat())
-    rows = query(
-        """
-        SELECT b.id, b.checkin, b.checkout, b.status, c.name guest_name,
+    floor = request.args.get("floor", "").strip()
+    room_type = request.args.get("room_type", "").strip()
+    room_status = request.args.get("room_status", "").strip()
+    booking_status = request.args.get("booking_status", "").strip()
+
+    room_sql = "SELECT id, room_no, room_type, floor, status FROM rooms WHERE hotel_id=?"
+    room_params = [hid]
+    if floor:
+        room_sql += " AND floor=?"
+        room_params.append(floor)
+    if room_type:
+        room_sql += " AND room_type=?"
+        room_params.append(room_type)
+    if room_status:
+        room_sql += " AND status=?"
+        room_params.append(room_status)
+    room_sql += " ORDER BY floor, CAST(room_no AS INTEGER), room_no"
+    rooms = query(room_sql, room_params)
+
+    booking_sql = """
+        SELECT b.id, b.checkin, b.checkout, b.status, b.payment_status, c.name guest_name,
                r.id room_id, r.room_no, r.room_type, r.floor
         FROM bookings b
         JOIN customers c ON b.customer_id = c.id
@@ -1748,14 +1766,23 @@ def api_calendar_bookings():
           AND b.status NOT IN ('Cancelled')
           AND date(b.checkin) <= date(?)
           AND date(b.checkout) >= date(?)
-        ORDER BY r.room_no, b.checkin
-        """,
-        (hid, end, start),
-    )
-    rooms = query(
-        "SELECT id, room_no, room_type, floor, status FROM rooms WHERE hotel_id=? ORDER BY floor, room_no",
-        (hid,),
-    )
+    """
+    booking_params = [hid, end, start]
+    if floor:
+        booking_sql += " AND r.floor=?"
+        booking_params.append(floor)
+    if room_type:
+        booking_sql += " AND r.room_type=?"
+        booking_params.append(room_type)
+    if room_status:
+        booking_sql += " AND r.status=?"
+        booking_params.append(room_status)
+    if booking_status:
+        booking_sql += " AND b.status=?"
+        booking_params.append(booking_status)
+    booking_sql += " ORDER BY r.room_no, b.checkin"
+    rows = query(booking_sql, booking_params)
+
     return api_ok(bookings=[dict(r) for r in rows], rooms=[dict(r) for r in rooms], start=start, end=end)
 
 
