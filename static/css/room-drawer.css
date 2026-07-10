@@ -1,0 +1,134 @@
+/* Room details drawer — view, edit, and actions */
+
+.room-details-drawer {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.room-details-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.room-details-sub {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.room-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 16px;
+}
+
+.room-details-grid .field-full {
+  grid-column: 1 / -1;
+}
+
+.room-details-grid span {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.room-details-grid strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.room-action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.room-action-buttons .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.room-action-buttons .btn.is-disabled,
+.room-action-buttons .btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.room-action-buttons .btn.is-loading {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.room-edit-grid {
+  gap: 12px;
+}
+
+.room-edit-form-error {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, #ef4444 12%, transparent);
+  color: #b91c1c;
+  font-size: 13px;
+}
+
+.room-drawer-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-light);
+}
+
+.drawer-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.drawer-header-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.icon-back-btn {
+  min-width: 36px !important;
+  width: 36px;
+  height: 36px;
+  padding: 0 !important;
+  justify-content: center;
+  border-radius: 10px;
+}
+
+.icon-back-btn .nav-back-label {
+  display: none !important;
+}
+
+.drawer-header--with-actions {
+  grid-template-columns: 40px 1fr auto 40px !important;
+}
+
+@media (max-width: 480px) {
+  .drawer-header--with-actions {
+    grid-template-columns: 36px 1fr auto 36px !important;
+  }
+
+  .drawer-header-edit-btn span:not(.icon) {
+    display: none;
+  }
+
+  .drawer-header-edit-btn .icon {
+    margin: 0;
+  }
+}

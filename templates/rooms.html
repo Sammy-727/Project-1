@@ -48,7 +48,7 @@
       </div>
       {{ card_menu([
         {'type': 'button', 'label': 'Edit', 'icon': 'pencil', 'target': '#editRoom' ~ r.id, 'class': 'modal-trigger'},
-        {'type': 'button', 'label': 'Book', 'icon': 'calendar-plus', 'drawer_action': 'booking', 'booking_room': r.room_no},
+        {'type': 'button', 'label': 'Book', 'icon': 'calendar-plus', 'drawer_action': 'booking', 'booking_room': r.room_no, 'class': 'write-action'},
         {'type': 'link', 'label': 'Check-in', 'icon': 'log-in', 'url': url_for('checkin_out')},
       ]) }}
     </div>
@@ -71,25 +71,8 @@
     </div>
   </article>
 
-  <aside class="drawer detail-drawer" id="drawerRoom{{ r.id }}">
-    <button class="modal-close drawer-close" type="button">{{ icon('x', 18) }}</button>
-    <div class="drawer-section" style="margin-top:12px">
-      <h3>Room {{ r.room_no }}</h3>
-      <p class="muted">{{ r.room_type or r.category }} · Floor {{ r.floor or 1 }}</p>
-      {{ status_badge(r.status) }}
-    </div>
-    <div class="drawer-section detail-grid">
-      <div><span>Capacity</span><strong>{{ r.capacity or 2 }} guests</strong></div>
-      <div><span>Price</span><strong>₹{{ "{:,.0f}".format(r.price) }}/night</strong></div>
-      <div><span>Amenities</span><strong>{{ r.amenities or '—' }}</strong></div>
-      <div><span>Guest</span><strong data-room-guest>—</strong></div>
-    </div>
-    <div class="card-quick-actions">
-      <button type="button" class="btn btn-secondary btn-sm modal-trigger" data-target="#editRoom{{ r.id }}">Edit</button>
-      <button type="button" class="btn btn-primary btn-sm" data-app-drawer-action="booking" data-booking-room="{{ r.room_no }}">Book</button>
-      <a href="{{ url_for('checkin_out') }}" class="btn btn-outline btn-sm">Check-in/out</a>
-    </div>
-  </aside>
+  <aside class="drawer detail-drawer room-drawer-source" id="drawerRoom{{ r.id }}"
+         data-room-drawer data-room-id="{{ r.id }}" hidden aria-hidden="true"></aside>
   {% endfor %}
 </div>
 

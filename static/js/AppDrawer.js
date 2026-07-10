@@ -91,6 +91,10 @@ function updateHeader() {
   });
 }
 
+function updateDrawerHeader(opts = {}) {
+  header?.update(opts);
+}
+
 function showLoadingBody() {
   if (!body()) return;
   body().innerHTML = `
@@ -265,6 +269,11 @@ function openFromModal(selector) {
 }
 
 function openFromElement(selector) {
+  const roomMatch = (selector || '').match(/^#drawerRoom(\d+)$/);
+  if (roomMatch) {
+    import('./rooms/RoomDetailsDrawer.js').then((m) => m.openRoomDrawer(Number(roomMatch[1])));
+    return true;
+  }
   const el = document.querySelector(selector);
   if (!el) return false;
   const title = el.querySelector('h2, h3')?.textContent?.trim() || 'Details';
@@ -643,6 +652,7 @@ const api = {
   getNavigation: () => nav,
   setTitle,
   updateHeader,
+  updateDrawerHeader,
   openFromModal,
   openFromElement,
   openDrawerSelector,

@@ -1,7 +1,7 @@
 /**
- * Reusable drawer header: Back | Title | Close
+ * Reusable drawer header: [←] Title [actions] [X]
  */
-import { BackButton } from './BackButton.js';
+import { IconBackButton } from '../IconBackButton.js';
 
 export class DrawerHeader {
   constructor(rootEl, { onBack, onClose }) {
@@ -16,8 +16,8 @@ export class DrawerHeader {
     this.root.innerHTML = '';
     this.root.className = 'app-shell-drawer-head drawer-header';
 
-    this.backBtn = BackButton({
-      className: 'drawer-nav-back nav-back-btn btn btn-ghost btn-sm',
+    this.backBtn = IconBackButton({
+      className: 'drawer-nav-back icon-back-btn btn btn-ghost btn-sm',
       onClick: () => this.onBack?.(),
     });
 
@@ -27,6 +27,9 @@ export class DrawerHeader {
       <h2 id="appShellDrawerTitle"></h2>
       <p class="drawer-nav-subtitle text-muted" hidden></p>`;
 
+    this.actionsEl = document.createElement('div');
+    this.actionsEl.className = 'drawer-header-actions';
+
     const closeBtn = document.createElement('button');
     closeBtn.type = 'button';
     closeBtn.className = 'app-shell-drawer-close drawer-nav-close';
@@ -35,6 +38,7 @@ export class DrawerHeader {
 
     this.root.appendChild(this.backBtn);
     this.root.appendChild(titleWrap);
+    this.root.appendChild(this.actionsEl);
     this.root.appendChild(closeBtn);
 
     this.titleEl = titleWrap.querySelector('#appShellDrawerTitle');
@@ -47,7 +51,14 @@ export class DrawerHeader {
     this.closeBtn?.addEventListener('click', () => this.onClose?.());
   }
 
-  update({ title = '', subtitle = '', showBack = true } = {}) {
+  setActions(html = '') {
+    if (!this.actionsEl) return;
+    this.actionsEl.innerHTML = html || '';
+    this.root.classList.toggle('drawer-header--with-actions', Boolean(html));
+    window.refreshIcons?.(this.actionsEl);
+  }
+
+  update({ title = '', subtitle = '', showBack = true, actionsHtml = null } = {}) {
     if (this.titleEl) this.titleEl.textContent = title;
     if (this.subtitleEl) {
       if (subtitle) {
@@ -60,8 +71,10 @@ export class DrawerHeader {
     }
     if (this.backBtn) {
       this.backBtn.style.display = showBack ? 'inline-flex' : 'none';
-      this.backBtn.hidden = false;
-      this.backBtn.removeAttribute('hidden');
+      this.backBtn.hidden = !showBack;
+    }
+    if (actionsHtml !== null) {
+      this.setActions(actionsHtml);
     }
     window.refreshIcons?.(this.root);
   }
@@ -73,5 +86,5 @@ export class DrawerHeader {
 
 /** @deprecated use BackButton */
 export function createBackButton(opts) {
-  return BackButton(opts);
+  return IconBackButton(opts);
 }

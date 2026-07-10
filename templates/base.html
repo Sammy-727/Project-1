@@ -17,6 +17,7 @@
     <link href="{{ url_for('static', filename='css/premium.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/enterprise.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/app-drawer.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/room-drawer.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/entity-views.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/list-table.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/clickable-records.css') }}" rel="stylesheet">
@@ -300,6 +301,12 @@
 {% if current_user.get("user_id") %}
 <script>
 window.__BOOKING_META__ = { sources: {{ booking_sources|tojson }}, modes: {{ payment_modes|tojson }} };
+window.__HMS_META__ = {
+  can_write: {{ can_write|tojson }},
+  is_read_only: {{ is_read_only|tojson }},
+  room_statuses: {{ room_statuses|tojson }},
+  role: {{ current_user.role|tojson }}
+};
 </script>
 <script type="module" src="{{ url_for('static', filename='js/AppDrawer.js') }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/shared/navigation/PageHeader.js') }}"></script>
