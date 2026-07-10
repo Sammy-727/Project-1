@@ -48,6 +48,19 @@ document.addEventListener('DOMContentLoaded', () => {
     else drawer.open();
   }
 
+  const newCustomerId = new URLSearchParams(window.location.search).get('new_customer');
+  if (newCustomerId) {
+    const openWithCustomer = () => {
+      if (window.AppDrawer?.openBooking) {
+        window.AppDrawer.openBooking({ customerId: Number(newCustomerId) });
+      } else {
+        drawer.open({ customerId: Number(newCustomerId) });
+      }
+    };
+    if (document.readyState === 'complete') openWithCustomer();
+    else setTimeout(openWithCustomer, 100);
+  }
+
   const quickAddModal = new AddCustomerModal(document.getElementById('quickAddCustomerModal'), {
     compact: true,
     onCreated: () => window.showToast?.('Customer saved. Open New Booking to use them.', 'success'),

@@ -15,6 +15,15 @@
   {{ toolbar_filters_btn() }}
   {{ toolbar_filter_panel_open() }}
     <div class="filter-advanced-grid">
+      <label>History<select name="history">
+        <option value="default" {% if history_filter|default('default') == 'default' %}selected{% endif %}>Active &amp; Recent (30 days)</option>
+        <option value="active" {% if history_filter == 'active' %}selected{% endif %}>Active</option>
+        <option value="upcoming" {% if history_filter == 'upcoming' %}selected{% endif %}>Upcoming</option>
+        <option value="last_7" {% if history_filter == 'last_7' %}selected{% endif %}>Last 7 Days</option>
+        <option value="last_30" {% if history_filter == 'last_30' %}selected{% endif %}>Last 30 Days</option>
+        <option value="last_90" {% if history_filter == 'last_90' %}selected{% endif %}>Last 90 Days</option>
+        <option value="all" {% if history_filter == 'all' %}selected{% endif %}>All History</option>
+      </select></label>
       <label>Status<select name="status"><option value="">All</option>{% for s in booking_statuses %}<option value="{{ s }}" {% if filter_status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
       <label>Payment<select name="payment_status"><option value="">All</option>{% for s in ['Pending','Partial','Paid'] %}<option value="{{ s }}" {% if payment_status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
       <label>Room Type<select name="room_type"><option value="">All</option>{% for t in room_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}</select></label>

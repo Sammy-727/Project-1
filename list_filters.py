@@ -1,4 +1,5 @@
 """Shared list filtering, sorting, and pagination helpers for HMS."""
+from datetime import date
 from flask import request
 
 
@@ -62,7 +63,9 @@ def bookings_query(hotel_id=None):
         "payment_status": arg("paymentStatus") or arg("payment_status"),
         "phone": arg("phone"),
         "room_no": arg("roomNo") or arg("room_no"),
+        "room_type": arg("roomType") or arg("room_type"),
         "booking_source": arg("bookingSource") or arg("booking_source"),
+        "history": arg("history") or "default",
         "from": arg("from"),
         "to": arg("to"),
         "checkin_from": arg("checkinFrom") or arg("checkin_from"),
@@ -103,6 +106,27 @@ def bookings_query(hotel_id=None):
     if f["booking_source"]:
         sql += " AND b.booking_source=?"
         params.append(f["booking_source"])
+    if f["room_type"]:
+        sql += " AND r.room_type=?"
+        params.append(f["room_type"])
+    history = f["history"]
+    today = date.today().isoformat()
+    if history == "active":
+        sql += " AND b.status IN ('Reserved', 'Checked-in')"
+    elif history == "upcoming":
+        sql += " AND b.status = 'Reserved' AND b.checkin > ?"
+        params.append(today)
+    elif history == "last_7":
+        sql += " AND (b.status IN ('Reserved', 'Checked-in') OR b.checkout >= date(?, '-7 days'))"
+        params.append(today)
+    elif history == "last_30" or history == "default":
+        sql += " AND (b.status IN ('Reserved', 'Checked-in') OR b.checkout >= date(?, '-30 days'))"
+        params.append(today)
+    elif history == "last_90":
+        sql += " AND (b.status IN ('Reserved', 'Checked-in') OR b.checkout >= date(?, '-90 days'))"
+        params.append(today)
+    elif history == "all":
+        pass
     if f["from"]:
         sql += " AND b.checkin >= ?"
         params.append(f["from"])

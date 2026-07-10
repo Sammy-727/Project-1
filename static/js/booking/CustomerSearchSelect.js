@@ -15,16 +15,23 @@ export class CustomerSearchSelect {
     this.root.innerHTML = `
       <label class="field-label">Customer <span class="required">*</span></label>
       <div class="customer-search-wrap">
-        <input type="search" class="input" id="customerSearchInput" placeholder="Search by name, phone, or email..." autocomplete="off">
-        <div class="customer-search-dropdown" id="customerDropdown" hidden></div>
+        <input type="search" class="input customer-search-input" id="customerSearchInput" placeholder="Search by name, phone, or email..." autocomplete="off">
+        <div class="customer-search-dropdown" id="customerDropdown" hidden>
+          <div class="customer-dropdown-sticky">
+            <button type="button" class="customer-add-new-primary" id="customerAddNewTop">
+              <i data-lucide="user-plus" class="icon"></i> Add New Customer
+            </button>
+          </div>
+          <div class="customer-dropdown-list" id="customerDropdownList"></div>
+        </div>
       </div>
       <div class="selected-customer-card" id="selectedCustomerCard" hidden></div>
-      <button type="button" class="btn btn-outline btn-sm" id="addCustomerInlineBtn">+ Add New Customer</button>
     `;
     this.input = this.root.querySelector('#customerSearchInput');
     this.dropdown = this.root.querySelector('#customerDropdown');
+    this.listEl = this.root.querySelector('#customerDropdownList');
     this.card = this.root.querySelector('#selectedCustomerCard');
-    this.addBtn = this.root.querySelector('#addCustomerInlineBtn');
+    this.addTopBtn = this.root.querySelector('#customerAddNewTop');
   }
 
   bind() {
@@ -32,25 +39,30 @@ export class CustomerSearchSelect {
       clearTimeout(this.debounce);
       this.debounce = setTimeout(() => this.load(this.input.value), 250);
     });
-    this.input.addEventListener('focus', () => this.load(this.input.value));
+    this.input.addEventListener('focus', () => this.openDropdown());
     document.addEventListener('click', (e) => {
       if (!this.root.contains(e.target)) this.dropdown.hidden = true;
     });
-    this.addBtn.addEventListener('click', () => this.onAddNew?.());
+    this.addTopBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.onAddNew?.();
+    });
+  }
+
+  openDropdown() {
+    this.dropdown.hidden = false;
+    this.load(this.input.value);
   }
 
   async load(q = '') {
     this.dropdown.hidden = false;
-    this.dropdown.innerHTML = '<div class="search-item muted">Searching...</div>';
+    this.listEl.innerHTML = '<div class="search-item muted">Searching...</div>';
     try {
       const customers = await searchCustomers(q);
       if (!customers.length) {
-        this.dropdown.innerHTML = `
-          <div class="search-item muted">No customers found</div>
-          <button type="button" class="search-item add-new-item" data-action="add">+ Add New Customer</button>
-        `;
+        this.listEl.innerHTML = '<div class="search-item muted">No customers found</div>';
       } else {
-        this.dropdown.innerHTML = customers
+        this.listEl.innerHTML = customers
           .map(
             (c) => `
           <button type="button" class="search-item" data-id="${c.id}">
@@ -58,18 +70,18 @@ export class CustomerSearchSelect {
             <span>${escapeHtml(c.phone || '')}${c.email ? ` · ${escapeHtml(c.email)}` : ''}</span>
           </button>`,
           )
-          .join('') + `<button type="button" class="search-item add-new-item" data-action="add">+ Add New Customer</button>`;
+          .join('');
       }
-      this.dropdown.querySelectorAll('.search-item[data-id]').forEach((btn) => {
+      this.listEl.querySelectorAll('.search-item[data-id]').forEach((btn) => {
         btn.addEventListener('click', () => {
           const id = Number(btn.dataset.id);
           const customer = customers.find((c) => c.id === id);
           if (customer) this.select(customer);
         });
       });
-      this.dropdown.querySelector('[data-action="add"]')?.addEventListener('click', () => this.onAddNew?.());
+      window.refreshIcons?.(this.root);
     } catch (err) {
-      this.dropdown.innerHTML = `<div class="search-item error">${escapeHtml(err.message)}</div>`;
+      this.listEl.innerHTML = `<div class="search-item error">${escapeHtml(err.message)}</div>`;
     }
   }
 

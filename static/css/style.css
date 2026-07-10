@@ -1215,10 +1215,9 @@ input:focus, select:focus, textarea:focus {
 
 .booking-drawer-header {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 24px 28px 16px;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 28px 16px;
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
@@ -1226,7 +1225,30 @@ input:focus, select:focus, textarea:focus {
   z-index: 2;
 }
 
+.booking-drawer-header-center {
+  flex: 1;
+  min-width: 0;
+}
+
+.booking-drawer-back {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+}
+
 .booking-drawer-header h2 { margin: 0 0 4px; font-size: 22px; }
+
+.booking-drawer-sub {
+  margin: 0;
+  font-size: 13px;
+}
+
+#bkConfirmBtn.is-loading {
+  opacity: 0.85;
+  pointer-events: none;
+}
 
 .booking-steps {
   display: flex;
@@ -1343,9 +1365,46 @@ input:focus, select:focus, textarea:focus {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-lg);
-  max-height: 260px;
+  max-height: 320px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  z-index: 50;
+}
+
+.customer-dropdown-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 8px;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.customer-add-new-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--primary);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.customer-add-new-primary:hover {
+  background: color-mix(in srgb, var(--primary) 88%, #000);
+}
+
+.customer-dropdown-list {
   overflow-y: auto;
-  z-index: 20;
+  max-height: 240px;
 }
 
 .search-item {

@@ -6,6 +6,7 @@ import csv
 from io import StringIO, BytesIO
 from datetime import datetime, date, timedelta
 from functools import wraps
+import contextlib
 from werkzeug.middleware.proxy_fix import ProxyFix
 import uuid
 
@@ -99,6 +100,12 @@ RS_STATUSES = ["Pending", "In Progress", "Completed", "Cancelled"]
 ID_PROOF_TYPES = ["Aadhar", "Passport", "Driving License", "Voter ID", "PAN Card", "Other"]
 BOOKING_SOURCES = ["Walk-in", "Phone", "Website", "OTA", "Corporate", "Travel Agent", "Other"]
 UNAVAILABLE_ROOM_STATUSES = {"Maintenance", "Cleaning"}
+BLOCKING_BOOKING_STATUSES = ("Reserved", "Checked-in")
+OVERLAP_CONFLICT_MESSAGE = "This room is already booked for the selected dates."
+
+
+class BookingConflictError(Exception):
+    """Raised when a room is already booked for overlapping dates."""
 NOTIFICATION_TYPES = ("RED", "YELLOW", "GREEN", "BLUE", "ORANGE")
 NOTIFICATION_PRIORITY = {
     "RED": "urgent",
@@ -137,6 +144,100 @@ def query(sql, params=(), one=False, commit=False):
     rows = cur.fetchall()
     conn.close()
     return (rows[0] if rows else None) if one else rows
+
+
+@contextlib.contextmanager
+def db_transaction():
+    """SQLite IMMEDIATE transaction — serializes concurrent booking writes."""
+    conn = get_db()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def validate_booking_dates(checkin, checkout):
+    try:
+        ci = datetime.strptime(checkin, "%Y-%m-%d").date()
+        co = datetime.strptime(checkout, "%Y-%m-%d").date()
+    except ValueError:
+        return False, "Invalid date format."
+    if co <= ci:
+        return False, "Check-out must be after check-in."
+    return True, None
+
+
+def room_has_overlap(room_id, checkin, checkout, exclude_booking_id=None, conn=None):
+    """True if an active booking overlaps [checkin, checkout) for the room."""
+    sql = """
+        SELECT COUNT(*) c FROM bookings
+        WHERE room_id=?
+          AND status IN ('Reserved', 'Checked-in')
+          AND checkin < ? AND checkout > ?
+    """
+    params = [room_id, checkout, checkin]
+    if exclude_booking_id:
+        sql += " AND id != ?"
+        params.append(exclude_booking_id)
+    if conn:
+        row = conn.execute(sql, params).fetchone()
+        return row["c"] > 0
+    return query(sql, params, one=True)["c"] > 0
+
+
+def get_idempotent_booking(idem_key):
+    if not idem_key:
+        return None
+    row = query(
+        "SELECT booking_id FROM booking_idempotency WHERE idem_key=?",
+        (idem_key,),
+        one=True,
+    )
+    return row["booking_id"] if row else None
+
+
+def store_idempotent_booking(idem_key, booking_id, conn=None):
+    if not idem_key:
+        return
+    sql = "INSERT OR IGNORE INTO booking_idempotency(idem_key, booking_id, created_at) VALUES(?,?,?)"
+    params = (idem_key, booking_id, datetime.now().isoformat(timespec="seconds"))
+    if conn:
+        conn.execute(sql, params)
+    else:
+        query(sql, params, commit=True)
+
+
+def fetch_booking_detail(booking_id):
+    return query(
+        """
+        SELECT b.*, c.name customer_name, c.phone, r.room_no, r.room_type, r.price
+        FROM bookings b JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
+        WHERE b.id=?
+        """,
+        (booking_id,),
+        one=True,
+    )
+
+
+def create_booking_record(conn, *, customer_id, room_id, checkin, checkout, num_guests,
+                          adults, children, booking_source, special_request, total,
+                          payment_status, hid):
+    cur = conn.execute(
+        """INSERT INTO bookings(customer_id,room_id,checkin,checkout,num_guests,adults,children,
+           booking_source,special_request,total_amount,status,payment_status,notes,hotel_id)
+           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+        (
+            customer_id, room_id, checkin, checkout, num_guests, adults, children,
+            booking_source, special_request, total, "Reserved", payment_status,
+            special_request, hid,
+        ),
+    )
+    return cur.lastrowid
 
 
 def table_columns(table):
@@ -195,17 +296,9 @@ def receipt_number():
     return f"RCP-{datetime.now().strftime('%Y%m%d')}-{count + 1:04d}"
 
 
-def room_has_overlap(room_id, checkin, checkout, exclude_booking_id=None):
-    sql = """
-        SELECT COUNT(*) c FROM bookings
-        WHERE room_id=? AND status IN ('Reserved','Checked-in')
-        AND checkin < ? AND checkout > ?
-    """
-    params = [room_id, checkout, checkin]
-    if exclude_booking_id:
-        sql += " AND id != ?"
-        params.append(exclude_booking_id)
-    return query(sql, params, one=True)["c"] > 0
+def receipt_number_conn(conn):
+    count = conn.execute("SELECT COUNT(*) c FROM payments").fetchone()["c"]
+    return f"RCP-{datetime.now().strftime('%Y%m%d')}-{count + 1:04d}"
 
 
 def booking_service_charges(booking_id):
@@ -1104,6 +1197,31 @@ def migrate_db():
         commit=True,
     )
 
+    query(
+        """CREATE TABLE IF NOT EXISTS booking_idempotency(
+            idem_key TEXT PRIMARY KEY,
+            booking_id INTEGER NOT NULL,
+            created_at TEXT NOT NULL
+        )""",
+        commit=True,
+    )
+    query(
+        "CREATE INDEX IF NOT EXISTS idx_bookings_room_dates ON bookings(room_id, checkin, checkout)",
+        commit=True,
+    )
+    query(
+        "CREATE INDEX IF NOT EXISTS idx_bookings_hotel_status ON bookings(hotel_id, status)",
+        commit=True,
+    )
+    query(
+        "CREATE INDEX IF NOT EXISTS idx_bookings_checkin ON bookings(checkin)",
+        commit=True,
+    )
+    query(
+        "CREATE INDEX IF NOT EXISTS idx_bookings_checkout ON bookings(checkout)",
+        commit=True,
+    )
+
 
 def seed_db():
     """Seed multi-hotel demo data idempotently; always ensure super admin exists."""
@@ -1992,7 +2110,7 @@ def api_create_customer():
     hid = get_current_hotel_id()
     cid = query(
         """INSERT INTO customers(name,phone,email,address,id_proof_type,id_proof_number,gender,age,id_proof,emergency_contact,hotel_id)
-           VALUES(?,?,?,?,?,?,?,?,?,?)""",
+           VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
         (
             name,
             phone,
@@ -2124,6 +2242,24 @@ def api_housekeeping_list():
 @app.route("/api/bookings", methods=["POST"])
 def api_create_booking():
     data = request.get_json(silent=True) or {}
+    idem_key = (request.headers.get("Idempotency-Key") or data.get("idempotency_key") or "").strip()
+    existing_id = get_idempotent_booking(idem_key)
+    if existing_id:
+        booking = fetch_booking_detail(existing_id)
+        if booking:
+            total = float(booking["total_amount"] or 0)
+            paid = booking_paid_amount(existing_id)
+            return api_ok(
+                booking=booking_row_to_dict(booking),
+                summary={
+                    "nights": nights_between(booking["checkin"], booking["checkout"]),
+                    "total_amount": total,
+                    "advance_paid": paid,
+                    "balance": max(total - paid, 0),
+                },
+                duplicate=True,
+            )
+
     customer_id = data.get("customer_id")
     room_id = data.get("room_id")
     checkin = (data.get("checkin") or "").strip()
@@ -2139,11 +2275,9 @@ def api_create_booking():
     if not all([customer_id, room_id, checkin, checkout]):
         return api_error("Customer, room, check-in, and check-out are required.")
 
-    try:
-        if datetime.strptime(checkout, "%Y-%m-%d") <= datetime.strptime(checkin, "%Y-%m-%d"):
-            return api_error("Check-out must be after check-in.")
-    except ValueError:
-        return api_error("Invalid date format.")
+    ok, date_err = validate_booking_dates(checkin, checkout)
+    if not ok:
+        return api_error(date_err)
 
     hid = get_current_hotel_id()
     customer = scoped_customer(int(customer_id), hid)
@@ -2154,9 +2288,7 @@ def api_create_booking():
     if not room:
         return api_error("Room not found for this hotel.", 404)
     if room["status"] in UNAVAILABLE_ROOM_STATUSES:
-        return api_error(f"Room {room['room_no']} is not available ({room['status']}).")
-    if room_has_overlap(int(room_id), checkin, checkout):
-        return api_error("Room is already booked for overlapping dates.")
+        return api_error(f"Room {room['room_no']} is not available ({room['status']}).", 409)
     if num_guests > room["capacity"]:
         return api_error(f"Room capacity is {room['capacity']} guests.")
 
@@ -2167,58 +2299,49 @@ def api_create_booking():
     elif advance_amount > 0:
         payment_status = "Partial"
 
-    bid = query(
-        """INSERT INTO bookings(customer_id,room_id,checkin,checkout,num_guests,adults,children,
-           booking_source,special_request,total_amount,status,payment_status,notes,hotel_id)
-           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-        (
-            customer_id,
-            room_id,
-            checkin,
-            checkout,
-            num_guests,
-            adults,
-            children,
-            booking_source,
-            special_request,
-            total,
-            "Reserved",
-            payment_status,
-            special_request,
-            hid,
-        ),
-        commit=True,
-    )
+    try:
+        with db_transaction() as conn:
+            if room_has_overlap(int(room_id), checkin, checkout, conn=conn):
+                raise BookingConflictError()
+            bid = create_booking_record(
+                conn,
+                customer_id=customer_id,
+                room_id=room_id,
+                checkin=checkin,
+                checkout=checkout,
+                num_guests=num_guests,
+                adults=adults,
+                children=children,
+                booking_source=booking_source,
+                special_request=special_request,
+                total=total,
+                payment_status=payment_status,
+                hid=hid,
+            )
+            if advance_amount > 0:
+                conn.execute(
+                    """INSERT INTO payments(booking_id,amount,payment_mode,receipt_number,payment_date,notes)
+                       VALUES(?,?,?,?,?,?)""",
+                    (
+                        bid,
+                        advance_amount,
+                        payment_mode,
+                        receipt_number_conn(conn),
+                        datetime.now().strftime("%Y-%m-%d %H:%M"),
+                        "Advance payment at booking",
+                    ),
+                )
+            conn.execute("UPDATE rooms SET status='Reserved' WHERE id=?", (room_id,))
+            store_idempotent_booking(idem_key, bid, conn=conn)
+    except BookingConflictError:
+        return api_error(OVERLAP_CONFLICT_MESSAGE, 409)
+    except sqlite3.OperationalError:
+        return api_error("Could not save booking. Please try again.", 503)
 
-    if advance_amount > 0:
-        query(
-            """INSERT INTO payments(booking_id,amount,payment_mode,receipt_number,payment_date,notes)
-               VALUES(?,?,?,?,?,?)""",
-            (
-                bid,
-                advance_amount,
-                payment_mode,
-                receipt_number(),
-                datetime.now().strftime("%Y-%m-%d %H:%M"),
-                "Advance payment at booking",
-            ),
-            commit=True,
-        )
-        update_booking_payment_status(bid)
-
-    query("UPDATE rooms SET status='Reserved' WHERE id=?", (room_id,), commit=True)
-
+    update_booking_payment_status(bid)
     sync_notifications_from_data(get_current_hotel_id())
 
-    booking = query(
-        """
-        SELECT b.*, c.name customer_name, c.phone, r.room_no, r.room_type, r.price
-        FROM bookings b JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
-        WHERE b.id=?
-        """,
-        (bid,),
-        one=True,
-    )
+    booking = fetch_booking_detail(bid)
     paid = booking_paid_amount(bid)
     return api_ok(
         booking=booking_row_to_dict(booking),
@@ -2229,6 +2352,62 @@ def api_create_booking():
             "balance": max(total - paid, 0),
         },
     )
+
+
+@app.route("/api/bookings/<int:booking_id>", methods=["PATCH", "PUT"])
+def api_update_booking(booking_id):
+    data = request.get_json(silent=True) or {}
+    booking = scoped_booking(booking_id)
+    if not booking:
+        return api_error("Booking not found.", 404)
+
+    if booking["status"] in ("Cancelled",):
+        return api_error("Cancelled bookings cannot be modified.", 400)
+
+    checkin = (data.get("checkin") or booking["checkin"] or "").strip()
+    checkout = (data.get("checkout") or booking["checkout"] or "").strip()
+    room_id = int(data.get("room_id") or booking["room_id"])
+    customer_id = int(data.get("customer_id") or booking["customer_id"])
+    num_guests = int(data.get("num_guests") or booking["num_guests"] or 1)
+    status = data.get("status") or booking["status"]
+
+    ok, date_err = validate_booking_dates(checkin, checkout)
+    if not ok:
+        return api_error(date_err)
+
+    hid = get_current_hotel_id()
+    room = scoped_room(room_id, hid)
+    if not room:
+        return api_error("Room not found for this hotel.", 404)
+    if room["status"] in UNAVAILABLE_ROOM_STATUSES and room_id != booking["room_id"]:
+        return api_error(f"Room {room['room_no']} is not available ({room['status']}).", 409)
+    if num_guests > room["capacity"]:
+        return api_error(f"Room capacity is {room['capacity']} guests.")
+
+    total = calc_room_charges(room["price"], checkin, checkout)
+
+    try:
+        with db_transaction() as conn:
+            if room_has_overlap(room_id, checkin, checkout, exclude_booking_id=booking_id, conn=conn):
+                raise BookingConflictError()
+            conn.execute(
+                """UPDATE bookings SET customer_id=?, room_id=?, checkin=?, checkout=?,
+                   num_guests=?, status=?, total_amount=? WHERE id=?""",
+                (customer_id, room_id, checkin, checkout, num_guests, status, total, booking_id),
+            )
+    except BookingConflictError:
+        return api_error(OVERLAP_CONFLICT_MESSAGE, 409)
+    except sqlite3.OperationalError:
+        return api_error("Could not update booking. Please try again.", 503)
+
+    update_booking_payment_status(booking_id)
+    sync_room_status_from_bookings(room_id)
+    if room_id != booking["room_id"]:
+        sync_room_status_from_bookings(booking["room_id"])
+    sync_notifications_from_data(hid)
+
+    updated = fetch_booking_detail(booking_id)
+    return api_ok(booking=booking_row_to_dict(updated))
 
 
 # ─── Bookings ────────────────────────────────────────────────────────────────
@@ -2263,6 +2442,7 @@ def bookings():
         booking_source=f["booking_source"], checkin_from=f["checkin_from"], checkin_to=f["checkin_to"],
         checkout_from=f["checkout_from"], checkout_to=f["checkout_to"],
         amount_min=f["amount_min"], amount_max=f["amount_max"],
+        history_filter=f["history"],
         new_customer=new_customer,
     )
 
@@ -2294,7 +2474,7 @@ def add_booking():
         return redirect(url_for("bookings"))
 
     if room_has_overlap(int(room_id), checkin, checkout):
-        flash("Room is already booked for overlapping dates.", "danger")
+        flash(OVERLAP_CONFLICT_MESSAGE, "danger")
         return redirect(url_for("bookings"))
 
     if num_guests > room["capacity"]:
@@ -2302,19 +2482,30 @@ def add_booking():
         return redirect(url_for("bookings"))
 
     total = calc_room_charges(room["price"], checkin, checkout)
-    bid = query(
-        """INSERT INTO bookings(customer_id,room_id,checkin,checkout,num_guests,total_amount,status,payment_status,hotel_id)
-           VALUES(?,?,?,?,?,?,?,?,?)""",
-        (customer_id, room_id, checkin, checkout, num_guests, total, "Reserved", "Pending", hid),
-        commit=True,
-    )
+    try:
+        with db_transaction() as conn:
+            if room_has_overlap(int(room_id), checkin, checkout, conn=conn):
+                raise BookingConflictError()
+            cur = conn.execute(
+                """INSERT INTO bookings(customer_id,room_id,checkin,checkout,num_guests,total_amount,status,payment_status,hotel_id)
+                   VALUES(?,?,?,?,?,?,?,?,?)""",
+                (customer_id, room_id, checkin, checkout, num_guests, total, "Reserved", "Pending", hid),
+            )
+            bid = cur.lastrowid
+            for gn in request.form.getlist("guest_name"):
+                if gn.strip():
+                    conn.execute(
+                        "INSERT INTO guests(customer_id,booking_id,name) VALUES(?,?,?)",
+                        (customer_id, bid, gn.strip()),
+                    )
+            conn.execute("UPDATE rooms SET status='Reserved' WHERE id=?", (room_id,))
+    except BookingConflictError:
+        flash(OVERLAP_CONFLICT_MESSAGE, "danger")
+        return redirect(url_for("bookings"))
+    except sqlite3.OperationalError:
+        flash("Could not save booking. Please try again.", "danger")
+        return redirect(url_for("bookings"))
 
-    for gn in request.form.getlist("guest_name"):
-        if gn.strip():
-            query("INSERT INTO guests(customer_id,booking_id,name) VALUES(?,?,?)",
-                  (customer_id, bid, gn.strip()), commit=True)
-
-    query("UPDATE rooms SET status='Reserved' WHERE id=?", (room_id,), commit=True)
     sync_notifications_from_data(get_current_hotel_id())
     flash("Booking created successfully.", "success")
     return redirect(url_for("bookings"))
@@ -2330,16 +2521,40 @@ def update_booking(booking_id):
     checkout = request.form["checkout"]
     room_id = int(request.form["room_id"])
 
-    if room_has_overlap(room_id, checkin, checkout, exclude_booking_id=booking_id):
-        flash("Room is already booked for overlapping dates.", "danger")
+    ok, date_err = validate_booking_dates(checkin, checkout)
+    if not ok:
+        flash(date_err, "danger")
         return redirect(url_for("bookings"))
 
-    room = query("SELECT price FROM rooms WHERE id=?", (room_id,), one=True)
+    hid = get_current_hotel_id()
+    room = scoped_room(room_id, hid)
+    if not room:
+        flash("Room not found for this hotel.", "danger")
+        return redirect(url_for("bookings"))
+
+    if room_has_overlap(room_id, checkin, checkout, exclude_booking_id=booking_id):
+        flash(OVERLAP_CONFLICT_MESSAGE, "danger")
+        return redirect(url_for("bookings"))
+
     total = calc_room_charges(room["price"], checkin, checkout)
-    query("""UPDATE bookings SET customer_id=?, room_id=?, checkin=?, checkout=?,
-             num_guests=?, status=?, total_amount=? WHERE id=?""",
-          (request.form["customer_id"], room_id, checkin, checkout,
-           int(request.form.get("num_guests") or 1), request.form["status"], total, booking_id), commit=True)
+    try:
+        with db_transaction() as conn:
+            if room_has_overlap(room_id, checkin, checkout, exclude_booking_id=booking_id, conn=conn):
+                raise BookingConflictError()
+            conn.execute(
+                """UPDATE bookings SET customer_id=?, room_id=?, checkin=?, checkout=?,
+                   num_guests=?, status=?, total_amount=? WHERE id=?""",
+                (
+                    request.form["customer_id"], room_id, checkin, checkout,
+                    int(request.form.get("num_guests") or 1), request.form["status"], total, booking_id,
+                ),
+            )
+    except BookingConflictError:
+        flash(OVERLAP_CONFLICT_MESSAGE, "danger")
+        return redirect(url_for("bookings"))
+    except sqlite3.OperationalError:
+        flash("Could not update booking. Please try again.", "danger")
+        return redirect(url_for("bookings"))
     update_booking_payment_status(booking_id)
     sync_room_status_from_bookings(room_id)
     sync_notifications_from_data(get_current_hotel_id())
