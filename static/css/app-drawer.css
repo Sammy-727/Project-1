@@ -89,11 +89,32 @@
 }
 
 .booking-drawer-host .booking-drawer-header {
-  display: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0 16px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.booking-drawer-host .booking-drawer-header-center {
+  flex: 1;
+  min-width: 0;
+}
+
+.booking-drawer-host .booking-drawer-header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.booking-drawer-host .booking-drawer-sub {
+  margin: 2px 0 0;
+  font-size: 12px;
 }
 
 .booking-drawer-host .drawer-close {
-  display: none;
+  display: inline-flex;
+  flex-shrink: 0;
 }
 
 .search-result-card {

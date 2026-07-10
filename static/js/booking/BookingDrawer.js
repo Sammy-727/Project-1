@@ -1,4 +1,4 @@
-import { createBooking } from './api.js';
+import { createBooking, getAvailableRooms } from './api.js';
 import { CustomerSearchSelect } from './CustomerSearchSelect.js';
 import { AddCustomerModal } from './AddCustomerModal.js';
 import { AvailableRoomPicker } from './AvailableRoomPicker.js';
@@ -10,7 +10,7 @@ const STEPS = [
   { id: 2, label: 'Dates & Guests' },
   { id: 3, label: 'Room' },
   { id: 4, label: 'Payment' },
-  { id: 5, label: 'Confirm' },
+  { id: 5, label: 'Review' },
 ];
 
 export class BookingDrawer {
@@ -23,6 +23,7 @@ export class BookingDrawer {
     this.step = 1;
     this.state = this.defaultState();
     this.submitting = false;
+    this.idempotencyKey = null;
     this.render();
     this.mountComponents();
     this.bind();
@@ -52,9 +53,12 @@ export class BookingDrawer {
 
     this.drawer.innerHTML = `
       <div class="booking-drawer-header">
-        <div>
+        <button type="button" class="btn btn-ghost btn-sm booking-drawer-back" id="bkBackHeaderBtn" hidden aria-label="Go back">
+          <i data-lucide="arrow-left" class="icon"></i> Back
+        </button>
+        <div class="booking-drawer-header-center">
           <h2>New Booking</h2>
-          <p class="text-muted">Fast front-desk booking workflow</p>
+          <p class="text-muted booking-drawer-sub">Fast front-desk booking workflow</p>
         </div>
         <button type="button" class="modal-close drawer-close" aria-label="Close">✕</button>
       </div>
@@ -99,7 +103,9 @@ export class BookingDrawer {
       <div class="booking-drawer-footer">
         <button type="button" class="btn btn-secondary" id="bkPrevBtn" hidden>Back</button>
         <button type="button" class="btn btn-primary" id="bkNextBtn">Continue</button>
-        <button type="button" class="btn btn-success" id="bkConfirmBtn" hidden>Confirm Booking</button>
+        <button type="button" class="btn btn-success" id="bkConfirmBtn" hidden>
+          <span class="bk-confirm-label">Confirm Booking</span>
+        </button>
       </div>
 
       <div class="modal" id="inlineAddCustomerModal"></div>
@@ -107,9 +113,11 @@ export class BookingDrawer {
 
     this.stepsEl = this.drawer.querySelector('#bookingSteps');
     this.errorEl = this.drawer.querySelector('#bookingStepError');
+    this.backHeaderBtn = this.drawer.querySelector('#bkBackHeaderBtn');
     this.prevBtn = this.drawer.querySelector('#bkPrevBtn');
     this.nextBtn = this.drawer.querySelector('#bkNextBtn');
     this.confirmBtn = this.drawer.querySelector('#bkConfirmBtn');
+    this.confirmLabel = this.drawer.querySelector('.bk-confirm-label');
     this.panels = this.drawer.querySelectorAll('.booking-step-panel');
     this.renderSteps();
   }
@@ -161,7 +169,9 @@ export class BookingDrawer {
 
   bind() {
     this.drawer.querySelector('.drawer-close').addEventListener('click', () => this.close());
-    this.prevBtn.addEventListener('click', () => this.goStep(this.step - 1));
+    const goBack = () => this.goStep(this.step - 1);
+    this.prevBtn.addEventListener('click', goBack);
+    this.backHeaderBtn.addEventListener('click', goBack);
     this.nextBtn.addEventListener('click', () => this.next());
     this.confirmBtn.addEventListener('click', () => this.submit());
 
@@ -196,18 +206,25 @@ export class BookingDrawer {
     this.panels.forEach((p) => {
       p.hidden = Number(p.dataset.step) !== this.step;
     });
-    this.prevBtn.hidden = this.step === 1;
+    const showBack = this.step > 1;
+    this.prevBtn.hidden = !showBack;
+    this.backHeaderBtn.hidden = !showBack;
     this.nextBtn.hidden = this.step === 5;
     this.confirmBtn.hidden = this.step !== 5;
     this.errorEl.hidden = true;
+    window.refreshIcons?.(this.drawer);
   }
 
   async open(options = {}) {
     this.step = 1;
     this.state = this.defaultState();
+    this.submitting = false;
+    this.idempotencyKey = crypto.randomUUID?.() || `bk-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     this.customerSearch.clear();
     this.roomPicker.selected = null;
+    this.state.room = null;
     this.paymentStep.advanceInput.value = 0;
+    this.setConfirmLoading(false);
     this.renderSteps();
     if (options.customerId) {
       await this.customerSearch.selectById(options.customerId);
@@ -231,6 +248,14 @@ export class BookingDrawer {
   showError(msg) {
     this.errorEl.textContent = msg;
     this.errorEl.hidden = false;
+  }
+
+  setConfirmLoading(loading) {
+    this.confirmBtn.disabled = loading;
+    this.confirmBtn.classList.toggle('is-loading', loading);
+    if (this.confirmLabel) {
+      this.confirmLabel.textContent = loading ? 'Creating...' : 'Confirm Booking';
+    }
   }
 
   readDatesStep() {
@@ -280,11 +305,17 @@ export class BookingDrawer {
     if (this.step === 2) {
       this.readDatesStep();
       const guests = this.state.adults + this.state.children;
+      const prevRoomId = this.state.room?.id;
       await this.roomPicker.load({
         checkin: this.state.checkin,
         checkout: this.state.checkout,
         guests,
       });
+      if (prevRoomId && this.roomPicker.rooms.some((r) => r.id === prevRoomId)) {
+        this.roomPicker.select(prevRoomId);
+        this.state.room = this.roomPicker.getValue();
+        this.updateTotals();
+      }
     }
     if (this.step === 3) this.updateTotals();
     if (this.step === 4) this.renderSummary();
@@ -316,6 +347,24 @@ export class BookingDrawer {
     });
   }
 
+  async verifyRoomStillAvailable() {
+    const guests = this.state.adults + this.state.children;
+    const { rooms } = await getAvailableRooms(this.state.checkin, this.state.checkout, guests);
+    const still = rooms.some((r) => r.id === this.state.room?.id);
+    if (!still) {
+      this.showError('This room is no longer available for the selected dates. Please choose another room.');
+      await this.roomPicker.load({
+        checkin: this.state.checkin,
+        checkout: this.state.checkout,
+        guests,
+      });
+      this.state.room = null;
+      this.goStep(3);
+      return false;
+    }
+    return true;
+  }
+
   async submit() {
     if (this.submitting) return;
     const err = this.validateStep();
@@ -324,9 +373,11 @@ export class BookingDrawer {
       return;
     }
     this.submitting = true;
-    this.confirmBtn.disabled = true;
-    this.confirmBtn.textContent = 'Creating...';
+    this.setConfirmLoading(true);
     try {
+      const available = await this.verifyRoomStillAvailable();
+      if (!available) return;
+
       const payload = {
         customer_id: this.state.customer.id,
         room_id: this.state.room.id,
@@ -340,16 +391,28 @@ export class BookingDrawer {
         advance_amount: this.state.advance_amount,
         payment_mode: this.state.payment_mode,
       };
-      await createBooking(payload);
+      await createBooking(payload, this.idempotencyKey);
       this.close();
       window.showToast?.('Booking created successfully.', 'success');
       this.onSuccess?.();
     } catch (e) {
-      this.showError(e.message);
+      const msg = e.message || 'Could not create booking.';
+      if (e.status === 409) {
+        this.showError(msg);
+        const guests = this.state.adults + this.state.children;
+        await this.roomPicker.load({
+          checkin: this.state.checkin,
+          checkout: this.state.checkout,
+          guests,
+        });
+        this.state.room = null;
+        this.goStep(3);
+      } else {
+        this.showError(msg);
+      }
     } finally {
       this.submitting = false;
-      this.confirmBtn.disabled = false;
-      this.confirmBtn.textContent = 'Confirm Booking';
+      this.setConfirmLoading(false);
     }
   }
 }

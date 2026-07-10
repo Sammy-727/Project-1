@@ -1,4 +1,5 @@
 import { calendarColor, escapeHtml } from './BookingActions.js';
+import { updateBooking } from '../api.js';
 
 export class BookingCalendarView {
   constructor(mount, store) {
@@ -62,8 +63,31 @@ export class BookingCalendarView {
         }
       },
       editable: canDrag,
-      eventDrop: () => {
-        window.showToast?.('Drag to reschedule will be available in a future update.', 'warning');
+      eventDrop: async (info) => {
+        const booking = info.event.extendedProps.booking;
+        if (!booking) {
+          info.revert();
+          return;
+        }
+        const checkin = info.event.startStr?.slice(0, 10);
+        let checkout = info.event.endStr?.slice(0, 10);
+        if (!checkin || !checkout) {
+          info.revert();
+          return;
+        }
+        if (checkout <= checkin) {
+          const end = new Date(checkin);
+          end.setDate(end.getDate() + 1);
+          checkout = end.toISOString().slice(0, 10);
+        }
+        try {
+          await updateBooking(booking.id, { checkin, checkout });
+          window.showToast?.('Booking dates updated.', 'success');
+          await window.bookingModule?.refresh?.();
+        } catch (e) {
+          info.revert();
+          window.showToast?.(e.message || 'Could not reschedule booking.', 'danger');
+        }
       },
     });
     this.calendar.render();

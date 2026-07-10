@@ -89,6 +89,7 @@ const FilterUI = {
       stock_status: 'Stock', supplier: 'Supplier', shift: 'Shift', priority: 'Priority',
       request_type: 'Type', payment_mode: 'Mode', booking_id: 'Booking ID',
       amount_min: 'Min amount', amount_max: 'Max amount', price_min: 'Min price', price_max: 'Max price',
+      history: 'History',
       email: 'Email', id_proof_type: 'ID type', assigned_to: 'Staff',
     };
     params.forEach((value, key) => {
