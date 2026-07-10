@@ -78,7 +78,7 @@ function hasWizardBack() {
 }
 
 function shouldShowBack() {
-  return hasWizardBack() || nav.canGoBack();
+  return isOpen();
 }
 
 function updateHeader() {
@@ -102,15 +102,15 @@ function showLoadingBody() {
 async function checkDirtyForEntry(entry) {
   if (!entry) return false;
   if (typeof entry.dirty === 'function' && entry.dirty()) {
-    const choice = await confirmDiscard();
+    const choice = await confirmDiscard('Discard unsaved changes?');
     return choice !== 'discard';
   }
   if (entry.kind === 'form' && isFormDirty(body())) {
-    const choice = await confirmDiscard();
+    const choice = await confirmDiscard('Discard unsaved changes?');
     return choice !== 'discard';
   }
   if (entry.kind === 'booking' && bookingDrawerInstance?.isDirty?.()) {
-    const choice = await confirmDiscard();
+    const choice = await confirmDiscard('Discard unsaved changes?');
     return choice !== 'discard';
   }
   return false;

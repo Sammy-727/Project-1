@@ -1,4 +1,4 @@
-/* Global app shell drawer — slides over current page */
+/* Drawer + page navigation — always-visible Back button */
 
 .app-shell-drawer {
   position: fixed;
@@ -23,40 +23,97 @@
   transform: translateX(0);
 }
 
-/* ─── Sticky drawer header: Back | Title | Close ─── */
+.app-shell-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 18px;
+  -webkit-overflow-scrolling: touch;
+}
 
-.app-shell-drawer-head {
+.app-shell-drawer-body .page-header,
+.app-shell-drawer-body .breadcrumb {
+  display: none;
+}
+
+.app-drawer-loading {
+  padding: 8px 0;
+}
+
+body.app-drawer-open {
+  overflow: hidden;
+}
+
+.drawer-backdrop.show {
+  animation: backdropIn 0.25s ease;
+}
+
+@media (max-width: 768px) {
+  .app-shell-drawer {
+    width: 100vw;
+  }
+}
+
+@media (min-width: 1200px) {
+  .app-shell-drawer {
+    width: min(520px, 42vw);
+  }
+}
+
+.app-shell-drawer-head,
+.drawer-header {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: minmax(88px, auto) 1fr 40px;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   padding: 12px 16px;
-  border-bottom: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   background: var(--bg-elevated);
   position: sticky;
   top: 0;
-  z-index: 3;
+  z-index: 50;
   min-height: 56px;
 }
 
-.drawer-nav-back {
-  display: inline-flex;
+.nav-back-btn,
+.drawer-nav-back,
+.page-nav-back {
+  display: inline-flex !important;
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
   white-space: nowrap;
   font-weight: 600;
-  color: var(--text-muted);
+  font-size: 13px;
+  color: var(--text);
+  visibility: visible !important;
+  opacity: 1 !important;
+  min-width: 72px;
+  padding: 6px 10px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background: var(--bg-subtle);
 }
 
-.drawer-nav-back:hover {
+.nav-back-btn:hover,
+.drawer-nav-back:hover,
+.page-nav-back:hover {
+  background: var(--border-light);
   color: var(--text);
+}
+
+.nav-back-btn .icon,
+.drawer-nav-back .icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
 }
 
 .drawer-nav-title-wrap {
   min-width: 0;
   text-align: center;
+  padding: 0 4px;
 }
 
 .drawer-nav-title-wrap h2,
@@ -93,7 +150,6 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .app-shell-drawer-close:hover,
@@ -102,63 +158,57 @@
   color: var(--text);
 }
 
-.app-shell-drawer-body {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 18px;
-  -webkit-overflow-scrolling: touch;
+/* Full-page nav bar — below topbar, above breadcrumbs */
+.page-nav-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0 14px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border-light);
 }
 
-/* Hide duplicate close buttons copied into drawer body */
+.page-nav-title-wrap {
+  min-width: 0;
+  flex: 1;
+}
+
+.page-nav-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.page-nav-subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+}
+
+body.has-page-nav-bar .page-header .page-title {
+  display: none;
+}
+
+body.has-page-nav-bar .page-header .page-description {
+  margin-top: 0;
+}
+
 .app-shell-drawer-body > .drawer-close,
 .app-shell-drawer-body > .modal-close,
 .app-shell-drawer-body .detail-drawer > .drawer-close:first-child {
   display: none !important;
 }
 
-.app-shell-drawer-body .page-header,
-.app-shell-drawer-body .breadcrumb {
-  display: none;
-}
-
-.app-shell-drawer-body .list-filter-shell {
-  margin-bottom: 12px;
-}
-
-.app-shell-drawer-body .entity-grid {
-  grid-template-columns: 1fr;
-}
-
-.app-drawer-loading {
-  padding: 8px 0;
-}
-
-/* Embedded booking wizard — shell header owns navigation */
 .booking-drawer-host .booking-drawer-header-embedded {
-  display: none;
+  display: none !important;
 }
 
 .booking-drawer-host .booking-drawer-footer #bkPrevBtn {
   display: none;
 }
 
-.search-result-card {
-  width: 100%;
-  text-align: left;
-  border: 1px solid var(--border-light);
-  cursor: pointer;
-}
-
-body.app-drawer-open {
-  overflow: hidden;
-}
-
-.drawer-backdrop.show {
-  animation: backdropIn 0.25s ease;
-}
-
-/* Unsaved changes dialog */
+/* Unsaved dialog */
 .nav-discard-dialog {
   position: fixed;
   inset: 0;
@@ -194,130 +244,22 @@ body.app-drawer-open {
   font-size: 18px;
 }
 
-.nav-discard-panel p {
-  margin: 0 0 18px;
-  font-size: 14px;
-}
-
 .nav-discard-actions {
   display: flex;
   gap: 10px;
   justify-content: flex-end;
   flex-wrap: wrap;
+  margin-top: 16px;
 }
 
-/* Full-page screen navigation */
-.screen-nav-bar {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.screen-nav-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: 600;
-  color: var(--text-muted);
-}
-
-.screen-nav-back:hover {
-  color: var(--text);
-}
-
-.screen-nav-title h1 {
-  margin: 0;
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-
-.screen-nav-title p {
-  margin: 4px 0 0;
-  font-size: 13px;
-}
-
-.page-header.screen-nav-header {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 12px;
-}
-
-.page-header.screen-nav-header .page-header-text {
-  min-width: 0;
-}
-
-.page-header.screen-nav-header .page-title {
-  margin: 0;
-}
-
-.page-header.screen-nav-header .page-description {
-  margin: 4px 0 0;
-}
-
-.page-header.screen-nav-header .screen-nav-back {
-  grid-column: 1;
-  grid-row: 1;
-}
-
-.page-header.screen-nav-header .page-header-text {
-  grid-column: 2;
-  grid-row: 1;
-}
-
-.page-header.screen-nav-header .page-header-actions {
-  grid-column: 3;
-  grid-row: 1;
-}
-
-/* Notification drawer header alignment */
-.notification-drawer-head {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 10px;
-}
-
-.notification-drawer-head h2 {
-  margin: 0;
-  min-width: 0;
-  font-size: 16px;
-}
-
-.notification-drawer-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-@media (max-width: 768px) {
-  .app-shell-drawer {
-    width: 100vw;
+@media (max-width: 480px) {
+  .nav-back-label {
+    display: inline;
   }
 
-  .drawer-nav-back .icon + *,
-  .drawer-nav-back {
-    font-size: 13px;
+  .app-shell-drawer-head,
+  .drawer-header {
+    grid-template-columns: minmax(72px, auto) 1fr 36px;
+    padding: 10px 12px;
   }
-}
-
-@media (min-width: 1200px) {
-  .app-shell-drawer {
-    width: min(520px, 42vw);
-  }
-}
-
-button.dash-activity-item,
-button.ops-queue-item {
-  width: 100%;
-  text-align: left;
-  border: none;
-  background: transparent;
-  font: inherit;
-  color: inherit;
-  cursor: pointer;
 }

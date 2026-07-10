@@ -1,6 +1,8 @@
 /**
  * Reusable drawer header: Back | Title | Close
  */
+import { BackButton } from './BackButton.js';
+
 export class DrawerHeader {
   constructor(rootEl, { onBack, onClose }) {
     this.root = rootEl;
@@ -11,30 +13,41 @@ export class DrawerHeader {
   }
 
   render() {
-    this.root.innerHTML = `
-      <button type="button" class="drawer-nav-back btn btn-ghost btn-sm" aria-label="Go back" hidden>
-        <i data-lucide="arrow-left" class="icon"></i> Back
-      </button>
-      <div class="drawer-nav-title-wrap">
-        <h2 id="appShellDrawerTitle"></h2>
-        <p class="drawer-nav-subtitle text-muted" hidden></p>
-      </div>
-      <button type="button" class="app-shell-drawer-close drawer-nav-close" aria-label="Close panel">
-        <i data-lucide="x" class="icon"></i>
-      </button>`;
+    this.root.innerHTML = '';
+    this.root.className = 'app-shell-drawer-head drawer-header';
 
-    this.backBtn = this.root.querySelector('.drawer-nav-back');
-    this.titleEl = this.root.querySelector('#appShellDrawerTitle');
-    this.subtitleEl = this.root.querySelector('.drawer-nav-subtitle');
-    this.closeBtn = this.root.querySelector('.app-shell-drawer-close');
+    this.backBtn = BackButton({
+      className: 'drawer-nav-back nav-back-btn btn btn-ghost btn-sm',
+      onClick: () => this.onBack?.(),
+    });
+
+    const titleWrap = document.createElement('div');
+    titleWrap.className = 'drawer-nav-title-wrap';
+    titleWrap.innerHTML = `
+      <h2 id="appShellDrawerTitle"></h2>
+      <p class="drawer-nav-subtitle text-muted" hidden></p>`;
+
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'app-shell-drawer-close drawer-nav-close';
+    closeBtn.setAttribute('aria-label', 'Close panel');
+    closeBtn.innerHTML = '<i data-lucide="x" class="icon"></i>';
+
+    this.root.appendChild(this.backBtn);
+    this.root.appendChild(titleWrap);
+    this.root.appendChild(closeBtn);
+
+    this.titleEl = titleWrap.querySelector('#appShellDrawerTitle');
+    this.subtitleEl = titleWrap.querySelector('.drawer-nav-subtitle');
+    this.closeBtn = closeBtn;
+    window.refreshIcons?.(this.root);
   }
 
   bind() {
-    this.backBtn?.addEventListener('click', () => this.onBack?.());
     this.closeBtn?.addEventListener('click', () => this.onClose?.());
   }
 
-  update({ title = '', subtitle = '', showBack = false } = {}) {
+  update({ title = '', subtitle = '', showBack = true } = {}) {
     if (this.titleEl) this.titleEl.textContent = title;
     if (this.subtitleEl) {
       if (subtitle) {
@@ -45,7 +58,11 @@ export class DrawerHeader {
         this.subtitleEl.textContent = '';
       }
     }
-    if (this.backBtn) this.backBtn.hidden = !showBack;
+    if (this.backBtn) {
+      this.backBtn.style.display = showBack ? 'inline-flex' : 'none';
+      this.backBtn.hidden = false;
+      this.backBtn.removeAttribute('hidden');
+    }
     window.refreshIcons?.(this.root);
   }
 
@@ -54,12 +71,7 @@ export class DrawerHeader {
   }
 }
 
-export function createBackButton({ onClick, className = 'drawer-nav-back btn btn-ghost btn-sm' } = {}) {
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = className;
-  btn.setAttribute('aria-label', 'Go back');
-  btn.innerHTML = '<i data-lucide="arrow-left" class="icon"></i> Back';
-  btn.addEventListener('click', () => onClick?.());
-  return btn;
+/** @deprecated use BackButton */
+export function createBackButton(opts) {
+  return BackButton(opts);
 }

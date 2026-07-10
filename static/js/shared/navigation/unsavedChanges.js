@@ -8,11 +8,11 @@ function ensureDialog() {
   dialogEl.innerHTML = `
     <div class="nav-discard-backdrop" data-nav-discard-dismiss></div>
     <div class="nav-discard-panel" role="dialog" aria-modal="true" aria-labelledby="navDiscardTitle">
-      <h3 id="navDiscardTitle">Discard your changes?</h3>
+      <h3 id="navDiscardTitle">Discard unsaved changes?</h3>
       <p class="text-muted">You have unsaved changes. If you leave now, your edits will be lost.</p>
       <div class="nav-discard-actions">
         <button type="button" class="btn btn-secondary" data-nav-discard-continue>Continue Editing</button>
-        <button type="button" class="btn btn-danger" data-nav-discard-confirm>Discard &amp; Go Back</button>
+        <button type="button" class="btn btn-danger" data-nav-discard-confirm>Discard and Go Back</button>
       </div>
     </div>`;
   document.body.appendChild(dialogEl);

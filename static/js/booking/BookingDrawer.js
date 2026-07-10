@@ -241,6 +241,37 @@ export class BookingDrawer {
       await this.customerSearch.selectById(options.customerId);
       this.state.customer = this.customerSearch.getValue();
     }
+    if (options.checkin) {
+      this.checkinInput.value = options.checkin;
+      this.checkoutInput.min = options.checkin;
+    }
+    if (options.checkout) {
+      this.checkoutInput.value = options.checkout;
+    }
+    if (options.checkin && options.checkout) {
+      this.readDatesStep();
+      const guests = this.state.adults + this.state.children;
+      await this.roomPicker.load({
+        checkin: options.checkin,
+        checkout: options.checkout,
+        guests,
+      });
+      if (options.roomNo) {
+        const match = this.roomPicker.rooms.find((r) => String(r.room_no) === String(options.roomNo));
+        if (match) {
+          this.roomPicker.select(match.id);
+          this.state.room = match;
+          this.updateTotals();
+        }
+      }
+      if (options.customerId && this.state.room) {
+        this.goStep(4);
+      } else if (this.state.room) {
+        this.goStep(3);
+      } else {
+        this.goStep(2);
+      }
+    }
     if (!this.embedded) {
       this.drawer.classList.add('open');
       document.getElementById('drawerBackdrop')?.classList.add('show');
