@@ -24,16 +24,17 @@ def store_idempotent_booking(query_fn, idem_key, booking_id, conn=None):
         query_fn(sql, params, commit=True)
 
 
-def fetch_booking_detail(query_fn, booking_id):
-    return query_fn(
-        """
+def fetch_booking_detail(query_fn, booking_id, hotel_id=None):
+    sql = """
         SELECT b.*, c.name customer_name, c.phone, r.room_no, r.room_type, r.price
         FROM bookings b JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
         WHERE b.id=?
-        """,
-        (booking_id,),
-        one=True,
-    )
+    """
+    params = [booking_id]
+    if hotel_id is not None:
+        sql += " AND b.hotel_id=?"
+        params.append(hotel_id)
+    return query_fn(sql, tuple(params), one=True)
 
 
 def create_booking_record(

@@ -153,6 +153,24 @@
 </div>
 {% endfor %}
 
+{% for r in maintenance %}
+<div class="modal" id="editRS{{ r.id }}">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <button class="modal-close">✕</button>
+        <h3>Update Maintenance — Room {{ r.room_no }}</h3>
+        <form method="post" action="{{ url_for('update_room_service', req_id=r.id) }}">
+            <div class="form-grid">
+                <select name="status">{% for s in rs_statuses %}<option {% if r.status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select>
+                <input name="charges" type="number" value="{{ r.charges or 0 }}" min="0">
+            </div>
+            <textarea name="description" style="margin-top:12px">{{ r.description or '' }}</textarea>
+            <button type="submit" class="btn btn-primary" style="margin-top:16px">Update</button>
+        </form>
+    </div>
+</div>
+{% endfor %}
+
 {% endblock %}
 
 {% block scripts %}

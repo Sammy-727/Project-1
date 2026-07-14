@@ -37,6 +37,7 @@
 {% if users %}
 <div class="bulk-bar" hidden data-bulk-actions-bar>
     <label class="bulk-select-all"><input type="checkbox" id="selectAllUsers"> Select all</label>
+    <span class="bulk-count">0 selected</span>
     <form class="inline-form" method="post" action="{{ url_for('users_bulk', **request.args) }}" id="userBulkForm">
         <button type="submit" name="action" value="activate" class="btn btn-success btn-sm">Activate Selected</button>
         <button type="submit" name="action" value="deactivate" class="btn btn-secondary btn-sm" data-confirm="Deactivate selected users?">Deactivate Selected</button>

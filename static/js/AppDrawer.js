@@ -460,8 +460,16 @@ function resolveActionUrl(url) {
       openDetailFromPage('/employees', `#drawerEmp${q}`, 'Employee Details');
       return true;
     }
-    if (path === '/payments' || path === '/inventory') {
+    if (path === '/payments') {
       openModalFromPage(path, 'addPaymentModal', 'Record Payment');
+      return true;
+    }
+    if (path === '/inventory') {
+      openModalFromPage(path, 'addInvModal', 'Add Inventory Item');
+      return true;
+    }
+    if (path === '/room-service' && q) {
+      openModalFromPage('/room-service', `editRS${q}`, 'Update Request');
       return true;
     }
   } catch (_) { /* ignore */ }
@@ -642,6 +650,10 @@ function bindGlobal() {
   document.addEventListener('click', handleDrawerClick, true);
 }
 
+async function openCustomContent(html, title, subtitle = '') {
+  await navigateTo(html, title, null, { kind: 'detail', subtitle, push: true });
+}
+
 const api = {
   open,
   close: requestClose,
@@ -659,6 +671,7 @@ const api = {
   openModalFromPage,
   openDetailFromPage,
   openBooking,
+  openCustomContent,
   refreshBackgroundList,
   resolveActionUrl,
   activateCommandItem,

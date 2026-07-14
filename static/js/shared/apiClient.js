@@ -4,14 +4,16 @@ const api = axios.create({
 });
 
 function apiErrorMessage(err) {
-  return err.response?.data?.error || err.message || 'Network error';
+  const data = err.response?.data;
+  return data?.message || data?.error || err.message || 'Network error';
 }
 
 api.interceptors.response.use(
   (res) => {
     if (res.data && res.data.ok === false) {
-      const e = new Error(res.data.error || 'Request failed');
+      const e = new Error(res.data.message || res.data.error || 'Request failed');
       e.status = res.status;
+      e.userFacing = true;
       return Promise.reject(e);
     }
     return res;
@@ -19,6 +21,7 @@ api.interceptors.response.use(
   (err) => {
     const e = new Error(apiErrorMessage(err));
     e.status = err.response?.status;
+    e.userFacing = true;
     return Promise.reject(e);
   },
 );

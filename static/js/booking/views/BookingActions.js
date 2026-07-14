@@ -1,4 +1,5 @@
 /** Shared booking row actions and detail drawer content */
+import { updateBooking, fetchBookings } from '../api.js';
 
 export function cssClass(value) {
   return String(value || '').replace(/\s+/g, '-');
@@ -74,6 +75,100 @@ export function renderDetailDrawer(b) {
     </div>`;
 }
 
+function renderEditForm(b) {
+  return `
+    <form class="drawer-edit-form" id="bookingEditForm" data-booking-id="${b.id}">
+      <div class="form-grid">
+        <div class="field">
+          <label class="field-label">Check-in</label>
+          <input class="input" type="date" name="checkin" value="${escapeHtml(b.checkin)}" required>
+        </div>
+        <div class="field">
+          <label class="field-label">Check-out</label>
+          <input class="input" type="date" name="checkout" value="${escapeHtml(b.checkout)}" required>
+        </div>
+        <div class="field">
+          <label class="field-label">Guests</label>
+          <input class="input" type="number" name="num_guests" min="1" value="${b.num_guests || 1}" required>
+        </div>
+        <div class="field">
+          <label class="field-label">Status</label>
+          <select class="input" name="status">
+            ${['Reserved', 'Checked-in', 'Checked-out', 'Cancelled'].map((s) =>
+              `<option value="${s}" ${b.status === s ? 'selected' : ''}>${s}</option>`,
+            ).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="drawer-form-actions">
+        <button type="button" class="btn btn-outline btn-sm" data-booking-edit-cancel>Cancel</button>
+        <button type="submit" class="btn btn-primary btn-sm">Save Changes</button>
+      </div>
+    </form>`;
+}
+
+export async function openBookingEdit(bookingId, bookings = []) {
+  let b = bookings.find((x) => x.id === Number(bookingId));
+  if (!b) {
+    try {
+      const data = await fetchBookings();
+      b = (data.bookings || []).find((x) => x.id === Number(bookingId));
+    } catch (_) {
+      window.showToast?.('Could not load booking.', 'danger');
+      return;
+    }
+  }
+  if (!b) {
+    window.showToast?.('Booking not found.', 'danger');
+    return;
+  }
+  if (!['Reserved', 'Checked-in'].includes(b.status)) {
+    window.showToast?.('This booking cannot be edited.', 'warning');
+    return;
+  }
+
+  const html = `
+    <div class="drawer-section">
+      <h3>Edit Booking #${b.id}</h3>
+      <p class="muted">${escapeHtml(b.customer_name)} · Room ${escapeHtml(b.room_no)}</p>
+    </div>
+    ${renderEditForm(b)}`;
+
+  if (window.AppDrawer?.openCustomContent) {
+    await window.AppDrawer.openCustomContent(html, `Edit Booking #${b.id}`);
+  } else {
+    ensureDrawerElement(b);
+    const el = document.getElementById(`drawerBooking${b.id}`);
+    if (el) el.innerHTML = html;
+    window.AppDrawer?.openDrawerSelector?.(`#drawerBooking${b.id}`);
+  }
+
+  const form = document.querySelector('#bookingEditForm');
+  form?.querySelector('[data-booking-edit-cancel]')?.addEventListener('click', () => {
+    window.AppDrawer?.goBack?.() || window.AppDrawer?.close?.();
+  });
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(form);
+    try {
+      await updateBooking(b.id, {
+        checkin: fd.get('checkin'),
+        checkout: fd.get('checkout'),
+        num_guests: Number(fd.get('num_guests')),
+        status: fd.get('status'),
+        room_id: b.room_id,
+        customer_id: b.customer_id,
+      });
+      window.showToast?.('Booking updated.', 'success');
+      window.AppDrawer?.close?.();
+      window.refreshBookingsTable?.();
+      window.refreshNotifications?.();
+    } catch (err) {
+      window.showToast?.(err.message || 'Could not update booking.', 'danger');
+    }
+  });
+}
+
 export function ensureDrawerElement(b) {
   const id = `drawerBooking${b.id}`;
   let el = document.getElementById(id);
@@ -103,7 +198,9 @@ export function bindActionHandlers(root, store) {
   root.querySelectorAll('[data-booking-action="edit"]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      window.showToast?.('Edit booking opens from the booking workflow.', 'warning');
+      const id = btn.dataset.bookingId;
+      const bookings = store?.bookings || store?.items || [];
+      openBookingEdit(id, bookings);
     });
   });
   root.querySelectorAll('form[data-confirm]').forEach((form) => {

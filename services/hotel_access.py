@@ -47,3 +47,55 @@ def scoped_room(query_fn, room_id, hotel_id=None):
 
 def scoped_booking(query_fn, booking_id, hotel_id=None):
     return scoped_entity(query_fn, "bookings", booking_id, hotel_id)
+
+
+def scoped_employee(query_fn, emp_id, hotel_id=None):
+    return scoped_entity(query_fn, "employees", emp_id, hotel_id)
+
+
+def scoped_inventory(query_fn, item_id, hotel_id=None):
+    return scoped_entity(query_fn, "inventory", item_id, hotel_id)
+
+
+def scoped_user(query_fn, user_id, hotel_id=None):
+    return scoped_entity(query_fn, "users", user_id, hotel_id)
+
+
+def scoped_payment(query_fn, payment_id, hotel_id=None):
+    hid = hotel_id or get_current_hotel_id()
+    return query_fn(
+        """
+        SELECT p.*, b.hotel_id
+        FROM payments p
+        JOIN bookings b ON p.booking_id=b.id
+        WHERE p.id=? AND b.hotel_id=?
+        """,
+        (payment_id, hid),
+        one=True,
+    )
+
+
+def scoped_housekeeping_task(query_fn, task_id, hotel_id=None):
+    hid = hotel_id or get_current_hotel_id()
+    return query_fn(
+        """
+        SELECT h.* FROM housekeeping_tasks h
+        JOIN rooms r ON h.room_id=r.id
+        WHERE h.id=? AND r.hotel_id=?
+        """,
+        (task_id, hid),
+        one=True,
+    )
+
+
+def scoped_room_service_request(query_fn, req_id, hotel_id=None):
+    hid = hotel_id or get_current_hotel_id()
+    return query_fn(
+        """
+        SELECT rs.* FROM room_service_requests rs
+        JOIN rooms r ON rs.room_id=r.id
+        WHERE rs.id=? AND r.hotel_id=?
+        """,
+        (req_id, hid),
+        one=True,
+    )

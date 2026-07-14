@@ -100,7 +100,7 @@ export class BookingModule {
       }
     } catch (err) {
       logAppError('BookingModule.loadBookings', err);
-      if (!background && isUserFacingError(err)) {
+      if (!background) {
         window.showToast?.(err.message || 'Could not load bookings.', 'danger');
       }
     }
@@ -110,6 +110,10 @@ export class BookingModule {
     if (!qs) return;
     const url = `${window.location.pathname}?${qs.replace(/&?size=\d+/, '')}`;
     window.history.replaceState({}, '', url);
+  }
+
+  async refresh() {
+    await this.loadBookings(true);
   }
 
   exportCsv(rows) {
@@ -136,9 +140,5 @@ export class BookingModule {
     a.click();
     URL.revokeObjectURL(a.href);
     window.showToast?.('Exported to CSV', 'success');
-  }
-
-  refresh() {
-    return this.loadBookings();
   }
 }

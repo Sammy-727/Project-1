@@ -480,7 +480,7 @@ def housekeeping_query(hotel_id=None):
         LEFT JOIN employees e ON h.assigned_to=e.id WHERE 1=1
     """
     params = []
-    clause, hp = hotel_filter("h", hotel_id)
+    clause, hp = hotel_filter("r", hotel_id)
     sql += clause
     params.extend(hp)
     if f["status"]:
@@ -529,7 +529,7 @@ def room_service_query(maintenance_only=False, hotel_id=None):
         LEFT JOIN customers c ON b.customer_id=c.id WHERE 1=1
     """
     params = []
-    clause, hp = hotel_filter("rs", hotel_id)
+    clause, hp = hotel_filter("r", hotel_id)
     sql += clause
     params.extend(hp)
     if maintenance_only:

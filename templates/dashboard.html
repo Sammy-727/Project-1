@@ -380,7 +380,7 @@ document.getElementById('dashNotifViewAll')?.addEventListener('click', () => {
       return;
     }
     list.innerHTML = items.map((n) => `
-      <button type="button" class="dash-alert-row ${n.priority === 'high' ? 'danger' : 'warning'}" data-open-notifications style="width:100%;text-align:left">
+      <button type="button" class="dash-alert-row ${n.priority === 'urgent' ? 'danger' : n.priority === 'upcoming' ? 'warning' : ''}" data-open-notifications style="width:100%;text-align:left">
         <strong>${escapeHtml(n.title)}</strong>
         <span>${escapeHtml(n.message || '')}</span>
       </button>

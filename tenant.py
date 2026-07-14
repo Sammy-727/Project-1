@@ -317,6 +317,12 @@ def enforce_permissions(query_fn, get_hotel_id_fn, api_error_fn):
     return None
 
 
+def _api_access_denied():
+    from services.api_helpers import api_forbidden
+
+    return api_forbidden()
+
+
 def role_required(*roles):
     normalized = {normalize_role(r) for r in roles}
     normalized.update(roles)
@@ -328,6 +334,8 @@ def role_required(*roles):
             if user_role not in normalized and not (
                 user_role == "SUPER_ADMIN" and "SUPER_ADMIN" in normalized
             ):
+                if request.path.startswith("/api/"):
+                    return _api_access_denied()
                 flash("Access denied.", "danger")
                 return redirect(url_for("dashboard"))
             return f(*args, **kwargs)
@@ -341,6 +349,8 @@ def platform_admin_required(f):
     @wraps(f)
     def wrapped(*args, **kwargs):
         if not is_super_admin_role():
+            if request.path.startswith("/api/"):
+                return _api_access_denied()
             flash("Platform access requires Super Admin role.", "danger")
             return redirect(url_for("dashboard"))
         return f(*args, **kwargs)
