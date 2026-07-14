@@ -156,12 +156,11 @@
 </div>
 </div>
 
-<script type="application/json" id="reportsBootstrap">{"payments":[{% for p in payment_rows %}{"id":{{ loop.index }},"receipt_number":{{ p.receipt_number|tojson }},"customer_name":{{ p.customer_name|tojson }},"room_no":{{ p.room_no|tojson }},"amount":{{ p.amount }},"payment_mode":{{ p.payment_mode|tojson }},"payment_date":{{ p.payment_date|tojson }}}{% if not loop.last %},{% endif %}{% endfor %}],"total":{{ payment_rows|length }}}</script>
+<script type="application/json" id="reportsBootstrap">{"payments":[{% for p in payment_rows %}{"id":{{ p.id }},"receipt_number":{{ p.receipt_number|tojson }},"customer_name":{{ p.customer_name|tojson }},"room_no":{{ p.room_no|tojson }},"amount":{{ p.amount }},"payment_mode":{{ p.payment_mode|tojson }},"payment_date":{{ p.payment_date|tojson }}}{% if not loop.last %},{% endif %}{% endfor %}],"total":{{ payment_rows|length }}}</script>
 
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
 <script type="module" src="{{ url_for('static', filename='js/entity/index.js') }}"></script>
-<script src="{{ url_for('static', filename='js/dashboard-charts.js') }}"></script>
 {% endblock %}

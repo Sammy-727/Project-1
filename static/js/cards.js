@@ -147,7 +147,11 @@ const CardUI = {
           if (statusInput) statusInput.value = newStatus;
           const fd = new FormData(form);
           try {
-            await fetch(form.action, { method: 'POST', body: fd });
+            const res = await fetch(form.action, { method: 'POST', body: fd });
+            if (!res.ok) {
+              window.showToast?.('Failed to update task', 'danger');
+              return;
+            }
             window.showToast?.(`Task moved to ${newStatus}`, 'success');
           } catch (_) {
             window.showToast?.('Failed to update task', 'danger');

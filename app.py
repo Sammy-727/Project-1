@@ -15,7 +15,7 @@ from list_filters import (
     inventory_query, payments_query, invoices_query, housekeeping_query,
     room_service_query, paginate_rows, paginate_sql,
 )
-from services.api_helpers import api_error, api_ok, paginated_api_response
+from services.api_helpers import api_error, api_ok, api_unauthorized, paginated_api_response
 from services.hotel_access import (
     get_current_hotel_id,
     set_session_hotel,
@@ -23,6 +23,12 @@ from services.hotel_access import (
     scoped_customer as _scoped_customer,
     scoped_room as _scoped_room,
     scoped_booking as _scoped_booking,
+    scoped_employee as _scoped_employee,
+    scoped_inventory as _scoped_inventory,
+    scoped_user as _scoped_user,
+    scoped_payment as _scoped_payment,
+    scoped_housekeeping_task as _scoped_housekeeping_task,
+    scoped_room_service_request as _scoped_room_service_request,
     get_current_hotel as _get_current_hotel,
 )
 from services.booking_availability import (
@@ -234,6 +240,30 @@ def scoped_booking(booking_id, hotel_id=None):
     return _scoped_booking(query, booking_id, hotel_id)
 
 
+def scoped_employee(emp_id, hotel_id=None):
+    return _scoped_employee(query, emp_id, hotel_id)
+
+
+def scoped_inventory(item_id, hotel_id=None):
+    return _scoped_inventory(query, item_id, hotel_id)
+
+
+def scoped_user(user_id, hotel_id=None):
+    return _scoped_user(query, user_id, hotel_id)
+
+
+def scoped_payment(payment_id, hotel_id=None):
+    return _scoped_payment(query, payment_id, hotel_id)
+
+
+def scoped_housekeeping_task(task_id, hotel_id=None):
+    return _scoped_housekeeping_task(query, task_id, hotel_id)
+
+
+def scoped_room_service_request(req_id, hotel_id=None):
+    return _scoped_room_service_request(query, req_id, hotel_id)
+
+
 def get_available_rooms(checkin, checkout, num_guests=1, hotel_id=None):
     return _get_available_rooms(
         query,
@@ -263,8 +293,8 @@ def dashboard_stats(hotel_id=None):
     return _dashboard_stats(query, hotel_id=hotel_id, get_hotel_id_fn=get_current_hotel_id)
 
 
-def fetch_booking_detail(booking_id):
-    return _fetch_booking_detail(query, booking_id)
+def fetch_booking_detail(booking_id, hotel_id=None):
+    return _fetch_booking_detail(query, booking_id, hotel_id or get_current_hotel_id())
 
 
 def get_idempotent_booking(idem_key):
@@ -739,11 +769,6 @@ def css_class_filter(value):
     return (str(value or "")).replace(" ", "-")
 
 
-@app.errorhandler(500)
-def server_error(e):
-    return render_template("error.html", error=str(e)), 500
-
-
 @app.context_processor
 def inject_globals():
     hotel = get_current_hotel()
@@ -802,6 +827,8 @@ def require_login():
     if request.endpoint in ["login", "static", None]:
         return
     if not is_logged_in():
+        if request.path.startswith("/api/"):
+            return api_unauthorized()
         return redirect(url_for("login"))
 
 
@@ -1367,7 +1394,11 @@ def customers():
     for c in query(sql, params):
         cd = dict(c)
         cd["guests"] = query("SELECT * FROM guests WHERE customer_id=? AND booking_id IS NULL", (c["id"],))
-        bc = query("SELECT COUNT(*) c FROM bookings WHERE customer_id=?", (c["id"],), one=True)["c"]
+        bc = query(
+            "SELECT COUNT(*) c FROM bookings WHERE customer_id=? AND hotel_id=?",
+            (c["id"], get_current_hotel_id()),
+            one=True,
+        )["c"]
         cd["booking_count"] = bc
         if f["guest_type"] == "new" and bc > 1:
             continue
@@ -1531,7 +1562,10 @@ def api_create_customer():
 def api_available_rooms():
     checkin = request.args.get("checkin", "").strip()
     checkout = request.args.get("checkout", "").strip()
-    num_guests = int(request.args.get("guests") or request.args.get("num_guests") or 1)
+    try:
+        num_guests = int(request.args.get("guests") or request.args.get("num_guests") or 1)
+    except (TypeError, ValueError):
+        return api_error("Invalid guest count.", 400)
 
     if not checkin or not checkout:
         return api_error("Check-in and check-out dates are required.")
@@ -1555,7 +1589,12 @@ def api_customers_list():
     sql, params, f = customers_query(get_current_hotel_id())
     customer_list = []
     for c in query(sql, params):
-        bc = query("SELECT COUNT(*) c FROM bookings WHERE customer_id=?", (c["id"],), one=True)["c"]
+        hid = get_current_hotel_id()
+        bc = query(
+            "SELECT COUNT(*) c FROM bookings WHERE customer_id=? AND hotel_id=?",
+            (c["id"], hid),
+            one=True,
+        )["c"]
         if f["guest_type"] == "new" and bc > 1:
             continue
         if f["guest_type"] == "returning" and bc <= 1:
@@ -1609,8 +1648,8 @@ def api_room_mark_cleaning(room_id):
         one=True,
     )
     query(
-        """INSERT INTO housekeeping_tasks(room_id,assigned_to,status,priority,notes,created_at)
-           VALUES(?,?,?,?,?,?)""",
+        """INSERT INTO housekeeping_tasks(room_id,assigned_to,status,priority,notes,created_at,hotel_id)
+           VALUES(?,?,?,?,?,?,?)""",
         (
             room_id,
             hk_staff["id"] if hk_staff else None,
@@ -1618,6 +1657,7 @@ def api_room_mark_cleaning(room_id):
             "Medium",
             f"Cleaning requested for room {room['room_no']}",
             datetime.now().strftime("%Y-%m-%d %H:%M"),
+            get_current_hotel_id(),
         ),
         commit=True,
     )
@@ -1643,8 +1683,8 @@ def api_room_maintenance(room_id):
         one=True,
     )
     query(
-        """INSERT INTO room_service_requests(booking_id,room_id,request_type,description,status,charges,add_to_bill,created_at)
-           VALUES(?,?,?,?,?,?,?,?)""",
+        """INSERT INTO room_service_requests(booking_id,room_id,request_type,description,status,charges,add_to_bill,created_at,hotel_id)
+           VALUES(?,?,?,?,?,?,?,?,?)""",
         (
             booking["id"] if booking else None,
             room_id,
@@ -1654,6 +1694,7 @@ def api_room_maintenance(room_id):
             0,
             0,
             datetime.now().strftime("%Y-%m-%d %H:%M"),
+            get_current_hotel_id(),
         ),
         commit=True,
     )
@@ -1729,8 +1770,8 @@ def api_booking_quick_checkout(booking_id):
         one=True,
     )
     query(
-        """INSERT INTO housekeeping_tasks(room_id,assigned_to,status,priority,notes,created_at)
-           VALUES(?,?,?,?,?,?)""",
+        """INSERT INTO housekeeping_tasks(room_id,assigned_to,status,priority,notes,created_at,hotel_id)
+           VALUES(?,?,?,?,?,?,?)""",
         (
             booking["room_id"],
             hk_staff["id"] if hk_staff else None,
@@ -1738,6 +1779,7 @@ def api_booking_quick_checkout(booking_id):
             "High",
             "Post checkout cleaning",
             datetime.now().strftime("%Y-%m-%d %H:%M"),
+            get_current_hotel_id(),
         ),
         commit=True,
     )
@@ -1773,9 +1815,10 @@ def api_housekeeping_list():
 def api_create_booking():
     data = request.get_json(silent=True) or {}
     idem_key = (request.headers.get("Idempotency-Key") or data.get("idempotency_key") or "").strip()
+    hid = get_current_hotel_id()
     existing_id = get_idempotent_booking(idem_key)
     if existing_id:
-        booking = fetch_booking_detail(existing_id)
+        booking = fetch_booking_detail(existing_id, hid)
         if booking:
             total = float(booking["total_amount"] or 0)
             paid = booking_paid_amount(existing_id)
@@ -1909,6 +1952,9 @@ def api_update_booking(booking_id):
     room = scoped_room(room_id, hid)
     if not room:
         return api_error("Room not found for this hotel.", 404)
+    customer = scoped_customer(customer_id, hid)
+    if not customer:
+        return api_error("Customer not found for this hotel.", 404)
     if room["status"] in UNAVAILABLE_ROOM_STATUSES and room_id != booking["room_id"]:
         return api_error(f"Room {room['room_no']} is not available ({room['status']}).", 409)
     if num_guests > room["capacity"]:
@@ -2203,10 +2249,20 @@ def checkout(booking_id):
         (get_current_hotel_id(),),
         one=True,
     )
-    query("""INSERT INTO housekeeping_tasks(room_id,assigned_to,status,priority,notes,created_at)
-             VALUES(?,?,?,?,?,?)""",
-          (booking["room_id"], hk_staff["id"] if hk_staff else None, "Pending", "High",
-           "Post checkout cleaning", datetime.now().strftime("%Y-%m-%d %H:%M")), commit=True)
+    query(
+        """INSERT INTO housekeeping_tasks(room_id,assigned_to,status,priority,notes,created_at,hotel_id)
+           VALUES(?,?,?,?,?,?,?)""",
+        (
+            booking["room_id"],
+            hk_staff["id"] if hk_staff else None,
+            "Pending",
+            "High",
+            "Post checkout cleaning",
+            datetime.now().strftime("%Y-%m-%d %H:%M"),
+            get_current_hotel_id(),
+        ),
+        commit=True,
+    )
 
     sync_notifications_from_data(get_current_hotel_id())
     flash("Checkout completed.", "success")
@@ -2266,8 +2322,8 @@ def receipt(payment_id):
         SELECT p.*, c.name, c.phone, c.email, r.room_no, r.room_type, b.checkin, b.checkout
         FROM payments p JOIN bookings b ON p.booking_id=b.id
         JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
-        WHERE p.id=?
-    """, (payment_id,), one=True)
+        WHERE p.id=? AND b.hotel_id=?
+    """, (payment_id, get_current_hotel_id()), one=True)
     if not payment:
         flash("Receipt not found.", "danger")
         return redirect(url_for("payments"))
@@ -2322,17 +2378,21 @@ def add_employee():
 @app.route("/employees/update/<int:emp_id>", methods=["POST"])
 @role_required(*admin_roles())
 def update_employee(emp_id):
+    if not scoped_employee(emp_id):
+        flash("Employee not found for this hotel.", "danger")
+        return redirect(url_for("employees", **request.args))
     status = request.form.get("status", "Active")
     if status not in EMPLOYEE_STATUSES:
         status = "Active"
     archived_at = datetime.now().strftime("%Y-%m-%d %H:%M") if status == "Archived" else None
+    hid = get_current_hotel_id()
     query("""UPDATE employees SET name=?, phone=?, email=?, role=?, designation=?, department=?,
-             salary=?, shift=?, joining_date=?, status=?, archived_at=?, image_url=? WHERE id=?""",
+             salary=?, shift=?, joining_date=?, status=?, archived_at=?, image_url=? WHERE id=? AND hotel_id=?""",
           (request.form["name"], request.form.get("phone"), request.form.get("email"),
            request.form["role"], request.form["role"], request.form.get("department"),
            float(request.form.get("salary") or 0), request.form.get("shift"),
            request.form.get("joining_date"), status, archived_at,
-           request.form.get("image_url", ""), emp_id), commit=True)
+           request.form.get("image_url", ""), emp_id, hid), commit=True)
     sync_employee_user_status(emp_id, status)
     flash("Employee updated successfully.", "success")
     drawer_resp = drawer_json_response("Employee updated successfully.")
@@ -2344,7 +2404,14 @@ def update_employee(emp_id):
 @app.route("/employees/deactivate/<int:emp_id>", methods=["POST"])
 @role_required(*admin_roles())
 def deactivate_employee(emp_id):
-    query("UPDATE employees SET status='Inactive' WHERE id=?", (emp_id,), commit=True)
+    if not scoped_employee(emp_id):
+        flash("Employee not found for this hotel.", "danger")
+        return redirect(url_for("employees", **request.args))
+    query(
+        "UPDATE employees SET status='Inactive' WHERE id=? AND hotel_id=?",
+        (emp_id, get_current_hotel_id()),
+        commit=True,
+    )
     sync_employee_user_status(emp_id, "Inactive")
     flash("Employee deactivated.", "success")
     return redirect(url_for("employees", **request.args))
@@ -2353,7 +2420,14 @@ def deactivate_employee(emp_id):
 @app.route("/employees/activate/<int:emp_id>", methods=["POST"])
 @role_required(*admin_roles())
 def activate_employee(emp_id):
-    query("UPDATE employees SET status='Active', archived_at=NULL WHERE id=?", (emp_id,), commit=True)
+    if not scoped_employee(emp_id):
+        flash("Employee not found for this hotel.", "danger")
+        return redirect(url_for("employees", **request.args))
+    query(
+        "UPDATE employees SET status='Active', archived_at=NULL WHERE id=? AND hotel_id=?",
+        (emp_id, get_current_hotel_id()),
+        commit=True,
+    )
     sync_employee_user_status(emp_id, "Active")
     flash("Employee activated.", "success")
     return redirect(url_for("employees", **request.args))
@@ -2362,8 +2436,15 @@ def activate_employee(emp_id):
 @app.route("/employees/archive/<int:emp_id>", methods=["POST"])
 @role_required(*admin_roles())
 def archive_employee(emp_id):
+    if not scoped_employee(emp_id):
+        flash("Employee not found for this hotel.", "danger")
+        return redirect(url_for("employees", **request.args))
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
-    query("UPDATE employees SET status='Archived', archived_at=? WHERE id=?", (now, emp_id), commit=True)
+    query(
+        "UPDATE employees SET status='Archived', archived_at=? WHERE id=? AND hotel_id=?",
+        (now, emp_id, get_current_hotel_id()),
+        commit=True,
+    )
     sync_employee_user_status(emp_id, "Archived")
     flash("Employee archived.", "success")
     return redirect(url_for("employees", **request.args))
@@ -2372,10 +2453,17 @@ def archive_employee(emp_id):
 @app.route("/employees/delete/<int:emp_id>", methods=["POST"])
 @role_required("Super Admin")
 def delete_employee(emp_id):
+    if not scoped_employee(emp_id):
+        flash("Employee not found for this hotel.", "danger")
+        return redirect(url_for("employees", **request.args))
     if employee_has_dependencies(emp_id):
         flash("Cannot delete: employee has assigned housekeeping tasks. Archive instead.", "danger")
         return redirect(url_for("employees", **request.args))
-    query("DELETE FROM employees WHERE id=?", (emp_id,), commit=True)
+    query(
+        "DELETE FROM employees WHERE id=? AND hotel_id=?",
+        (emp_id, get_current_hotel_id()),
+        commit=True,
+    )
     flash("Employee permanently deleted.", "success")
     return redirect(url_for("employees", **request.args))
 
@@ -2394,24 +2482,39 @@ def employees_bulk():
         return redirect(url_for("employees", **request.args))
 
     count = 0
+    hid = get_current_hotel_id()
     for emp_id in ids:
         emp_id = int(emp_id)
+        if not scoped_employee(emp_id, hid):
+            continue
         if action == "activate":
-            query("UPDATE employees SET status='Active', archived_at=NULL WHERE id=?", (emp_id,), commit=True)
+            query(
+                "UPDATE employees SET status='Active', archived_at=NULL WHERE id=? AND hotel_id=?",
+                (emp_id, hid),
+                commit=True,
+            )
             sync_employee_user_status(emp_id, "Active")
             count += 1
         elif action == "deactivate":
-            query("UPDATE employees SET status='Inactive' WHERE id=?", (emp_id,), commit=True)
+            query(
+                "UPDATE employees SET status='Inactive' WHERE id=? AND hotel_id=?",
+                (emp_id, hid),
+                commit=True,
+            )
             sync_employee_user_status(emp_id, "Inactive")
             count += 1
         elif action == "archive":
             now = datetime.now().strftime("%Y-%m-%d %H:%M")
-            query("UPDATE employees SET status='Archived', archived_at=? WHERE id=?", (now, emp_id), commit=True)
+            query(
+                "UPDATE employees SET status='Archived', archived_at=? WHERE id=? AND hotel_id=?",
+                (now, emp_id, hid),
+                commit=True,
+            )
             sync_employee_user_status(emp_id, "Archived")
             count += 1
         elif action == "delete" and is_super_admin():
             if not employee_has_dependencies(emp_id):
-                query("DELETE FROM employees WHERE id=?", (emp_id,), commit=True)
+                query("DELETE FROM employees WHERE id=? AND hotel_id=?", (emp_id, hid), commit=True)
                 count += 1
 
     labels = {"activate": "activated", "deactivate": "deactivated", "archive": "archived", "delete": "deleted"}
@@ -2445,11 +2548,25 @@ def housekeeping():
 
 @app.route("/housekeeping/add", methods=["POST"])
 def add_housekeeping():
-    query("""INSERT INTO housekeeping_tasks(room_id,assigned_to,status,priority,notes,created_at)
-             VALUES(?,?,?,?,?,?)""",
-          (request.form["room_id"], request.form.get("assigned_to") or None,
-           "Pending", request.form.get("priority", "Medium"),
-           request.form.get("notes", ""), datetime.now().strftime("%Y-%m-%d %H:%M")), commit=True)
+    hid = get_current_hotel_id()
+    room = scoped_room(int(request.form["room_id"]), hid)
+    if not room:
+        flash("Room not found for this hotel.", "danger")
+        return redirect(url_for("housekeeping"))
+    query(
+        """INSERT INTO housekeeping_tasks(room_id,assigned_to,status,priority,notes,created_at,hotel_id)
+           VALUES(?,?,?,?,?,?,?)""",
+        (
+            request.form["room_id"],
+            request.form.get("assigned_to") or None,
+            "Pending",
+            request.form.get("priority", "Medium"),
+            request.form.get("notes", ""),
+            datetime.now().strftime("%Y-%m-%d %H:%M"),
+            hid,
+        ),
+        commit=True,
+    )
     query("UPDATE rooms SET status='Cleaning' WHERE id=?", (request.form["room_id"],), commit=True)
     sync_notifications_from_data(get_current_hotel_id())
     flash("Housekeeping task created.", "success")
@@ -2458,14 +2575,26 @@ def add_housekeeping():
 
 @app.route("/housekeeping/update/<int:task_id>", methods=["POST"])
 def update_housekeeping(task_id):
+    task = scoped_housekeeping_task(task_id)
+    if not task:
+        flash("Housekeeping task not found.", "danger")
+        return redirect(url_for("housekeeping"))
     status = request.form["status"]
-    task = query("SELECT * FROM housekeeping_tasks WHERE id=?", (task_id,), one=True)
     completed_at = datetime.now().strftime("%Y-%m-%d %H:%M") if status == "Completed" else None
-    query("""UPDATE housekeeping_tasks SET assigned_to=?, status=?, priority=?, notes=?, completed_at=?
+    query(
+        """UPDATE housekeeping_tasks SET assigned_to=?, status=?, priority=?, notes=?, completed_at=?
              WHERE id=?""",
-          (request.form.get("assigned_to") or None, status, request.form.get("priority"),
-           request.form.get("notes", ""), completed_at, task_id), commit=True)
-    if status == "Completed" and task:
+        (
+            request.form.get("assigned_to") or None,
+            status,
+            request.form.get("priority"),
+            request.form.get("notes", ""),
+            completed_at,
+            task_id,
+        ),
+        commit=True,
+    )
+    if status == "Completed":
         query("UPDATE rooms SET status='Available' WHERE id=?", (task["room_id"],), commit=True)
     sync_notifications_from_data(get_current_hotel_id())
     flash("Task updated.", "success")
@@ -2500,15 +2629,31 @@ def room_service():
 
 @app.route("/room-service/add", methods=["POST"])
 def add_room_service():
+    hid = get_current_hotel_id()
     booking_id = request.form.get("booking_id")
-    booking = query("SELECT room_id FROM bookings WHERE id=?", (booking_id,), one=True) if booking_id else None
+    booking = scoped_booking(int(booking_id), hid) if booking_id else None
     room_id = booking["room_id"] if booking else request.form.get("room_id")
+    if room_id and not scoped_room(int(room_id), hid):
+        flash("Room not found for this hotel.", "danger")
+        return redirect(url_for("room_service"))
     charges = float(request.form.get("charges") or 0)
     add_to_bill = 1 if request.form.get("add_to_bill") else 0
-    query("""INSERT INTO room_service_requests(booking_id,room_id,request_type,description,status,charges,add_to_bill,created_at)
-             VALUES(?,?,?,?,?,?,?,?)""",
-          (booking_id, room_id, request.form["request_type"], request.form.get("description", ""),
-           "Pending", charges, add_to_bill, datetime.now().strftime("%Y-%m-%d %H:%M")), commit=True)
+    query(
+        """INSERT INTO room_service_requests(booking_id,room_id,request_type,description,status,charges,add_to_bill,created_at,hotel_id)
+           VALUES(?,?,?,?,?,?,?,?,?)""",
+        (
+            booking_id,
+            room_id,
+            request.form["request_type"],
+            request.form.get("description", ""),
+            "Pending",
+            charges,
+            add_to_bill,
+            datetime.now().strftime("%Y-%m-%d %H:%M"),
+            hid,
+        ),
+        commit=True,
+    )
     if booking_id and add_to_bill:
         update_booking_payment_status(int(booking_id))
     sync_notifications_from_data(get_current_hotel_id())
@@ -2518,12 +2663,18 @@ def add_room_service():
 
 @app.route("/room-service/update/<int:req_id>", methods=["POST"])
 def update_room_service(req_id):
+    req = scoped_room_service_request(req_id)
+    if not req:
+        flash("Service request not found.", "danger")
+        return redirect(url_for("room_service"))
     status = request.form["status"]
     charges = float(request.form.get("charges") or 0)
-    req = query("SELECT * FROM room_service_requests WHERE id=?", (req_id,), one=True)
-    query("UPDATE room_service_requests SET status=?, charges=?, description=? WHERE id=?",
-          (status, charges, request.form.get("description", ""), req_id), commit=True)
-    if req and req["booking_id"]:
+    query(
+        "UPDATE room_service_requests SET status=?, charges=?, description=? WHERE id=?",
+        (status, charges, request.form.get("description", ""), req_id),
+        commit=True,
+    )
+    if req["booking_id"]:
         update_booking_payment_status(req["booking_id"])
     sync_notifications_from_data(get_current_hotel_id())
     flash("Request updated.", "success")
@@ -2537,7 +2688,10 @@ def inventory():
     sql, params, f = inventory_query(get_current_hotel_id())
     all_items = query(sql, params)
     page_rows, total, page, size = paginate_rows(all_items, f["page"], f["size"])
-    categories = query("SELECT DISTINCT category FROM inventory WHERE category IS NOT NULL ORDER BY category")
+    categories = query(
+        "SELECT DISTINCT category FROM inventory WHERE hotel_id=? AND category IS NOT NULL ORDER BY category",
+        (get_current_hotel_id(),),
+    )
     return render_template(
         "inventory.html", items=page_rows, categories=categories,
         list_total=total, list_showing=len(page_rows), list_page=page, list_size=size,
@@ -2572,13 +2726,28 @@ def add_inventory():
 
 @app.route("/inventory/update/<int:item_id>", methods=["POST"])
 def update_inventory(item_id):
+    if not scoped_inventory(item_id):
+        flash("Inventory item not found for this hotel.", "danger")
+        return redirect(url_for("inventory"))
     today_str = datetime.now().strftime("%Y-%m-%d")
-    query("""UPDATE inventory SET item_name=?, category=?, quantity=?, unit=?, price=?,
-             reorder_level=?, supplier_name=?, last_updated=? WHERE id=?""",
-          (request.form["item_name"], request.form["category"], int(request.form["quantity"]),
-           request.form["unit"], float(request.form.get("price") or 0),
-           int(request.form.get("reorder_level") or 10), request.form.get("supplier_name", ""),
-           today_str, item_id), commit=True)
+    hid = get_current_hotel_id()
+    query(
+        """UPDATE inventory SET item_name=?, category=?, quantity=?, unit=?, price=?,
+             reorder_level=?, supplier_name=?, last_updated=? WHERE id=? AND hotel_id=?""",
+        (
+            request.form["item_name"],
+            request.form["category"],
+            int(request.form["quantity"]),
+            request.form["unit"],
+            float(request.form.get("price") or 0),
+            int(request.form.get("reorder_level") or 10),
+            request.form.get("supplier_name", ""),
+            today_str,
+            item_id,
+            hid,
+        ),
+        commit=True,
+    )
     sync_notifications_from_data(get_current_hotel_id())
     flash("Item updated.", "success")
     return redirect(url_for("inventory"))
@@ -2586,7 +2755,14 @@ def update_inventory(item_id):
 
 @app.route("/inventory/delete/<int:item_id>", methods=["POST"])
 def delete_inventory(item_id):
-    query("DELETE FROM inventory WHERE id=?", (item_id,), commit=True)
+    if not scoped_inventory(item_id):
+        flash("Inventory item not found for this hotel.", "danger")
+        return redirect(url_for("inventory"))
+    query(
+        "DELETE FROM inventory WHERE id=? AND hotel_id=?",
+        (item_id, get_current_hotel_id()),
+        commit=True,
+    )
     sync_notifications_from_data(get_current_hotel_id())
     flash("Item deleted.", "success")
     return redirect(url_for("inventory"))
@@ -2676,6 +2852,9 @@ def add_user():
 @app.route("/users/update/<int:user_id>", methods=["POST"])
 @role_required(*admin_roles())
 def update_user(user_id):
+    if not scoped_user(user_id):
+        flash("User not found for this hotel.", "danger")
+        return redirect(url_for("admin", **request.args))
     status = request.form.get("status", "Active")
     if status not in USER_STATUSES:
         status = "Active"
@@ -2685,8 +2864,8 @@ def update_user(user_id):
     if request.form.get("password"):
         sql += ", password=?"
         params.append(request.form["password"])
-    sql += " WHERE id=?"
-    params.append(user_id)
+    sql += " WHERE id=? AND hotel_id=?"
+    params.extend([user_id, get_current_hotel_id()])
     query(sql, tuple(params), commit=True)
     flash("User updated successfully.", "success")
     return redirect(url_for("admin", **request.args))
@@ -2695,10 +2874,18 @@ def update_user(user_id):
 @app.route("/users/deactivate/<int:user_id>", methods=["POST"])
 @role_required(*admin_roles())
 def deactivate_user(user_id):
-    if query("SELECT role FROM users WHERE id=?", (user_id,), one=True)["role"] == "Super Admin":
+    user = scoped_user(user_id)
+    if not user:
+        flash("User not found for this hotel.", "danger")
+        return redirect(url_for("admin", **request.args))
+    if user["role"] == "Super Admin":
         flash("Cannot deactivate the Super Admin account.", "danger")
         return redirect(url_for("admin", **request.args))
-    query("UPDATE users SET status='Inactive' WHERE id=?", (user_id,), commit=True)
+    query(
+        "UPDATE users SET status='Inactive' WHERE id=? AND hotel_id=?",
+        (user_id, get_current_hotel_id()),
+        commit=True,
+    )
     flash("User deactivated.", "success")
     return redirect(url_for("admin", **request.args))
 
@@ -2706,7 +2893,14 @@ def deactivate_user(user_id):
 @app.route("/users/activate/<int:user_id>", methods=["POST"])
 @role_required(*admin_roles())
 def activate_user(user_id):
-    query("UPDATE users SET status='Active', archived_at=NULL WHERE id=?", (user_id,), commit=True)
+    if not scoped_user(user_id):
+        flash("User not found for this hotel.", "danger")
+        return redirect(url_for("admin", **request.args))
+    query(
+        "UPDATE users SET status='Active', archived_at=NULL WHERE id=? AND hotel_id=?",
+        (user_id, get_current_hotel_id()),
+        commit=True,
+    )
     flash("User activated.", "success")
     return redirect(url_for("admin", **request.args))
 
@@ -2714,11 +2908,19 @@ def activate_user(user_id):
 @app.route("/users/archive/<int:user_id>", methods=["POST"])
 @role_required(*admin_roles())
 def archive_user(user_id):
-    if query("SELECT role FROM users WHERE id=?", (user_id,), one=True)["role"] == "Super Admin":
+    user = scoped_user(user_id)
+    if not user:
+        flash("User not found for this hotel.", "danger")
+        return redirect(url_for("admin", **request.args))
+    if user["role"] == "Super Admin":
         flash("Cannot archive the Super Admin account.", "danger")
         return redirect(url_for("admin", **request.args))
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
-    query("UPDATE users SET status='Archived', archived_at=? WHERE id=?", (now, user_id), commit=True)
+    query(
+        "UPDATE users SET status='Archived', archived_at=? WHERE id=? AND hotel_id=?",
+        (now, user_id, get_current_hotel_id()),
+        commit=True,
+    )
     flash("User archived.", "success")
     return redirect(url_for("admin", **request.args))
 
@@ -2726,9 +2928,9 @@ def archive_user(user_id):
 @app.route("/users/delete/<int:user_id>", methods=["POST"])
 @role_required("Super Admin")
 def delete_user(user_id):
-    user = query("SELECT role FROM users WHERE id=?", (user_id,), one=True)
+    user = scoped_user(user_id)
     if not user:
-        flash("User not found.", "danger")
+        flash("User not found for this hotel.", "danger")
         return redirect(url_for("admin", **request.args))
     if user["role"] == "Super Admin":
         flash("Cannot delete the Super Admin account.", "danger")
@@ -2736,7 +2938,11 @@ def delete_user(user_id):
     if user_has_dependencies(user_id):
         flash("Cannot delete: user is linked to an employee record. Archive instead.", "danger")
         return redirect(url_for("admin", **request.args))
-    query("DELETE FROM users WHERE id=?", (user_id,), commit=True)
+    query(
+        "DELETE FROM users WHERE id=? AND hotel_id=?",
+        (user_id, get_current_hotel_id()),
+        commit=True,
+    )
     flash("User permanently deleted.", "success")
     return redirect(url_for("admin", **request.args))
 
@@ -2755,23 +2961,36 @@ def users_bulk():
         return redirect(url_for("admin", **request.args))
 
     count = 0
+    hid = get_current_hotel_id()
     for user_id in ids:
         user_id = int(user_id)
-        user = query("SELECT role FROM users WHERE id=?", (user_id,), one=True)
+        user = scoped_user(user_id, hid)
         if not user or user["role"] == "Super Admin":
             continue
         if action == "activate":
-            query("UPDATE users SET status='Active', archived_at=NULL WHERE id=?", (user_id,), commit=True)
+            query(
+                "UPDATE users SET status='Active', archived_at=NULL WHERE id=? AND hotel_id=?",
+                (user_id, hid),
+                commit=True,
+            )
             count += 1
         elif action == "deactivate":
-            query("UPDATE users SET status='Inactive' WHERE id=?", (user_id,), commit=True)
+            query(
+                "UPDATE users SET status='Inactive' WHERE id=? AND hotel_id=?",
+                (user_id, hid),
+                commit=True,
+            )
             count += 1
         elif action == "archive":
             now = datetime.now().strftime("%Y-%m-%d %H:%M")
-            query("UPDATE users SET status='Archived', archived_at=? WHERE id=?", (now, user_id), commit=True)
+            query(
+                "UPDATE users SET status='Archived', archived_at=? WHERE id=? AND hotel_id=?",
+                (now, user_id, hid),
+                commit=True,
+            )
             count += 1
         elif action == "delete" and is_super_admin() and not user_has_dependencies(user_id):
-            query("DELETE FROM users WHERE id=?", (user_id,), commit=True)
+            query("DELETE FROM users WHERE id=? AND hotel_id=?", (user_id, hid), commit=True)
             count += 1
 
     labels = {"activate": "activated", "deactivate": "deactivated", "archive": "archived", "delete": "deleted"}
@@ -3278,12 +3497,30 @@ def operations_redirect():
 
 @app.errorhandler(404)
 def not_found(e):
+    if request.path.startswith("/api/"):
+        return api_error("Not found.", 404)
     return render_template("error.html", title="Not Found", message="Page not found."), 404
+
+
+@app.errorhandler(403)
+def forbidden(e):
+    if request.path.startswith("/api/"):
+        return api_error("Access denied.", 403)
+    return render_template("error.html", title="Forbidden", message="You do not have permission to access this."), 403
+
+
+@app.errorhandler(405)
+def method_not_allowed(e):
+    if request.path.startswith("/api/"):
+        return api_error("Method not allowed.", 405)
+    return render_template("error.html", title="Method Not Allowed", message="This action is not allowed."), 405
 
 
 @app.errorhandler(500)
 def server_error(e):
     app.logger.exception("Internal server error")
+    if request.path.startswith("/api/"):
+        return api_error("Something went wrong. Please try again.", 500)
     return render_template("error.html", title="Server Error", message="Something went wrong. Please try again."), 500
 
 

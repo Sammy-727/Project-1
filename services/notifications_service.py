@@ -282,7 +282,7 @@ def sync_notifications_from_data(query_fn, booking_paid_fn, hotel_id):
             f"Room {r['room_no']} is under maintenance.",
             "ORANGE",
             "MAINTENANCE",
-            "/rooms?q=" + r["room_no"],
+            f"/rooms?q={r['id']}",
             key,
         )
 

@@ -115,6 +115,7 @@ export class PageViewModule {
     });
 
     this.bindFilters();
+    if (this.config.bulkCapable) this.bindBulkSelection();
     this.bindClickableSurfaces();
     this.loadData(true);
     this.store.setView(this.store.activeView);
@@ -204,8 +205,9 @@ export class PageViewModule {
       this.applyFilters();
     } catch (err) {
       logAppError(`PageViewModule(${this.config.key})`, err);
-      if (!initial && isUserFacingError(err)) {
-        window.showToast?.(err.message || 'Could not load list.', 'danger');
+      if (!initial) {
+        const message = isUserFacingError(err) ? err.message : 'Could not load list. Please try again.';
+        window.showToast?.(message, 'danger');
       }
     }
   }
@@ -312,6 +314,41 @@ export class PageViewModule {
     a.click();
     URL.revokeObjectURL(a.href);
     window.showToast?.('Exported to CSV', 'success');
+  }
+
+  bindBulkSelection() {
+    const bulkBar = document.querySelector('[data-bulk-actions-bar]');
+    const bulkForm = bulkBar?.querySelector('form');
+    const selectAll = bulkBar?.querySelector('input[type="checkbox"]');
+
+    this.store.subscribe((snap) => {
+      if (!bulkBar) return;
+      bulkBar.hidden = !snap.bulkMode || snap.selectedIds.size === 0;
+      const countEl = bulkBar.querySelector('.bulk-count');
+      if (countEl) countEl.textContent = `${snap.selectedIds.size} selected`;
+    });
+
+    bulkForm?.addEventListener('submit', (e) => {
+      bulkForm.querySelectorAll('input[name="ids"]').forEach((el) => el.remove());
+      this.store.selectedIds.forEach((id) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'ids';
+        input.value = String(id);
+        bulkForm.appendChild(input);
+      });
+      if (!this.store.selectedIds.size) {
+        e.preventDefault();
+        window.showToast?.('No rows selected.', 'warning');
+      }
+    });
+
+    selectAll?.addEventListener('change', () => {
+      const ids = this.store.getFilteredItems().map((r) => r.id);
+      if (selectAll.checked) ids.forEach((id) => this.store.selectedIds.add(id));
+      else this.store.selectedIds.clear();
+      this.store.notify();
+    });
   }
 }
 
