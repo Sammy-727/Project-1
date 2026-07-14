@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "macros/ui.html" import breadcrumb, empty_state, status_badge, icon %}
 {% set title = "Dashboard" %}
+{% set hid = current_hotel.id if current_hotel else 1 %}
 {% set maint_rooms = maintenance_rooms|selectattr('status', 'equalto', 'Maintenance')|list %}
 {% set recent_bookings = recent_activity|selectattr('kind', 'equalto', 'new_booking')|list %}
 {% block content %}
@@ -127,14 +128,15 @@
       {% if today_arrivals %}
       <div class="ops-queue ops-queue-compact">
         {% for b in today_arrivals[:4] %}
-        <a href="{{ url_for('checkin_out') }}" class="ops-queue-item">
+        <button type="button" class="ops-queue-item"
+          data-detail-type="booking" data-detail-id="{{ b.booking_id or b.id }}" data-hotel-id="{{ hid }}">
           <div class="ops-queue-icon arrival">{{ icon('log-in', 16) }}</div>
           <div class="ops-queue-body">
             <strong>{{ b.name }}</strong>
             <span>Room {{ b.room_no }} · {{ b.phone or '—' }}</span>
           </div>
           {{ status_badge(b.status) }}
-        </a>
+        </button>
         {% endfor %}
       </div>
       {% if today_arrivals|length > 4 %}
@@ -153,14 +155,15 @@
       {% if today_departures %}
       <div class="ops-queue ops-queue-compact">
         {% for b in today_departures[:4] %}
-        <a href="{{ url_for('checkin_out') }}" class="ops-queue-item">
+        <button type="button" class="ops-queue-item"
+          data-detail-type="booking" data-detail-id="{{ b.booking_id or b.id }}" data-hotel-id="{{ hid }}">
           <div class="ops-queue-icon departure">{{ icon('log-out', 16) }}</div>
           <div class="ops-queue-body">
             <strong>{{ b.name }}</strong>
             <span>Room {{ b.room_no }} · {{ b.checkout }}</span>
           </div>
           {{ status_badge(b.status) }}
-        </a>
+        </button>
         {% endfor %}
       </div>
       {% if today_departures|length > 4 %}
@@ -179,13 +182,14 @@
       {% if pending_list %}
       <div class="ops-queue ops-queue-compact">
         {% for b in pending_list[:4] %}
-        <a href="{{ url_for('payments') }}" class="ops-queue-item">
+        <button type="button" class="ops-queue-item"
+          data-detail-type="booking" data-detail-id="{{ b.booking_id or b.id }}" data-hotel-id="{{ hid }}">
           <div class="ops-queue-icon alert">{{ icon('credit-card', 16) }}</div>
           <div class="ops-queue-body">
             <strong>{{ b.name }}</strong>
             <span>Room {{ b.room_no }} · ₹{{ "{:,.0f}".format(b.balance) }} due</span>
           </div>
-        </a>
+        </button>
         {% endfor %}
       </div>
       {% if pending_list|length > 4 %}
@@ -204,13 +208,14 @@
       {% if hk_queue %}
       <div class="ops-queue ops-queue-compact">
         {% for t in hk_queue[:4] %}
-        <a href="{{ url_for('housekeeping') }}" class="ops-queue-item">
+        <button type="button" class="ops-queue-item"
+          data-detail-type="housekeeping" data-detail-id="{{ t.id }}" data-hotel-id="{{ hid }}">
           <div class="ops-queue-icon arrival">{{ icon('sparkles', 16) }}</div>
           <div class="ops-queue-body">
             <strong>Room {{ t.room_no }}</strong>
             <span>{{ t.priority }} · {{ t.status }}{% if t.staff_name %} · {{ t.staff_name }}{% endif %}</span>
           </div>
-        </a>
+        </button>
         {% endfor %}
       </div>
       {% if hk_queue|length > 4 %}
@@ -232,11 +237,9 @@
     {% if recent_activity %}
     <div class="dash-activity-feed">
       {% for a in recent_activity[:6] %}
-      {% if a.drawer_selector %}
+      {% if a.entity_type and a.entity_id %}
       <button type="button" class="dash-activity-item"
-        data-app-drawer-fetch="{{ a.drawer_page }}"
-        data-app-drawer-selector="{{ a.drawer_selector }}"
-        data-app-drawer-title="{{ a.title }}">
+        data-detail-type="{{ a.entity_type }}" data-detail-id="{{ a.entity_id }}" data-hotel-id="{{ hid }}">
         <div class="activity-timeline-dot {{ a.kind }}"></div>
         <div class="dash-activity-body">
           <strong>{{ a.title }}</strong>
@@ -270,9 +273,7 @@
     <div class="ops-queue ops-queue-compact">
       {% for b in recent_bookings[:5] %}
       <button type="button" class="ops-queue-item"
-        data-app-drawer-fetch="{{ url_for('bookings') }}"
-        data-app-drawer-selector="#drawerBooking{{ b.booking_id }}"
-        data-app-drawer-title="Booking #{{ b.booking_id }}">
+        data-detail-type="booking" data-detail-id="{{ b.booking_id or b.entity_id }}" data-hotel-id="{{ hid }}">
         <div class="ops-queue-icon arrival">{{ icon('calendar-days', 16) }}</div>
         <div class="ops-queue-body">
           <strong>{{ b.detail.split('·')[1]|trim if '·' in b.detail else b.title }}</strong>
@@ -299,10 +300,11 @@
       {% if low_stock %}
       <div class="dash-alerts-list">
         {% for item in low_stock[:4] %}
-        <a href="{{ url_for('inventory') }}" class="dash-alert-row warning">
+        <button type="button" class="dash-alert-row warning"
+          data-detail-type="inventory" data-detail-id="{{ item.id }}" data-hotel-id="{{ hid }}">
           <strong>{{ item.item_name }}</strong>
           <span>{{ item.quantity }} {{ item.unit or 'units' }} left · reorder at {{ item.reorder_level }}</span>
-        </a>
+        </button>
         {% endfor %}
       </div>
       {% if low_stock|length > 4 %}
@@ -321,10 +323,11 @@
       {% if maint_rooms %}
       <div class="dash-alerts-list">
         {% for r in maint_rooms[:4] %}
-        <a href="{{ url_for('room_service') }}" class="dash-alert-row warning">
+        <button type="button" class="dash-alert-row warning"
+          data-detail-type="room" data-detail-id="{{ r.id }}" data-hotel-id="{{ hid }}">
           <strong>Room {{ r.room_no }}</strong>
           <span>{{ r.room_type or 'Room' }} · Under maintenance</span>
-        </a>
+        </button>
         {% endfor %}
       </div>
       {% if maint_rooms|length > 4 %}
@@ -354,6 +357,10 @@
 {% block scripts %}
 {{ super() }}
 <script src="{{ url_for('static', filename='js/dashboard-charts.js') }}"></script>
+<script type="module">
+import { initDashboardDetailClicks } from '{{ url_for('static', filename='js/shared/DetailDrawer.js') }}';
+document.addEventListener('DOMContentLoaded', () => initDashboardDetailClicks(document));
+</script>
 <script>
 document.getElementById('dashOpenNotifications')?.addEventListener('click', () => {
   document.getElementById('notificationBellBtn')?.click();

@@ -225,6 +225,14 @@ body.app-body {
   transition: background var(--transition), border-color var(--transition), transform var(--transition);
   text-decoration: none;
   color: inherit;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+button.ops-queue-item {
+  appearance: none;
 }
 
 .ops-queue-item:hover {
@@ -554,6 +562,10 @@ textarea:focus {
   display: flex;
   align-items: flex-start;
   gap: 10px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
   padding: 10px 12px;
   border-radius: 10px;
   border: 1px solid var(--border-light);
@@ -582,6 +594,29 @@ textarea:focus {
   color: var(--text-muted);
 }
 
+button.dash-alert-row {
+  appearance: none;
+}
+
+.detail-drawer-skeleton {
+  padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.detail-drawer-error {
+  text-align: center;
+  padding: 24px 12px;
+}
+
+.detail-list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
 .dash-activity-feed {
   display: flex;
   flex-direction: column;
@@ -597,6 +632,16 @@ textarea:focus {
   padding: 8px 10px;
   border-radius: 8px;
   border: 1px solid transparent;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+}
+
+button.dash-activity-item {
+  appearance: none;
 }
 
 .dash-activity-item:hover {
