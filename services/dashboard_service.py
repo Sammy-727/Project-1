@@ -30,7 +30,8 @@ def pending_payment_summary(query_fn, hotel_id):
 def pending_bookings_with_balance(query_fn, hotel_id, limit=None):
     """Active bookings with outstanding balance — used by payments and dashboard."""
     sql = """
-        SELECT b.id, c.name, r.room_no, b.total_amount, b.payment_status, b.checkin, b.checkout
+        SELECT b.id, b.id AS booking_id, c.id AS customer_id, r.id AS room_id,
+               c.name, r.room_no, b.total_amount, b.payment_status, b.checkin, b.checkout
         FROM bookings b
         JOIN customers c ON b.customer_id = c.id
         JOIN rooms r ON b.room_id = r.id

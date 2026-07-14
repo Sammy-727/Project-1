@@ -5,6 +5,7 @@
     <meta charset="utf-8">
     <title>{% if title %}{{ title }} — {% endif %}{{ browser_title }}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="hotel-id" content="{{ current_hotel.id if current_hotel else 1 }}">
     <meta name="description" content="{{ app_tagline }} — Multi-Hotel SaaS Hotel Management Platform">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">

@@ -960,7 +960,7 @@ def build_dashboard_activity(hotel_id, limit=8):
 
     bookings = query(
         """
-        SELECT b.id, c.name, r.room_no, b.checkin, b.checkout, b.status
+        SELECT b.id, b.customer_id, b.room_id, c.name, r.room_no, b.checkin, b.checkout, b.status
         FROM bookings b
         JOIN customers c ON b.customer_id=c.id
         JOIN rooms r ON b.room_id=r.id
@@ -985,9 +985,11 @@ def build_dashboard_activity(hotel_id, limit=8):
             "date_label": ts,
             "sort_key": f"{ts}-{b['id']:08d}",
             "url": url_for("bookings", q=b["id"]),
-            "drawer_page": url_for("bookings"),
-            "drawer_selector": f"#drawerBooking{b['id']}",
+            "entity_type": "booking",
+            "entity_id": b["id"],
             "booking_id": b["id"],
+            "guest_id": b["customer_id"] if "customer_id" in b.keys() else None,
+            "room_id": b["room_id"] if "room_id" in b.keys() else None,
         })
 
     payments = query(
@@ -1011,11 +1013,14 @@ def build_dashboard_activity(hotel_id, limit=8):
             "date_label": p["payment_date"],
             "sort_key": f"{p['payment_date']}-{p['id']:08d}",
             "url": url_for("payments"),
+            "entity_type": "payment",
+            "entity_id": p["id"],
+            "payment_id": p["id"],
         })
 
     cleaned = query(
         """
-        SELECT h.id, h.completed_at, r.room_no
+        SELECT h.id, h.completed_at, r.room_no, r.id AS room_id
         FROM housekeeping_tasks h
         JOIN rooms r ON h.room_id=r.id
         WHERE r.hotel_id=? AND h.status='Completed' AND h.completed_at IS NOT NULL
@@ -1032,11 +1037,14 @@ def build_dashboard_activity(hotel_id, limit=8):
             "date_label": (h["completed_at"] or "")[:10],
             "sort_key": f"{(h['completed_at'] or '')[:10]}-{h['id']:08d}",
             "url": url_for("housekeeping"),
+            "entity_type": "housekeeping",
+            "entity_id": h["id"],
+            "room_id": h["room_id"] if "room_id" in h.keys() else None,
         })
 
     maintenance_done = query(
         """
-        SELECT rs.id, rs.created_at, r.room_no
+        SELECT rs.id, rs.room_id, rs.created_at, r.room_no
         FROM room_service_requests rs
         JOIN rooms r ON rs.room_id=r.id
         WHERE r.hotel_id=? AND rs.request_type='Maintenance' AND rs.status='Completed'
@@ -1054,6 +1062,9 @@ def build_dashboard_activity(hotel_id, limit=8):
             "date_label": ts,
             "sort_key": f"{ts}-{m['id']:08d}",
             "url": url_for("room_service"),
+            "entity_type": "maintenance",
+            "entity_id": m["id"],
+            "room_id": m["room_id"] if "room_id" in m.keys() else None,
         })
 
     activities.sort(key=lambda a: a["sort_key"], reverse=True)
@@ -1258,24 +1269,26 @@ def dashboard():
         ORDER BY b.checkout ASC LIMIT 6
     """, (hid, date.today().isoformat()))
     maintenance_rooms = query(
-        "SELECT room_no, room_type, status FROM rooms WHERE hotel_id=? AND status IN ('Maintenance','Cleaning') LIMIT 6",
+        "SELECT id, room_no, room_type, status FROM rooms WHERE hotel_id=? AND status IN ('Maintenance','Cleaning') LIMIT 6",
         (hid,),
     )
     today_arrivals = query("""
-        SELECT b.id, c.name, r.room_no, b.checkin, b.checkout, b.status, c.phone
+        SELECT b.id AS booking_id, b.id, c.id AS customer_id, r.id AS room_id,
+               c.name, r.room_no, b.checkin, b.checkout, b.status, c.phone
         FROM bookings b JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
         WHERE b.hotel_id=? AND b.checkin=? AND b.status IN ('Reserved','Checked-in')
         ORDER BY b.checkin ASC LIMIT 8
     """, (hid, date.today().isoformat()))
     today_departures = query("""
-        SELECT b.id, c.name, r.room_no, b.checkin, b.checkout, b.status
+        SELECT b.id AS booking_id, b.id, c.id AS customer_id, r.id AS room_id,
+               c.name, r.room_no, b.checkin, b.checkout, b.status
         FROM bookings b JOIN customers c ON b.customer_id=c.id JOIN rooms r ON b.room_id=r.id
         WHERE b.hotel_id=? AND b.checkout=? AND b.status='Checked-in'
         ORDER BY b.checkout ASC LIMIT 8
     """, (hid, date.today().isoformat()))
     hk_queue = query(
         """
-        SELECT h.id, r.room_no, r.room_type, h.priority, h.status, e.name staff_name
+        SELECT h.id, h.room_id, r.room_no, r.room_type, h.priority, h.status, e.name staff_name
         FROM housekeeping_tasks h
         JOIN rooms r ON h.room_id = r.id
         LEFT JOIN employees e ON h.assigned_to = e.id
@@ -1925,6 +1938,66 @@ def api_create_booking():
             "balance": max(total - paid, 0),
         },
     )
+
+
+@app.route("/api/bookings/<int:booking_id>", methods=["GET"])
+def api_get_booking(booking_id):
+    from services.detail_service import booking_detail_dict, fetch_booking_detail_row
+
+    hid = get_current_hotel_id()
+    row = fetch_booking_detail_row(query, booking_id, hid)
+    if not row:
+        return api_error("Booking not found.", 404)
+    paid = booking_paid_amount(booking_id)
+    total = float(row["total_amount"] or 0)
+    balance = max(total - paid, 0)
+    detail = booking_detail_dict(row, paid, balance)
+    detail["canWrite"] = can_write_hotel_ops()
+    return api_ok(booking=detail)
+
+
+@app.route("/api/payments/<int:payment_id>", methods=["GET"])
+def api_get_payment(payment_id):
+    from services.detail_service import fetch_payment_detail_row, payment_detail_dict
+
+    hid = get_current_hotel_id()
+    row = fetch_payment_detail_row(query, payment_id, hid)
+    if not row:
+        return api_error("Payment not found.", 404)
+    paid = booking_paid_amount(row["booking_id"])
+    total = float(row["total_amount"] or 0)
+    balance = max(total - paid, 0)
+    return api_ok(payment=payment_detail_dict(row, total, paid, balance))
+
+
+@app.route("/api/inventory/<int:item_id>", methods=["GET"])
+def api_get_inventory(item_id):
+    from services.detail_service import inventory_detail_dict
+
+    row = scoped_inventory(item_id)
+    if not row:
+        return api_error("Inventory item not found.", 404)
+    return api_ok(item=inventory_detail_dict(row))
+
+
+@app.route("/api/housekeeping/<int:task_id>", methods=["GET"])
+def api_get_housekeeping(task_id):
+    from services.detail_service import fetch_housekeeping_detail_row, housekeeping_detail_dict
+
+    row = fetch_housekeeping_detail_row(query, task_id, get_current_hotel_id())
+    if not row:
+        return api_error("Housekeeping task not found.", 404)
+    return api_ok(task=housekeeping_detail_dict(row))
+
+
+@app.route("/api/room-service/<int:req_id>", methods=["GET"])
+def api_get_room_service(req_id):
+    from services.detail_service import fetch_maintenance_detail_row, maintenance_detail_dict
+
+    row = fetch_maintenance_detail_row(query, req_id, get_current_hotel_id())
+    if not row:
+        return api_error("Maintenance request not found.", 404)
+    return api_ok(request=maintenance_detail_dict(row))
 
 
 @app.route("/api/bookings/<int:booking_id>", methods=["PATCH", "PUT"])

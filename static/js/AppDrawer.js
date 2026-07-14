@@ -313,6 +313,16 @@ async function openModalFromPage(pageUrl, modalId, title) {
 }
 
 async function openDetailFromPage(pageUrl, selector, title) {
+  const bookingMatch = (selector || '').match(/^#drawerBooking(\d+)$/);
+  if (bookingMatch) {
+    const { openDetailsDrawer } = await import('./shared/DetailDrawer.js');
+    return openDetailsDrawer({ type: 'booking', id: Number(bookingMatch[1]) });
+  }
+  const guestMatch = (selector || '').match(/^#drawerGuest(\d+)$/);
+  if (guestMatch) {
+    const { openDetailsDrawer } = await import('./shared/DetailDrawer.js');
+    return openDetailsDrawer({ type: 'guest', id: Number(guestMatch[1]) });
+  }
   if (openFromElement(selector)) return true;
   showLoading(title || 'Details');
   try {
@@ -538,6 +548,18 @@ function rebind(root) {
 }
 
 function handleQuickAction(el) {
+  const detailType = el.dataset.detailType;
+  const detailId = el.dataset.detailId;
+  if (detailType && detailId) {
+    import('./shared/DetailDrawer.js').then((m) =>
+      m.openDetailsDrawer({
+        type: detailType,
+        id: Number(detailId),
+        hotelId: Number(el.dataset.hotelId) || undefined,
+      }),
+    );
+    return true;
+  }
   const action = el.dataset.appDrawerAction;
   if (action === 'booking') {
     const customerId = el.dataset.bookingCustomer ? Number(el.dataset.bookingCustomer) : undefined;
@@ -587,7 +609,7 @@ function handleDrawerClick(e) {
     return;
   }
 
-  const detailBtn = e.target.closest('[data-app-drawer-selector]');
+  const detailBtn = e.target.closest('[data-app-drawer-selector], [data-detail-type]');
   if (detailBtn) {
     e.preventDefault();
     e.stopPropagation();
@@ -665,6 +687,8 @@ const api = {
   setTitle,
   updateHeader,
   updateDrawerHeader,
+  showLoading,
+  setContent,
   openFromModal,
   openFromElement,
   openDrawerSelector,
@@ -677,6 +701,12 @@ const api = {
   activateCommandItem,
   rebind,
 };
+
+async function openDetailsDrawer(opts) {
+  const { openDetailsDrawer: open } = await import('./shared/DetailDrawer.js');
+  return open(opts);
+}
+api.openDetailsDrawer = openDetailsDrawer;
 
 window.AppDrawer = api;
 window.SideDrawer = api;
